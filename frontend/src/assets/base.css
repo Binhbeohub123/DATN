@@ -1,0 +1,85 @@
+/* PolyCinema Dark Cinematic Theme with Gold Accent */
+:root {
+  /* Primary Colors */
+  --primary: #ffd700;
+  --primary-dark: #ffed4e;
+  --primary-light: #ffe55c;
+
+  /* Dark Cinematic Palette */
+  --bg-dark: #0f172a;
+  --bg-darker: #060d1a;
+  --bg-secondary: #1a2540;
+  --bg-tertiary: #263348;
+
+  /* Text Colors */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Borders & Surfaces */
+  --border-color: #334155;
+  --surface: #1e2937;
+  --surface-hover: #263348;
+
+  /* Semantic */
+  --color-background: var(--bg-dark);
+  --color-background-soft: var(--bg-secondary);
+  --color-background-mute: var(--bg-tertiary);
+  --color-border: var(--border-color);
+  --color-border-hover: var(--primary);
+  --color-heading: var(--text-primary);
+  --color-text: var(--text-secondary);
+
+  --section-gap: 160px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  font-weight: normal;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-background);
+  transition: color 0.3s, background-color 0.3s;
+  line-height: 1.6;
+  font-family: 'Be Vietnam Pro', 'Noto Sans Vietnamese', 'Nunito', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+/* Selection */
+::selection {
+  background: var(--primary);
+  color: var(--bg-dark);
+}

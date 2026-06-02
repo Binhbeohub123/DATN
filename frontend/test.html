@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Vue App</title>
+  <style>
+    body { margin: 0; padding: 20px; font-family: system-ui; background: #f0f0f0; }
+    .test { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .success { color: #16a34a; font-weight: bold; }
+    .error { color: #dc2626; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="test">
+      <h1>🧪 Vue App Test</h1>
+      <p class="success">✓ HTML loaded</p>
+      <p id="vue-status" class="error">⏳ Waiting for Vue...</p>
+    </div>
+  </div>
+
+  <script type="module">
+    console.log('=== Test Script Started ===')
+
+    try {
+      // Test 1: Can we import Vue?
+      const { createApp, ref } = await import('vue')
+      console.log('✓ Vue imported successfully')
+      document.getElementById('vue-status').textContent = '✓ Vue imported'
+      document.getElementById('vue-status').className = 'success'
+
+      // Test 2: Can we create an app?
+      const app = createApp({
+        setup() {
+          const message = ref('Vue is working! 🎉')
+          return { message }
+        },
+        template: `
+          <div class="test">
+            <h1>🧪 Vue App Test</h1>
+            <p class="success">✓ HTML loaded</p>
+            <p class="success">✓ Vue imported</p>
+            <p class="success">✓ Vue app created</p>
+            <p class="success">✓ Vue app mounted</p>
+            <h2>{{ message }}</h2>
+          </div>
+        `
+      })
+      console.log('✓ App created')
+
+      // Test 3: Can we mount?
+      app.mount('#app')
+      console.log('✓ App mounted')
+
+    } catch (error) {
+      console.error('=== TEST FAILED ===', error)
+      document.getElementById('vue-status').textContent = `✗ Error: ${error.message}`
+      document.getElementById('vue-status').className = 'error'
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+=== BACKLOG SCAN REPORT ===
+Total Requirements: 73
+Fully Implemented (DONE): 68
+Partially Implemented: 1
+Not Implemented: 4
+
+=== DETAILED ANALYSIS ===
+[DONE] RQ01: Khách vãng lai | Xem danh sách phim đang chiếu (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/dang-chieu` and home.vue list.
+
+[DONE] RQ02: Khách vãng lai | Xem danh sách phim sắp chiếu (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/sap-chieu` and home.vue list.
+
+[DONE] RQ03: Khách vãng lai | Xem thông tin chi tiết của một bộ phim (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/{id}` and MovieDetailPage.vue.
+
+[DONE] RQ04: Khách vãng lai | Xem lịch chiếu phim theo ngày và theo rạp (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via LichChieuController `/api/lich-chieu` and MovieDetailPage.vue.
+
+[DONE] RQ05: Khách vãng lai | Xem đánh giá các phim đang chiếu (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/{id}/danh-gia` (GET/POST) and MovieDetailPage.vue ratings list/add rating.
+
+[DONE] RQ06: Khách vãng lai | Xem các chương trình khuyến mãi đang áp dụng (TV4 - Thanh toán & KM)
+  Details: Implemented via KhuyenMaiController `/api/khuyen-mai` and home.vue promotions list.
+
+[DONE] RQ07: Khách vãng lai | Tìm kiếm phim theo tên hoặc thể loại (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/search` and search bar on home.vue.
+
+[DONE] RQ08: Khách vãng lai | Đăng ký tài khoản mới (TV1 - Auth & Profile)
+  Details: Implemented via AuthController `/api/auth/register` and AuthPage.vue registration form.
+
+[DONE] RQ09: Khách vãng lai | Đăng nhập vào tài khoản (TV1 - Auth & Profile)
+  Details: Implemented via AuthController `/api/auth/login` and AuthPage.vue login form.
+
+[DONE] RQ10: Khách vãng lai | Yêu cầu đặt lại mật khẩu khi quên (TV1 - Auth & Profile)
+  Details: Implemented via AuthController `/api/auth/forgot` and `/api/auth/reset` and AuthPage.vue forgot password form.
+
+[DONE] RQ11: Khách hàng | Xem danh sách phim đang chiếu (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/dang-chieu` and home.vue list.
+
+[DONE] RQ12: Khách hàng | Xem danh sách phim sắp chiếu (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/sap-chieu` and home.vue list.
+
+[DONE] RQ13: Khách hàng | Xem thông tin chi tiết của một bộ phim (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/{id}` and MovieDetailPage.vue.
+
+[DONE] RQ14: Khách hàng | Xem lịch chiếu phim theo ngày và theo rạp (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via LichChieuController `/api/lich-chieu` and MovieDetailPage.vue.
+
+[DONE] RQ15: Khách hàng | Xem các chương trình khuyến mãi đang áp dụng (TV4 - Thanh toán & KM)
+  Details: Implemented via KhuyenMaiController `/api/khuyen-mai` and home.vue promotions list.
+
+[DONE] RQ16: Khách hàng | Tìm kiếm phim theo tên hoặc thể loại (TV2 - Phim & Lịch chiếu)
+  Details: Implemented via PhimController `/api/phim/search` and search bar on home.vue.
+
+[DONE] RQ17: Khách hàng | Giảm giá vé bằng tích điểm (TV4 - Thanh toán & KM)
+  Details: Implemented via DatVeService / createBooking (diemSuDung points discount) and CheckoutPage.vue points input.
+
+[DONE] RQ18: Khách hàng | Đặt vé xem phim online (TV3 - Đặt vé & Ghế)
+  Details: Implemented via DatVeController `/api/dat-ve` (createBooking) and SeatSelectionPage/ComboPage/CheckoutPage.
+
+[DONE] RQ19: Khách hàng | Chọn combo khi đặt vé (TV3 - Đặt vé & Ghế)
+  Details: Implemented via DatVeController `/api/dat-ve` (comboData) and ComboPage.vue combo selection, edit quantity, remove.
+
+[DONE] RQ20: Khách hàng | Thêm combo vào đơn hàng (TV3 - Đặt vé & Ghế)
+  Details: Implemented via DatVeController `/api/dat-ve` (comboData) and ComboPage.vue combo selection, edit quantity, remove.
+
+[DONE] RQ21: Khách hàng | Chỉnh sửa số lượng combo (TV3 - Đặt vé & Ghế)
+  Details: Implemented via DatVeController `/api/dat-ve` (comboData) and ComboPage.vue combo selection, edit quantity, remove.
+
+[DONE] RQ22: Khách hàng | Xóa combo khỏi đơn hàng (TV3 - Đặt vé & Ghế)
+  Details: Implemented via DatVeController `/api/dat-ve` (comboData) and ComboPage.vue combo selection, edit quantity, remove.
+
+[DONE] RQ23: Khách hàng | Tích điểm sau thanh toán (TV4 - Thanh toán & KM)
+  Details: Implemented via `trg_TichDiemSauThanhToan` trigger on ThanhToan database table.
+
+[DONE] RQ24: Khách hàng | Chọn ghế ngồi trên sơ đồ phòng chiếu (TV3 - Đặt vé & Ghế)
+  Details: Implemented via LichChieuController `/api/lich-chieu/{id}/ghe-trong` and SeatSelectionPage.vue seat map.
+
+[DONE] RQ25: Khách hàng | Đổi ghế đã chọn (TV3 - Đặt vé & Ghế)
+  Details: Implemented in frontend state on SeatSelectionPage.vue before booking creation.
+
+[DONE] RQ26: Khách hàng | Hủy ghế đã chọn (TV3 - Đặt vé & Ghế)
+  Details: Implemented in frontend state on SeatSelectionPage.vue before booking creation.
+
+[DONE] RQ27: Khách hàng | Thanh toán vé trực tuyến qua nhiều hình thức (TV4 - Thanh toán & KM)
+  Details: Implemented via ThanhToanController VNPay & Momo integrations and PaymentResultPage.vue.
+
+[DONE] RQ28: Khách hàng | Hủy giao dịch thanh toán (TV4 - Thanh toán & KM)
+  Details: Implemented via VNPay callback which marks booking as cancelled on non-zero response code.
+
+[NOT IMPLEMENTED] RQ29: Khách hàng | Nhận xác nhận vé qua email sau khi thanh toán (TV4 - Thanh toán & KM)
+  Details: Missing implementation. EmailService only sends OTP/Welcome; no booking confirmation email is sent.
+
+[DONE] RQ30: Khách hàng | Xem lịch sử đặt vé của mình (TV1 - Auth & Profile)
+  Details: Implemented via DatVeController `/api/dat-ve` (getBookingHistory) and MyTicketsPage.vue.
+
+[DONE] RQ31: Khách hàng | Hủy vé đã đặt (TV4 - Thanh toán & KM)
+  Details: Implemented via DatVeController `/api/dat-ve/{id}/cancel` and cancel booking button on MyTicketsPage.vue.
+
+[DONE] RQ32: Khách hàng | Áp mã giảm giá khi đặt vé (TV4 - Thanh toán & KM)
+  Details: Implemented via KhuyenMaiController `/api/khuyen-mai/validate` and coupon input in CheckoutPage.vue.
+
+[DONE] RQ33: Khách hàng | Xóa mã giảm giá đã áp dụng (TV4 - Thanh toán & KM)
+  Details: Implemented in frontend state on CheckoutPage.vue by removing applied promotion from order state.
+
+[DONE] RQ34: Khách hàng | Xem thông tin cá nhân (TV1 - Auth & Profile)
+  Details: Implemented via AuthController GET/PUT `/api/auth/profile` and UserProfilePage.vue form.
+
+[DONE] RQ35: Khách hàng | Cập nhật thông tin cá nhân (TV1 - Auth & Profile)
+  Details: Implemented via AuthController GET/PUT `/api/auth/profile` and UserProfilePage.vue form.
+
+[DONE] RQ36: Khách hàng | Thay đổi ảnh đại diện (TV1 - Auth & Profile)
+  Details: Implemented via URL input for avatar in UserProfilePage.vue and profile update API.
+
+[PARTIALLY DONE] RQ37: Khách hàng | Xóa ảnh đại diện (TV1 - Auth & Profile)
+  Details: No separate 'Delete Avatar' button in UI, but users can clear the avatar URL input to remove it.
+
+[DONE] RQ38: Khách hàng | Đăng nhập tài khoản (TV1 - Auth & Profile)
+  Details: Implemented via AuthController `/api/auth/login` and AuthPage.vue login form.
+
+[DONE] RQ39: Khách hàng | Đăng xuất tài khoản (TV1 - Auth & Profile)
+  Details: Implemented in frontend via localStorage token removal and redirect.
+
+[DONE] RQ40: Khách hàng | Yêu cầu đặt lại mật khẩu khi quên (TV1 - Auth & Profile)
+  Details: Implemented via AuthController `/api/auth/forgot` and `/api/auth/reset` and AuthPage.vue forgot password form.
+
+[NOT IMPLEMENTED] RQ41: Khách hàng | Đổi mật khẩu tài khoản (TV1 - Auth & Profile)
+  Details: Missing implementation. Backend lacks `/api/auth/change-password` endpoint. Frontend has a graceful 404 fallback.
+
+[DONE] RQ42: Admin | Đăng nhập vào trang quản trị (TV5 - Admin & Báo cáo)
+  Details: Implemented via admin role verification in router guards and token decoding.
+
+[DONE] RQ43: Admin | Thêm phim mới vào hệ thống (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET/POST/PUT/DELETE `/api/admin/phim` and MoviesPage.vue.
+
+[DONE] RQ44: Admin | Chỉnh sửa thông tin phim (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET/POST/PUT/DELETE `/api/admin/phim` and MoviesPage.vue.
+
+[DONE] RQ45: Admin | Xóa phim khỏi hệ thống (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET/POST/PUT/DELETE `/api/admin/phim` and MoviesPage.vue.
+
+[DONE] RQ46: Admin | Quản lý danh sách rạp chiếu phim (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/rap-chieu` and CinemasPage.vue.
+
+[DONE] RQ47: Admin | Thêm phòng chiếu cho từng rạp (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController POST/PUT `/api/admin/phong-chieu` and CinemasPage.vue rooms detail modal.
+
+[DONE] RQ48: Admin | Chỉnh sửa thông tin phòng chiếu (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController POST/PUT `/api/admin/phong-chieu` and CinemasPage.vue rooms detail modal.
+
+[NOT IMPLEMENTED] RQ49: Admin | Xóa phòng chiếu (TV5 - Admin & Báo cáo)
+  Details: No delete endpoint for room in AdminController.java and no delete button in CinemasPage.vue.
+
+[DONE] RQ50: Admin | Tạo lịch chiếu phim cho từng phòng (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/lich-chieu` and SchedulePage.vue.
+
+[DONE] RQ51: Admin | Chỉnh sửa lịch chiếu (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/lich-chieu` and SchedulePage.vue.
+
+[DONE] RQ52: Admin | Hủy lịch chiếu (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/lich-chieu` and SchedulePage.vue.
+
+[DONE] RQ53: Admin | Quản lý tài khoản khách hàng (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET `/api/admin/users` and `/users/{id}/lock` / `/unlock` and CustomersPage.vue.
+
+[DONE] RQ54: Admin | Khóa tài khoản khách hàng (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET `/api/admin/users` and `/users/{id}/lock` / `/unlock` and CustomersPage.vue.
+
+[DONE] RQ55: Admin | Mở khóa tài khoản khách hàng (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET `/api/admin/users` and `/users/{id}/lock` / `/unlock` and CustomersPage.vue.
+
+[DONE] RQ56: Admin | Xem lịch sử đặt vé khách hàng (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET `/api/admin/dat-ve` and CustomersPage.vue booking history modal.
+
+[DONE] RQ57: Admin | Tạo và quản lý chương trình khuyến mãi (TV4 - Thanh toán & KM)
+  Details: Implemented via KhuyenMaiController GET/POST/PUT/DELETE `/api/khuyen-mai` and PromoPage.vue.
+
+[DONE] RQ58: Admin | Chỉnh sửa chương trình khuyến mãi (TV4 - Thanh toán & KM)
+  Details: Implemented via KhuyenMaiController GET/POST/PUT/DELETE `/api/khuyen-mai` and PromoPage.vue.
+
+[DONE] RQ59: Admin | Xóa chương trình khuyến mãi (TV4 - Thanh toán & KM)
+  Details: Implemented via KhuyenMaiController GET/POST/PUT/DELETE `/api/khuyen-mai` and PromoPage.vue.
+
+[DONE] RQ60: Admin | Xem báo cáo doanh thu theo ngày/tháng/năm (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET `/api/admin/doanh-thu` and `/api/admin/report/export` and ReportsPage.vue.
+
+[DONE] RQ61: Admin | Xem thống kê phim bán chạy nhất (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET `/api/admin/stats` and ReportsPage.vue statistics charts.
+
+[DONE] RQ62: Admin | Quản lý banner và nội dung trang chủ (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET/POST/PUT/DELETE `/api/admin/banner` and SettingsPage.vue banner management.
+
+[DONE] RQ63: Admin | Thêm banner trang chủ (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET/POST/PUT/DELETE `/api/admin/banner` and SettingsPage.vue banner management.
+
+[DONE] RQ64: Admin | Chỉnh sửa banner trang chủ (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET/POST/PUT/DELETE `/api/admin/banner` and SettingsPage.vue banner management.
+
+[DONE] RQ65: Admin | Xóa banner trang chủ (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET/POST/PUT/DELETE `/api/admin/banner` and SettingsPage.vue banner management.
+
+[DONE] RQ66: Admin | Đăng xuất khỏi trang quản trị (TV5 - Admin & Báo cáo)
+  Details: Implemented in frontend via localStorage token removal and redirect.
+
+[DONE] RQ67: Admin | Quản lý combo (TV3 - Đặt vé & Ghế)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/san-pham` and MoviesPage.vue/ComboPage.vue combos CRUD.
+
+[DONE] RQ68: Admin | Thêm combo mới (TV3 - Đặt vé & Ghế)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/san-pham` and MoviesPage.vue/ComboPage.vue combos CRUD.
+
+[DONE] RQ69: Admin | Chỉnh sửa combo (TV3 - Đặt vé & Ghế)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/san-pham` and MoviesPage.vue/ComboPage.vue combos CRUD.
+
+[DONE] RQ70: Admin | Xóa combo (TV3 - Đặt vé & Ghế)
+  Details: Implemented via AdminController POST/PUT/DELETE `/api/admin/san-pham` and MoviesPage.vue/ComboPage.vue combos CRUD.
+
+[DONE] RQ71: Admin | Quản lý vé (TV5 - Admin & Báo cáo)
+  Details: Implemented via AdminController GET `/api/admin/dat-ve` and TicketsPage.vue.
+
+[DONE] RQ72: Admin | Xác nhận thanh toán vé (TV4 - Thanh toán & KM)
+  Details: Automatically confirmed upon successful online payment callback (success VNPAY/Momo callbacks mark booking as paid).
+
+[NOT IMPLEMENTED] RQ73: Admin | Hoàn tiền vé (TV4 - Thanh toán & KM)
+  Details: Missing implementation. DatVeService only allows cancellation of unpaid bookings. No refund endpoint or logic exists.
+
