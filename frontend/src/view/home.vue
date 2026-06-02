@@ -94,8 +94,8 @@
     <section class="section">
       <h2 class="section-title">{{ t('movies') }} <span>{{ t('now') }}</span></h2>
       <div class="tabs">
-        <button :class="['tab', { active: activeTab === 'dangChieu' }]" @click="activeTab = 'dangChieu'">{{ t('nowShowing') }}</button>
-        <button :class="['tab', { active: activeTab === 'sapChieu' }]" @click="activeTab = 'sapChieu'">{{ t('comingSoon') }}</button>
+        <button :class="['tab', { active: activeTab === 'dang_chieu' }]" @click="activeTab = 'dang_chieu'">{{ t('nowShowing') }}</button>
+        <button :class="['tab', { active: activeTab === 'sap_chieu' }]" @click="activeTab = 'sap_chieu'">{{ t('comingSoon') }}</button>
       </div>
       <div v-if="isLoading" class="loading">{{ t('loading') }}...</div>
       <div v-else-if="isError" class="error">{{ isError }}</div>
@@ -164,7 +164,7 @@ const movieStore = useMovieStore()
 
 const lang = ref(localStorage.getItem('poly_lang') || 'vi')
 const darkMode = ref(localStorage.getItem('poly_theme') !== 'light')
-const activeTab = ref('dangChieu')
+const activeTab = ref('dang_chieu')
 const showDropdown = ref(false)
 const showMobileMenu = ref(false)
 const bannerIndex = ref(0)
@@ -186,9 +186,9 @@ const translations = {
 }
 
 const t = (key) => translations[lang.value][key] || key
-const displayMovies = computed(() => activeTab.value === 'dangChieu' ? movieStore.phimDangChieu : movieStore.phimSapChieu)
-const isLoading = computed(() => activeTab.value === 'dangChieu' ? movieStore.loading.dangChieu : movieStore.loading.sapChieu)
-const isError = computed(() => activeTab.value === 'dangChieu' ? movieStore.error.dangChieu : movieStore.error.sapChieu)
+const displayMovies = computed(() => activeTab.value === 'dang_chieu' ? movieStore.phimDangChieu : movieStore.phimSapChieu)
+const isLoading = computed(() => activeTab.value === 'dang_chieu' ? movieStore.loading.dangChieu : movieStore.loading.sapChieu)
+const isError = computed(() => activeTab.value === 'dang_chieu' ? movieStore.error.dangChieu : movieStore.error.sapChieu)
 const currentBanner = computed(() => movieStore.banners[bannerIndex.value])
 
 function startBannerTimer() {

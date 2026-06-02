@@ -87,8 +87,8 @@ public class AuthService {
     if (password == null || password.isBlank())
         return "Mật khẩu không được để trống";
 
-    if (password.length() < 6)
-        return "Mật khẩu phải từ 6 ký tự";
+    if (password.length() < 8)
+        return "Mật khẩu phải từ 8 ký tự để đảm bảo bảo mật";
 
     String phoneError = validatePhone(soDienThoai);
     if (phoneError != null) return phoneError;
@@ -235,7 +235,7 @@ public class AuthService {
 
         if (newPass == null || newPass.isBlank()) return "Mật khẩu mới không được để trống";
 
-        if (newPass.length() < 6) return "Mật khẩu phải từ 6 ký tự";
+        if (newPass.length() < 8) return "Mật khẩu phải từ 8 ký tự để đảm bảo bảo mật";
 
         email = email.trim().toLowerCase();
         otp = otp.trim();

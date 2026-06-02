@@ -302,10 +302,34 @@ public class AdminController {
     public ResponseEntity<?> updateLichChieu(@PathVariable Long id, @RequestBody LichChieu body) {
         LichChieu lc = lichChieuRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch chiếu"));
+
+        LocalDateTime start = body.getThoiGianBatDau() != null ? body.getThoiGianBatDau() : lc.getThoiGianBatDau();
+        LocalDateTime end = body.getThoiGianKetThuc() != null ? body.getThoiGianKetThuc() : lc.getThoiGianKetThuc();
+        PhongChieu phong = body.getPhongChieu() != null ? body.getPhongChieu() : lc.getPhongChieu();
+
+        if (phong != null && start != null && end != null) {
+            Long phongId = phong.getId();
+            boolean conflict = lichChieuRepository.findAll().stream()
+                    .filter(other -> !Boolean.TRUE.equals(other.getIsDeleted()))
+                    .filter(other -> !other.getId().equals(id))
+                    .filter(other -> other.getPhongChieu() != null && phongId.equals(other.getPhongChieu().getId()))
+                    .anyMatch(other -> other.getThoiGianBatDau() != null && other.getThoiGianKetThuc() != null
+                            && start.isBefore(other.getThoiGianKetThuc())
+                            && end.isAfter(other.getThoiGianBatDau()));
+
+            if (conflict) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Phòng chiếu đã có lịch chiếu khác trong khung giờ này"));
+            }
+        }
+
         if (body.getThoiGianBatDau() != null) lc.setThoiGianBatDau(body.getThoiGianBatDau());
         if (body.getThoiGianKetThuc() != null) lc.setThoiGianKetThuc(body.getThoiGianKetThuc());
         if (body.getGiaCoBan() != null) lc.setGiaCoBan(body.getGiaCoBan());
         if (body.getTrangThai() != null) lc.setTrangThai(body.getTrangThai());
+        if (body.getPhongChieu() != null) lc.setPhongChieu(body.getPhongChieu());
+        if (body.getPhim() != null) lc.setPhim(body.getPhim());
+
         return ResponseEntity.ok(lichChieuRepository.save(lc));
     }
 
