@@ -5,7 +5,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </button>
       <span class="top-bar__title">Vé của tôi</span>
-      <div style="width:38px"></div>
+      <ThemeToggle />
     </header>
 
     <!-- Filter tabs -->
@@ -59,7 +59,7 @@
             <span :class="['status-badge', statusClass(tk)]">{{ statusLabel(tk) }}</span>
           </div>
           <p class="tk-meta">📅 {{ fmtDt(tk.lichChieu?.thoiGianBatDau) }}</p>
-          <p class="tk-meta">🏢 {{ tk.lichChieu?.phongChieu?.tenPhong || '—' }}</p>
+          <p class="tk-meta">🏢 {{ tk.lichChieu?.phongChieu?.tenPhong || '-' }}</p>
           <div class="tk-footer">
             <span class="tk-code">{{ tk.maDatVe }}</span>
             <span class="tk-seats">{{ seatList(tk) }}</span>
@@ -67,6 +67,9 @@
           </div>
           <!-- Actions -->
           <div class="tk-actions" @click.stop>
+            <button v-if="canRepay(tk)" class="btn-pay" @click.stop="repayTicket(tk)" :disabled="repaying === tk.id">
+              {{ repaying === tk.id ? 'Đang mở cổng...' : 'Thanh toán lại' }}
+            </button>
             <button v-if="tk.trangThai === 'confirmed'" class="btn-qr" @click.stop="openQR(tk)">📱 Xem QR</button>
             <button v-if="canCancel(tk)" class="btn-cancel" @click.stop="cancelTicket(tk)" :disabled="cancelling === tk.id">
               {{ cancelling === tk.id ? '...' : 'Hủy vé' }}
@@ -89,7 +92,7 @@
             <div v-if="qrLoading" class="qr-spin-wrap"><div class="spinner"></div></div>
             <img v-else-if="qrSrc" :src="qrSrc" alt="QR vé" class="qr-img" />
             <div v-else class="qr-fallback">
-              <svg viewBox="0 0 9 9" fill="#0f172a" class="qr-svg"><rect x="0" y="0" width="4" height="4"/><rect x="1" y="1" width="2" height="2" fill="white"/><rect x="5" y="0" width="4" height="4"/><rect x="6" y="1" width="2" height="2" fill="white"/><rect x="0" y="5" width="4" height="4"/><rect x="1" y="6" width="2" height="2" fill="white"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="5" y="7" width="3" height="1"/></svg>
+              <svg viewBox="0 0 9 9" fill="#000000" class="qr-svg"><rect x="0" y="0" width="4" height="4"/><rect x="1" y="1" width="2" height="2" fill="white"/><rect x="5" y="0" width="4" height="4"/><rect x="6" y="1" width="2" height="2" fill="white"/><rect x="0" y="5" width="4" height="4"/><rect x="1" y="6" width="2" height="2" fill="white"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="5" y="7" width="3" height="1"/></svg>
               <p class="qr-code-txt">{{ qrTicket.maDatVe }}</p>
             </div>
           </div>
@@ -109,6 +112,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -118,6 +122,7 @@ const loading    = ref(false)
 const loadError  = ref('')
 const activeTab  = ref('all')
 const cancelling = ref(null)
+const repaying   = ref(null)
 const qrTicket   = ref(null)
 const qrSrc      = ref('')
 const qrLoading  = ref(false)
@@ -156,12 +161,15 @@ function statusLabel(tk) {
 function canCancel(tk) {
   return tk.trangThai === 'pending' && tk.trangThaiThanhToan === 'unpaid'
 }
+function canRepay(tk) {
+  return tk.trangThai === 'pending' && tk.trangThaiThanhToan === 'unpaid'
+}
 function seatList(tk) {
-  if (!tk.chiTietDatGhe?.length) return '—'
+  if (!tk.chiTietDatGhe?.length) return '-'
   return tk.chiTietDatGhe.map(c => `${(c.gheNgoi?.hangGhe || '').trim()}${c.gheNgoi?.soGhe}`).sort().join(', ')
 }
 function fmtDt(dt) {
-  if (!dt) return '—'
+  if (!dt) return '-'
   return new Date(dt).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
 }
 function fmtPrice(v) {
@@ -170,6 +178,22 @@ function fmtPrice(v) {
 
 function openDetail(tk) {
   if (tk.trangThai === 'confirmed') openQR(tk)
+}
+
+async function repayTicket(tk) {
+  if (!canRepay(tk) || repaying.value === tk.id) return
+  repaying.value = tk.id
+  try {
+    const payRes = await api.post('/thanh-toan/vnpay', { datVeId: tk.id })
+    const url = payRes.data?.paymentUrl
+    if (!url) throw new Error('Không tạo được liên kết thanh toán')
+    window.location.href = url
+  } catch (e) {
+    const msg = e.response?.data?.message || e.response?.data || 'Không thể thanh toán lại vé này'
+    alert(String(msg))
+  } finally {
+    repaying.value = null
+  }
 }
 
 async function openQR(tk) {
@@ -220,97 +244,290 @@ onMounted(loadTickets)
 </script>
 
 <style scoped>
-.tickets-page { background:linear-gradient(160deg,#0b1120 0%,#0f172a 50%,#1a1f35 100%); color:#f1f5f9; min-height:100vh; padding-bottom:40px; }
+.tickets-page {
+  background: #ffffff;
+  color: #7f7e7f;
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
 
-/* top bar */
-.top-bar { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:rgba(11,17,32,.9); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,215,0,.12); position:sticky; top:0; z-index:60; }
-.top-bar__title { font-size:16px; font-weight:700; }
-.icon-btn { width:38px; height:38px; border-radius:8px; border:1px solid rgba(255,215,0,.25); background:rgba(255,215,0,.07); color:#ffd700; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
-.icon-btn:hover { background:rgba(255,215,0,.15); }
-.icon-btn svg { width:18px; height:18px; }
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #efefef;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
 
-/* tabs */
-.tabs { display:flex; gap:6px; padding:14px 20px; overflow-x:auto; border-bottom:1px solid rgba(255,215,0,.08); }
-.tab { padding:7px 14px; border-radius:999px; border:1px solid rgba(255,215,0,.2); background:transparent; color:#64748b; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; transition:all .2s; display:flex; align-items:center; gap:6px; }
-.tab:hover { border-color:#ffd700; color:#ffd700; }
-.tab--active { background:#ffd700; color:#0f172a; border-color:#ffd700; }
-.tab-count { min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:rgba(15,23,42,.3); font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; }
-.tab--active .tab-count { background:rgba(15,23,42,.2); }
+.top-bar__title {
+  font-size: 16.8px;
+  font-weight: 700;
+  color: #29bcea;
+}
 
-/* skeleton */
-.list-wrap { max-width:720px; margin:0 auto; padding:20px; display:flex; flex-direction:column; gap:14px; }
-.skel-card { display:flex; gap:14px; background:rgba(30,41,55,.5); border:1px solid rgba(255,215,0,.07); border-radius:14px; padding:16px; }
-.skel-body { flex:1; display:flex; flex-direction:column; gap:10px; }
-.skel { background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.05) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:5px; }
-.skel--poster { width:56px; height:78px; border-radius:8px; flex-shrink:0; }
-.skel--line { height:13px; width:100%; }
-.skel--w70 { width:70%; }
-.skel--w50 { width:50%; }
-@keyframes shimmer { to { background-position:-200% 0; } }
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  border: 1px solid #efefef;
+  background: #f7f7f7;
+  color: #29bcea;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-/* state boxes */
-.state-box { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:380px; gap:16px; padding:40px; text-align:center; }
-.state-icon { width:48px; height:48px; }
-.state-icon--err { color:#ef4444; }
-.empty-icon { font-size:64px; }
-.empty-text { color:#64748b; font-size:15px; }
-.btn-retry,.btn-book { padding:10px 24px; background:#ffd700; color:#0f172a; border:none; border-radius:8px; font-weight:800; cursor:pointer; transition:all .2s; }
-.btn-retry:hover,.btn-book:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(255,215,0,.3); }
+.icon-btn svg { width: 18px; height: 18px; }
 
-/* ticket card — torn ticket style */
-.ticket-card { display:flex; background:rgba(30,41,55,.6); border:1px solid rgba(255,215,0,.12); border-radius:14px; overflow:hidden; cursor:pointer; transition:border-color .2s, transform .15s; position:relative; }
-.ticket-card:hover { border-color:rgba(255,215,0,.35); transform:translateY(-2px); }
-.ticket-left { flex-shrink:0; width:76px; background:rgba(15,23,42,.4); display:flex; align-items:center; justify-content:center; padding:14px 10px; }
-.poster-box { width:56px; height:78px; border-radius:7px; overflow:hidden; background:rgba(255,215,0,.05); }
-.poster-img { width:100%; height:100%; object-fit:cover; }
-.poster-fallback { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:22px; }
-/* perforation line */
-.ticket-perf { position:absolute; left:76px; top:0; bottom:0; width:1px; background:repeating-linear-gradient(to bottom,transparent 0,transparent 4px,rgba(255,215,0,.2) 4px,rgba(255,215,0,.2) 8px); }
-.ticket-right { flex:1; padding:14px 16px; display:flex; flex-direction:column; gap:6px; }
-.tk-header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
-.tk-title { font-size:15px; font-weight:800; margin:0; line-height:1.3; }
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid #efefef;
+}
 
-/* badges */
-.status-badge { padding:3px 9px; border-radius:999px; font-size:10px; font-weight:900; white-space:nowrap; flex-shrink:0; }
-.badge--green  { background:rgba(74,222,128,.15); color:#4ade80; }
-.badge--yellow { background:rgba(234,179,8,.15); color:#fde047; }
-.badge--red    { background:rgba(239,68,68,.15); color:#fca5a5; }
-.badge--gray   { background:rgba(148,163,184,.15); color:#94a3b8; }
+.tab {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  border: 1px solid #efefef;
+  background: #ffffff;
+  color: #7f7e7f;
+  font-size: 14.4px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
-.tk-meta   { font-size:12px; color:#94a3b8; margin:0; }
-.tk-footer { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px; }
-.tk-code   { font-family:monospace; font-size:11px; font-weight:800; color:#ffd700; background:rgba(255,215,0,.1); padding:2px 7px; border-radius:4px; }
-.tk-seats  { font-size:11px; color:#94a3b8; }
-.tk-price  { margin-left:auto; font-size:14px; font-weight:900; color:#ffd700; }
-.tk-actions { display:flex; gap:8px; margin-top:4px; }
-.btn-qr,.btn-cancel { padding:6px 14px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; border:none; transition:all .2s; }
-.btn-qr { background:rgba(255,215,0,.1); color:#ffd700; border:1px solid rgba(255,215,0,.25); }
-.btn-qr:hover { background:rgba(255,215,0,.2); }
-.btn-cancel { background:rgba(239,68,68,.1); color:#fca5a5; border:1px solid rgba(239,68,68,.2); }
-.btn-cancel:hover:not(:disabled) { background:rgba(239,68,68,.2); }
-.btn-cancel:disabled { opacity:.5; cursor:not-allowed; }
+.tab--active {
+  background: #29bcea;
+  border-color: #29bcea;
+  color: #ffffff;
+}
 
-/* QR modal */
-.modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px; }
-.qr-modal { background:#0f172a; border:1px solid rgba(255,215,0,.25); border-radius:18px; padding:28px; max-width:360px; width:100%; text-align:center; position:relative; }
-.modal-close { position:absolute; top:14px; right:14px; width:30px; height:30px; background:rgba(255,255,255,.07); border:none; border-radius:50%; color:#94a3b8; font-size:14px; cursor:pointer; }
-.modal-close:hover { background:rgba(255,255,255,.14); color:#f1f5f9; }
-.qr-title { font-size:15px; font-weight:800; color:#ffd700; margin:0 0 4px; }
-.qr-sub   { font-size:12px; color:#64748b; margin:0 0 16px; }
-.qr-box   { background:white; border-radius:12px; padding:20px; display:flex; align-items:center; justify-content:center; min-height:180px; margin-bottom:12px; }
-.qr-img   { max-width:160px; max-height:160px; }
-.qr-fallback { display:flex; flex-direction:column; align-items:center; gap:8px; }
-.qr-svg   { width:140px; height:140px; }
-.qr-code-txt { font-size:11px; font-weight:800; color:#0f172a; font-family:monospace; margin:0; letter-spacing:1px; }
-.qr-spin-wrap { display:flex; align-items:center; justify-content:center; width:160px; height:160px; }
-.spinner  { width:40px; height:40px; border:4px solid rgba(255,215,0,.2); border-top-color:#ffd700; border-radius:50%; animation:spin .9s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-.qr-hint  { font-size:11px; color:#64748b; margin:0 0 16px; }
-.qr-rows  { text-align:left; }
-.qr-row   { display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-bottom:1px solid rgba(255,215,0,.07); }
-.qr-row:last-child { border-bottom:none; }
-.gold     { color:#ffd700; font-weight:800; }
+.tab-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #efefef;
+  color: #000000;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-.fade-enter-active,.fade-leave-active { transition:opacity .2s; }
-.fade-enter-from,.fade-leave-to { opacity:0; }
+.tab--active .tab-count { background: rgba(255, 255, 255, 0.92); }
+
+.list-wrap {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skel-card {
+  display: flex;
+  gap: 14px;
+  background: #f7f7f7;
+  border: 1px solid #efefef;
+  border-radius: 0;
+  padding: 20px;
+}
+
+.skel-body { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.skel { background: linear-gradient(90deg, #f0f0f0 25%, #e7e7e7 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
+.skel--poster { width: 56px; height: 78px; flex-shrink: 0; }
+.skel--line { height: 12px; width: 100%; }
+.skel--w70 { width: 70%; }
+.skel--w50 { width: 50%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 340px;
+  gap: 16px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.state-icon { width: 48px; height: 48px; }
+.state-icon--err { color: #29bcea; }
+.empty-icon { font-size: 52px; }
+.empty-text { color: #7f7e7f; font-size: 14.4px; }
+
+.btn-retry,.btn-book {
+  min-height: 44px;
+  padding: 12px 28px;
+  background: #29bcea;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14.4px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-retry:hover,.btn-book:hover { background: #1a9fbd; }
+
+.ticket-card {
+  display: flex;
+  background: #f7f7f7;
+  border: 1px solid #efefef;
+  border-radius: 0;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.ticket-left {
+  flex-shrink: 0;
+  width: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 10px;
+}
+
+.poster-box {
+  width: 56px;
+  height: 78px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #efefef;
+}
+
+.poster-img { width: 100%; height: 100%; object-fit: cover; }
+.poster-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.ticket-perf { position: absolute; left: 76px; top: 0; bottom: 0; width: 1px; background: #efefef; }
+
+.ticket-right {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tk-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.tk-title { font-size: 16.8px; font-weight: 700; margin: 0; color: #29bcea; line-height: 1.5; }
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge--green  { background: #e9f8ef; color: #177245; }
+.badge--yellow { background: #f8f3de; color: #7e6517; }
+.badge--red    { background: #fdecec; color: #8f2a2a; }
+.badge--gray   { background: #efefef; color: #767676; }
+
+.tk-meta   { font-size: 14.4px; color: #7f7e7f; margin: 0; }
+.tk-footer { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.tk-code   { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; font-weight: 400; color: #000000; background: #ffffff; border: 1px solid #efefef; padding: 4px 8px; border-radius: 2px; }
+.tk-seats  { font-size: 12px; color: #767676; }
+.tk-price  { margin-left: auto; font-size: 16px; font-weight: 700; color: #29bcea; }
+.tk-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+.btn-pay,.btn-qr,.btn-cancel {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14.4px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid #29bcea;
+  background: transparent;
+  color: #29bcea;
+}
+
+.btn-pay:hover:not(:disabled), .btn-qr:hover:not(:disabled), .btn-cancel:hover:not(:disabled) {
+  background: #29bcea;
+  color: #ffffff;
+}
+
+.btn-pay:disabled,.btn-cancel:disabled { opacity: .5; cursor: not-allowed; }
+
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.qr-modal {
+  background: #ffffff;
+  border: 1px solid #efefef;
+  border-radius: 0;
+  padding: 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  background: #f7f7f7;
+  border: 1px solid #efefef;
+  color: #7f7e7f;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.qr-title { font-size: 16.8px; font-weight: 700; color: #29bcea; margin: 0 0 4px; }
+.qr-sub   { font-size: 14.4px; color: #7f7e7f; margin: 0 0 16px; }
+.qr-box   { background: #f7f7f7; border: 1px solid #efefef; border-radius: 0; padding: 20px; display: flex; align-items: center; justify-content: center; min-height: 180px; margin-bottom: 12px; }
+.qr-img   { max-width: 160px; max-height: 160px; }
+.qr-fallback { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.qr-svg   { width: 140px; height: 140px; }
+.qr-code-txt { font-size: 11px; font-weight: 700; color: #000000; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; margin: 0; letter-spacing: 1px; }
+.qr-spin-wrap { display: flex; align-items: center; justify-content: center; width: 160px; height: 160px; }
+.spinner  { width: 40px; height: 40px; border: 4px solid #dff4fb; border-top-color: #29bcea; border-radius: 50%; animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.qr-hint  { font-size: 12px; color: #767676; margin: 0 0 16px; }
+.qr-rows  { text-align: left; }
+.qr-row   { display: flex; justify-content: space-between; font-size: 14.4px; padding: 8px 0; border-bottom: 1px solid #efefef; }
+.qr-row:last-child { border-bottom: none; }
+.gold     { color: #29bcea; font-weight: 700; }
+
+.fade-enter-active,.fade-leave-active { transition: opacity .2s; }
+.fade-enter-from,.fade-leave-to { opacity: 0; }
+
+@media (max-width: 767px) {
+  .list-wrap { padding: 24px 20px; }
+  .ticket-card { flex-direction: column; }
+  .ticket-left { width: 100%; justify-content: flex-start; padding: 16px; }
+  .ticket-perf { display: none; }
+  .tk-footer { align-items: flex-start; }
+  .tk-price { margin-left: 0; }
+}
 </style>

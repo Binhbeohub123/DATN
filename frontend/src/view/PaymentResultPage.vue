@@ -27,7 +27,7 @@
         <div class="booking-card__rows">
           <div class="brow">
             <span class="brow-label">Phim</span>
-            <span class="brow-val">{{ booking.lichChieu?.phim?.tenPhim || '—' }}</span>
+            <span class="brow-val">{{ booking.lichChieu?.phim?.tenPhim || '-' }}</span>
           </div>
           <div class="brow">
             <span class="brow-label">Suất chiếu</span>
@@ -35,7 +35,7 @@
           </div>
           <div class="brow">
             <span class="brow-label">Phòng</span>
-            <span class="brow-val">{{ booking.lichChieu?.phongChieu?.tenPhong || '—' }}</span>
+            <span class="brow-val">{{ booking.lichChieu?.phongChieu?.tenPhong || '-' }}</span>
           </div>
           <div class="brow">
             <span class="brow-label">Ghế</span>
@@ -65,17 +65,17 @@
             />
             <div v-else class="qr-placeholder">
               <!-- Inline SVG QR-style grid generated from booking code -->
-              <svg viewBox="0 0 9 9" fill="#0f172a" xmlns="http://www.w3.org/2000/svg" class="qr-svg">
-                <rect x="0" y="0" width="4" height="4" fill="#0f172a"/>
+              <svg viewBox="0 0 9 9" fill="#000000" xmlns="http://www.w3.org/2000/svg" class="qr-svg">
+                <rect x="0" y="0" width="4" height="4" fill="#000000"/>
                 <rect x="1" y="1" width="2" height="2" fill="white"/>
-                <rect x="5" y="0" width="4" height="4" fill="#0f172a"/>
+                <rect x="5" y="0" width="4" height="4" fill="#000000"/>
                 <rect x="6" y="1" width="2" height="2" fill="white"/>
-                <rect x="0" y="5" width="4" height="4" fill="#0f172a"/>
+                <rect x="0" y="5" width="4" height="4" fill="#000000"/>
                 <rect x="1" y="6" width="2" height="2" fill="white"/>
-                <rect x="4" y="4" width="1" height="1" fill="#0f172a"/>
-                <rect x="5" y="5" width="1" height="1" fill="#0f172a"/>
-                <rect x="7" y="5" width="1" height="1" fill="#0f172a"/>
-                <rect x="5" y="7" width="3" height="1" fill="#0f172a"/>
+                <rect x="4" y="4" width="1" height="1" fill="#000000"/>
+                <rect x="5" y="5" width="1" height="1" fill="#000000"/>
+                <rect x="7" y="5" width="1" height="1" fill="#000000"/>
+                <rect x="5" y="7" width="3" height="1" fill="#000000"/>
               </svg>
               <p class="qr-code-text">{{ booking.maDatVe }}</p>
             </div>
@@ -129,7 +129,7 @@ const failCode    = ref('')
 
 // ── Computed ─────────────────────────────────────────────────
 const seatList = computed(() => {
-  if (!booking.value?.chiTietDatGhe?.length) return '—'
+  if (!booking.value?.chiTietDatGhe?.length) return '-'
   return booking.value.chiTietDatGhe
     .map(c => `${(c.gheNgoi?.hangGhe || '').trim()}${c.gheNgoi?.soGhe}`)
     .sort()
@@ -212,9 +212,9 @@ function downloadTicket() {
   const lines = [
     `PolyCinema — Vé xem phim`,
     `Mã đặt vé : ${booking.value.maDatVe}`,
-    `Phim      : ${booking.value.lichChieu?.phim?.tenPhim || '—'}`,
+    `Phim      : ${booking.value.lichChieu?.phim?.tenPhim || '-'}`,
     `Suất chiếu: ${fmtDatetime(booking.value.lichChieu?.thoiGianBatDau)}`,
-    `Phòng     : ${booking.value.lichChieu?.phongChieu?.tenPhong || '—'}`,
+    `Phòng     : ${booking.value.lichChieu?.phongChieu?.tenPhong || '-'}`,
     `Ghế       : ${seatList.value}`,
     `Thanh toán: ${fmtPrice(booking.value.tongTienThanhToan)}`,
   ]
@@ -227,17 +227,17 @@ function downloadTicket() {
 
 // ── Helpers ───────────────────────────────────────────────────
 function fmtPrice(v) {
-  if (v == null) return '—'
+  if (v == null) return '-'
   return new Intl.NumberFormat('vi-VN',{ style:'currency', currency:'VND' }).format(v)
 }
 function fmtDatetime(dt) {
-  if (!dt) return '—'
+  if (!dt) return '-'
   return new Date(dt).toLocaleString('vi-VN',{ day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
 }
 function payStatusLabel(s) {
   if (s === 'paid') return 'Đã thanh toán'
   if (s === 'unpaid') return 'Chờ thanh toán'
-  return s || '—'
+  return s || '-'
 }
 function vnpayMessage(code) {
   const map = {
@@ -262,140 +262,43 @@ function momoMessage(code) {
 </script>
 
 <style scoped>
-/* ── base ──────────────────────────────────────────────────── */
-.result-page {
-  background: linear-gradient(160deg,#0b1120 0%,#0f172a 50%,#1a1f35 100%);
-  color: #f1f5f9; min-height: 100vh;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-}
-.centered {
-  width: 100%; max-width: 580px;
-  display: flex; flex-direction: column; align-items: center; gap: 20px;
-  position: relative;
-}
-
-/* ── spinner ──────────────────────────────────────────────── */
-.spinner {
-  width: 56px; height: 56px;
-  border: 5px solid rgba(255,215,0,.15);
-  border-top-color: #ffd700; border-radius: 50%;
-  animation: spin .9s linear infinite;
-}
+.result-page { background: #ffffff; color: #7f7e7f; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.centered { width: 100%; max-width: 640px; display: flex; flex-direction: column; align-items: center; gap: 20px; position: relative; }
+.spinner { width: 56px; height: 56px; border: 5px solid #dff4fb; border-top-color: #29bcea; border-radius: 50%; animation: spin .9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.status-text { font-size: 18px; font-weight: 700; margin: 0; }
-.status-sub  { font-size: 13px; color: #64748b; margin: 0; text-align: center; }
-
-/* ── confetti ─────────────────────────────────────────────── */
-.confetti { position: absolute; inset: -20px; pointer-events: none; overflow: hidden; }
-.dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; animation: pop 1s ease-out forwards; }
-.dot-1  { background:#ffd700; top:5%;  left:20%; animation-delay:.0s; }
-.dot-2  { background:#4ade80; top:10%; left:60%; animation-delay:.1s; }
-.dot-3  { background:#f472b6; top:15%; left:80%; animation-delay:.2s; }
-.dot-4  { background:#60a5fa; top:25%; left:10%; animation-delay:.15s; }
-.dot-5  { background:#ffd700; top:5%;  left:45%; animation-delay:.05s; }
-.dot-6  { background:#a78bfa; top:20%; left:90%; animation-delay:.25s; }
-.dot-7  { background:#fb923c; top:30%; left:35%; animation-delay:.08s; }
-.dot-8  { background:#4ade80; top:8%;  left:70%; animation-delay:.18s; }
-.dot-9  { background:#ffd700; top:35%; left:55%; animation-delay:.3s; }
-.dot-10 { background:#f472b6; top:12%; left:30%; animation-delay:.12s; }
-.dot-11 { background:#60a5fa; top:22%; left:50%; animation-delay:.22s; }
-.dot-12 { background:#a78bfa; top:18%; left:5%;  animation-delay:.04s; }
-@keyframes pop { 0%{transform:scale(0) translateY(0);opacity:1} 100%{transform:scale(1) translateY(-40px);opacity:0} }
-
-/* ── status icons ─────────────────────────────────────────── */
-.status-icon {
-  width: 72px; height: 72px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
+.status-text { font-size: 18px; font-weight: 700; margin: 0; color: #29bcea; }
+.status-sub { font-size: 14.4px; color: #7f7e7f; margin: 0; text-align: center; }
+.confetti { display: none; }
+.status-icon { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #efefef; background: #f7f7f7; }
 .status-icon svg { width: 32px; height: 32px; }
-.status-icon--success { background: rgba(74,222,128,.12); border: 2px solid rgba(74,222,128,.4); color: #4ade80; }
-.status-icon--fail    { background: rgba(248,113,113,.12); border: 2px solid rgba(248,113,113,.4); color: #f87171; }
-
-.status-title { font-size: clamp(22px,5vw,32px); font-weight: 900; margin: 0; text-align: center; }
-.gold { color: #ffd700; }
-
-/* ── booking card ─────────────────────────────────────────── */
-.booking-card {
-  width: 100%;
-  background: rgba(30,41,55,.6);
-  border: 1px solid rgba(255,215,0,.2);
-  border-radius: 16px; overflow: hidden;
-}
-.booking-card__code {
-  text-align: center; padding: 14px;
-  background: rgba(255,215,0,.1);
-  font-size: 22px; font-weight: 900; color: #ffd700;
-  letter-spacing: 2px; font-family: monospace;
-  border-bottom: 1px dashed rgba(255,215,0,.25);
-}
+.status-icon--success { color: #177245; }
+.status-icon--fail { color: #8f2a2a; }
+.status-title { font-size: clamp(22px,5vw,32px); font-weight: 700; margin: 0; text-align: center; color: #29bcea; }
+.gold { color: #29bcea; }
+.booking-card { width: 100%; background: #f7f7f7; border: 1px solid #efefef; overflow: hidden; }
+.booking-card__code { text-align: center; padding: 14px; background: #ffffff; font-size: 22px; font-weight: 700; color: #29bcea; letter-spacing: 1px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; border-bottom: 1px solid #efefef; }
 .booking-card__rows { padding: 16px; display: flex; flex-direction: column; gap: 0; }
-.brow {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; font-size: 13px;
-  border-bottom: 1px solid rgba(255,215,0,.05);
-}
+.brow { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 14.4px; border-bottom: 1px solid #efefef; }
 .brow:last-child { border-bottom: none; }
-.brow-label { color: #94a3b8; font-weight: 600; }
-.brow-val   { color: #f1f5f9; font-weight: 700; text-align: right; max-width: 60%; }
-.brow-val.gold { color: #ffd700; font-size: 15px; }
-
-.status-badge { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
-.status-badge--ok { background: rgba(74,222,128,.15); color: #4ade80; }
-
-/* ── QR ───────────────────────────────────────────────────── */
-.qr-section {
-  padding: 20px; text-align: center;
-  border-top: 1px dashed rgba(255,215,0,.2);
-}
-.qr-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 12px; }
-.qr-box {
-  background: white; border-radius: 12px; padding: 16px;
-  display: flex; align-items: center; justify-content: center;
-  min-height: 180px; margin-bottom: 12px;
-}
+.brow-label { color: #7f7e7f; font-weight: 700; }
+.brow-val { color: #000000; font-weight: 400; text-align: right; max-width: 60%; }
+.brow-val.gold { color: #29bcea; font-size: 15px; font-weight: 700; }
+.status-badge { padding: 4px 10px; font-size: 12px; font-weight: 700; border: 1px solid #efefef; background: #fff; }
+.status-badge--ok { color: #177245; }
+.qr-section { padding: 20px; text-align: center; border-top: 1px solid #efefef; }
+.qr-label { font-size: 12px; font-weight: 700; color: #7f7e7f; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 12px; }
+.qr-box { background: white; border: 1px solid #efefef; padding: 16px; display: flex; align-items: center; justify-content: center; min-height: 180px; margin-bottom: 12px; }
 .qr-img { max-width: 160px; max-height: 160px; }
 .qr-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .qr-svg { width: 140px; height: 140px; }
-.qr-code-text { font-size: 11px; font-weight: 800; color: #0f172a; font-family: monospace; letter-spacing: 1px; margin: 0; }
-.qr-hint { font-size: 11px; color: #64748b; margin: 0; }
-
-/* ── fail ─────────────────────────────────────────────────── */
-.fail-code {
-  padding: 10px 18px;
-  background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25);
-  border-radius: 8px; font-size: 13px; color: #fca5a5;
-}
-.fail-code code { font-family: monospace; font-weight: 800; }
-
-/* ── actions ──────────────────────────────────────────────── */
+.qr-code-text { font-size: 11px; font-weight: 700; color: #000; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 1px; margin: 0; }
+.qr-hint { font-size: 12px; color: #767676; margin: 0; }
+.fail-code { padding: 10px 18px; background: #fff5f5; border: 1px solid #f0d4d4; font-size: 13px; color: #8f2a2a; }
+.fail-code code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; width: 100%; }
-.btn {
-  padding: 12px 22px; border-radius: 10px;
-  font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s;
-  border: none; white-space: nowrap;
-}
-.btn--primary {
-  background: linear-gradient(135deg,#ffd700,#ffed4e);
-  color: #0f172a; box-shadow: 0 4px 16px rgba(255,215,0,.3);
-}
-.btn--primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,215,0,.4); }
-.btn--outline {
-  background: transparent; color: #ffd700;
-  border: 2px solid rgba(255,215,0,.4);
-}
-.btn--outline:hover { background: rgba(255,215,0,.08); }
-.btn--ghost {
-  background: rgba(255,255,255,.06); color: #94a3b8;
-  border: 1px solid rgba(255,255,255,.1);
-}
-.btn--ghost:hover { background: rgba(255,255,255,.1); color: #f1f5f9; }
-
-/* ── responsive ───────────────────────────────────────────── */
-@media (max-width: 640px) {
-  .result-page { padding: 16px; align-items: flex-start; }
-  .actions { flex-direction: column; }
-  .btn { width: 100%; text-align: center; }
-}
+.btn { min-height: 44px; padding: 12px 22px; font-size: 14.4px; font-weight: 700; cursor: pointer; border: 1px solid #29bcea; background: transparent; color: #29bcea; white-space: nowrap; }
+.btn--primary { background: #29bcea; color: #ffffff; border-color: #29bcea; }
+.btn--outline:hover, .btn--ghost:hover { background: #29bcea; color: #ffffff; }
+.btn--ghost { border-color: #efefef; color: #7f7e7f; }
+@media (max-width: 640px) { .result-page { padding: 16px; align-items: flex-start; } .actions { flex-direction: column; } .btn { width: 100%; text-align: center; } }
 </style>

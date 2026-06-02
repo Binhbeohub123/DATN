@@ -1,0 +1,205 @@
+/**
+ * Galaxy Cineplex design system (design.md)
+ * Light theme only — cyan accent, Raleway, flat cards, 44px touch targets.
+ */
+
+:root {
+  --galaxy-cyan: #29bcea;
+  --galaxy-cyan-hover: #1a9fbd;
+  --galaxy-ink: #000000;
+  --galaxy-body: #7f7e7f;
+  --galaxy-muted: #767676;
+  --galaxy-surface: #f7f7f7;
+  --galaxy-page: #ffffff;
+  --galaxy-line: #efefef;
+  --galaxy-radius-sm: 2px;
+  --galaxy-radius: 4px;
+  --galaxy-radius-lg: 8px;
+  --galaxy-font: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --galaxy-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Shared page shell (booking flow, profile, history) */
+.gx-page {
+  min-height: 100vh;
+  background: var(--galaxy-page);
+  color: var(--galaxy-body);
+  font-family: var(--galaxy-font);
+  font-size: 14.4px;
+  line-height: 1.5;
+}
+
+.gx-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 12px 20px;
+  background: var(--galaxy-page);
+  border-bottom: 1px solid var(--galaxy-line);
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+
+.gx-topbar__title {
+  font-size: 16.8px;
+  font-weight: 700;
+  color: var(--galaxy-cyan);
+  margin: 0;
+}
+
+.gx-icon-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--galaxy-radius);
+  border: 1px solid var(--galaxy-line);
+  background: var(--galaxy-surface);
+  color: var(--galaxy-cyan);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.gx-icon-btn:hover {
+  border-color: var(--galaxy-cyan);
+  background: var(--galaxy-page);
+}
+
+.gx-card {
+  background: var(--galaxy-surface);
+  border: 1px solid var(--galaxy-line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.gx-section-title {
+  font-size: 16.8px;
+  font-weight: 700;
+  color: var(--galaxy-ink);
+  margin: 0 0 16px;
+}
+
+.gx-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 28px;
+  border: none;
+  border-radius: var(--galaxy-radius);
+  background: var(--galaxy-cyan);
+  color: #ffffff;
+  font-family: var(--galaxy-font);
+  font-size: 14.4px;
+  font-weight: 700;
+  line-height: 21.6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  text-decoration: none;
+}
+
+.gx-btn-primary:hover:not(:disabled) {
+  background: var(--galaxy-cyan-hover);
+}
+
+.gx-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.gx-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 28px;
+  border: 2px solid var(--galaxy-cyan);
+  border-radius: var(--galaxy-radius);
+  background: transparent;
+  color: var(--galaxy-cyan);
+  font-family: var(--galaxy-font);
+  font-size: 14.4px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.gx-btn-outline:hover:not(:disabled) {
+  background: var(--galaxy-cyan);
+  color: #ffffff;
+}
+
+.gx-strip {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--galaxy-surface);
+  border-bottom: 1px solid var(--galaxy-line);
+  overflow-x: auto;
+  gap: 0;
+}
+
+.gx-strip__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--galaxy-muted);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.gx-strip__value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--galaxy-ink);
+}
+
+.gx-strip__sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--galaxy-line);
+  flex-shrink: 0;
+  margin: 0 16px;
+}
+
+.gx-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 55;
+  padding: 14px 20px;
+  background: var(--galaxy-page);
+  border-top: 1px solid var(--galaxy-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.gx-spinner {
+  width: 46px;
+  height: 46px;
+  border: 4px solid #e8f7fc;
+  border-top-color: var(--galaxy-cyan);
+  border-radius: 50%;
+  animation: gx-spin 0.9s linear infinite;
+}
+
+@keyframes gx-spin {
+  to { transform: rotate(360deg); }
+}
+
+.gx-accent {
+  color: var(--galaxy-cyan);
+  font-weight: 700;
+}
+
+.gx-mono {
+  font-family: var(--galaxy-mono);
+}

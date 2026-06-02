@@ -27,10 +27,13 @@ api.interceptors.response.use(
       const { status } = error.response
 
       if (status === 401) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
         const url = error.config?.url || ''
+        const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register')
         const isProfileFetch = url.includes('/auth/profile')
+        if (!isAuthRequest) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+        }
         if (!isProfileFetch && !window.location.pathname.startsWith('/auth')) {
           // Lazy-import to avoid circular dep at module load time
           const { default: router } = await import('@/router/index.js')

@@ -1,0 +1,362 @@
+/**
+ * Dark mode overrides for scoped page classes (html[data-theme="dark"]).
+ * Components keep light hex in scoped CSS; this layer maps them to tokens.
+ */
+
+[data-theme='dark'] .home,
+[data-theme='dark'] .movie-detail,
+[data-theme='dark'] .seat-page,
+[data-theme='dark'] .combo-page,
+[data-theme='dark'] .profile-page,
+[data-theme='dark'] .history-page,
+[data-theme='dark'] .tickets-page,
+[data-theme='dark'] .checkout-page,
+[data-theme='dark'] .result-page,
+[data-theme='dark'] .not-found,
+[data-theme='dark'] .page,
+[data-theme='dark'] .admin-container {
+  color: var(--text-secondary);
+  background: var(--page-bg);
+}
+
+[data-theme='dark'] .nav,
+[data-theme='dark'] .top-bar,
+[data-theme='dark'] .book-bar,
+[data-theme='dark'] .bottom-bar,
+[data-theme='dark'] .drawer-panel {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .icon-btn,
+[data-theme='dark'] .user-menu,
+[data-theme='dark'] .drawer-theme-btn {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--accent) !important;
+}
+
+[data-theme='dark'] .user-name,
+[data-theme='dark'] .hero-name,
+[data-theme='dark'] .top-bar__title,
+[data-theme='dark'] .section-title,
+[data-theme='dark'] .card-title,
+[data-theme='dark'] .group-title,
+[data-theme='dark'] .movie-info h3,
+[data-theme='dark'] .meta-value,
+[data-theme='dark'] .td-movie,
+[data-theme='dark'] .book-bar__label,
+[data-theme='dark'] .strip-value,
+[data-theme='dark'] .total-row--main {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .dropdown {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .dropdown-item {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .dropdown-item:not(:last-child) {
+  border-bottom-color: var(--border) !important;
+}
+
+[data-theme='dark'] .dropdown-item:hover,
+[data-theme='dark'] .drawer-item:hover {
+  background: var(--surface) !important;
+  color: var(--accent) !important;
+}
+
+[data-theme='dark'] .drawer-item {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .drawer-item--primary {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .movie-card,
+[data-theme='dark'] .movie-info,
+[data-theme='dark'] .hero-card,
+[data-theme='dark'] .card,
+[data-theme='dark'] .booking-card,
+[data-theme='dark'] .tx-card,
+[data-theme='dark'] .show-card,
+[data-theme='dark'] .skeleton-card,
+[data-theme='dark'] :deep(.pcard) {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .movie-poster,
+[data-theme='dark'] .poster-placeholder,
+[data-theme='dark'] .banner-placeholder {
+  background: var(--surface-elevated) !important;
+}
+
+[data-theme='dark'] .footer,
+[data-theme='dark'] .summary-bar,
+[data-theme='dark'] .showtime-strip,
+[data-theme='dark'] .context-strip,
+[data-theme='dark'] .legend {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .tabs,
+[data-theme='dark'] .dropdown-hr,
+[data-theme='dark'] .drawer-hr {
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .tab {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .tab--active,
+[data-theme='dark'] .tab.active {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .btn-ghost {
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+[data-theme='dark'] .btn-ghost:hover {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .seat--avail {
+  background: var(--surface-elevated) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .seat--selected {
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .btn-clear,
+[data-theme='dark'] .btn-skip {
+  color: var(--text-secondary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .field input,
+[data-theme='dark'] .field select,
+[data-theme='dark'] .search-input,
+[data-theme='dark'] .filter-select,
+[data-theme='dark'] .textarea {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .field label,
+[data-theme='dark'] .meta-label,
+[data-theme='dark'] .strip-label,
+[data-theme='dark'] .ctx-label,
+[data-theme='dark'] .hero-email,
+[data-theme='dark'] .card-hint,
+[data-theme='dark'] .movie-info p,
+[data-theme='dark'] .description,
+[data-theme='dark'] .empty,
+[data-theme='dark'] .loading,
+[data-theme='dark'] .error,
+[data-theme='dark'] .no-show {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme='dark'] .table-wrap,
+[data-theme='dark'] .tx-table th,
+[data-theme='dark'] .data-table th {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme='dark'] .tx-table td,
+[data-theme='dark'] .data-table td,
+[data-theme='dark'] .tx-row {
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .tx-table tr:hover td,
+[data-theme='dark'] .data-table tr:hover td,
+[data-theme='dark'] tr:hover td {
+  background: var(--hover-row) !important;
+}
+
+[data-theme='dark'] .date-btn {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme='dark'] .date-btn--active {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .chip {
+  background: var(--surface-elevated) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .chip--genre {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+[data-theme='dark'] .auth-card,
+[data-theme='dark'] .left,
+[data-theme='dark'] .right {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .toast--success,
+[data-theme='dark'] .toast--error,
+[data-theme='dark'] .toast--warn,
+[data-theme='dark'] .toast--info {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+}
+
+/* Admin shell */
+[data-theme='dark'] .admin-container .sidebar {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .admin-container .topbar,
+[data-theme='dark'] .admin-container .search-box,
+[data-theme='dark'] .admin-container .date-tag,
+[data-theme='dark'] .admin-container .notif {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .admin-container .logo-text span,
+[data-theme='dark'] .admin-container .admin-name,
+[data-theme='dark'] .admin-container .topbar h1 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .admin-container .logo-admin {
+  background: var(--surface-plain) !important;
+}
+
+[data-theme='dark'] .admin-container .menu-item {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .admin-container .menu-item:hover {
+  background: var(--surface-plain) !important;
+  color: var(--accent) !important;
+}
+
+[data-theme='dark'] .admin-container .menu-item.active {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .admin-container .card,
+[data-theme='dark'] .admin-container .stat-card,
+[data-theme='dark'] .admin-container .table-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .admin-container .modal {
+  background: var(--surface-plain) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .hamburger {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .mobile-drawer {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme='dark'] .promo {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .code {
+  color: var(--accent) !important;
+}
+
+[data-theme='dark'] .not-found h1 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .qnav-btn {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .skel-row,
+[data-theme='dark'] .skeleton-card {
+  background: var(--surface) !important;
+}
+
+[data-theme='dark'] .sum-div,
+[data-theme='dark'] .stat-div,
+[data-theme='dark'] .strip-sep,
+[data-theme='dark'] .ctx-sep {
+  background: var(--border) !important;
+}
+
+[data-theme='dark'] .qr-box,
+[data-theme='dark'] .booking-card__code,
+[data-theme='dark'] .status-badge {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .screen-bar {
+  background: var(--accent) !important;
+}
+
+[data-theme='dark'] .screen-label,
+[data-theme='dark'] .row-label,
+[data-theme='dark'] .info-label,
+[data-theme='dark'] .chip-none {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme='dark'] .chip-seat {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+[data-theme='dark'] :deep(.pcard__desc),
+[data-theme='dark'] :deep(.ctrl-qty) {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme='dark'] :deep(.ctrl-btn) {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--accent) !important;
+}

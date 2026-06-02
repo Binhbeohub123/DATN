@@ -67,6 +67,7 @@
           <h1>{{ pageTitles[currentPage] }}</h1>
         </div>
         <div class="topbar-right">
+          <ThemeToggle />
           <div class="search-box">⌕ Tìm phim, vé, khách...</div>
           <span class="date-tag">📅 {{ currentDate }}</span>
           <span class="notif">🔔<span class="notif-dot"></span></span>
@@ -101,6 +102,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 import DashboardPage  from './components/DashboardPage.vue'
 import MoviesPage     from './components/MoviesPage.vue'
 import SchedulePage   from './components/SchedulePage.vue'
@@ -133,12 +135,11 @@ function switchPage(page) { currentPage.value = page }
 
 <style>
 :root {
-  --admin-orange: #ff6b00;
-  --admin-gold: #ffb000;
-  --admin-ink: #111827;
-  --admin-muted: #6b7280;
-  --admin-line: rgba(17, 24, 39, 0.1);
-  --admin-card: rgba(255, 255, 255, 0.84);
+  --admin-accent: var(--accent);
+  --admin-ink: var(--text-primary);
+  --admin-muted: var(--text-secondary);
+  --admin-line: var(--border);
+  --admin-card: var(--surface);
   --admin-sidebar: 280px;
 }
 
@@ -152,12 +153,10 @@ function switchPage(page) { currentPage.value = page }
   min-height: 100vh;
   display: flex;
   color: var(--admin-ink);
-  font-family: 'Be Vietnam Pro', 'Noto Sans Vietnamese', 'Nunito', 'Segoe UI', sans-serif;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(255, 107, 0, 0.18), transparent 32%),
-    radial-gradient(circle at 88% 10%, rgba(255, 176, 0, 0.16), transparent 28%),
-    linear-gradient(135deg, #fff7ed 0%, #f8fafc 42%, #e5e7eb 100%);
+  font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--page-bg);
   overflow-x: clip;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 .sidebar {
@@ -167,19 +166,11 @@ function switchPage(page) { currentPage.value = page }
   width: var(--admin-sidebar);
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 28px;
-  background: linear-gradient(180deg, #111827 0%, #171717 58%, #2a1204 100%);
-  box-shadow: 0 28px 70px rgba(17, 24, 39, 0.28);
+  border: 1px solid var(--admin-line);
+  border-radius: 0;
+  background: var(--admin-card);
+  box-shadow: none;
   overflow: hidden;
-}
-
-.sidebar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 20% 0%, rgba(255, 107, 0, 0.28), transparent 34%);
-  pointer-events: none;
 }
 
 .sidebar-logo,
@@ -202,9 +193,9 @@ function switchPage(page) { currentPage.value = page }
   height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--admin-orange), var(--admin-gold));
-  box-shadow: 0 12px 26px rgba(255, 107, 0, 0.36);
+  border-radius: 4px;
+  background: var(--admin-accent);
+  box-shadow: none;
 }
 
 .logo-icon svg {
@@ -214,22 +205,22 @@ function switchPage(page) { currentPage.value = page }
 }
 
 .logo-text {
-  color: var(--admin-orange);
+  color: var(--admin-accent);
   font-size: 20px;
   font-weight: 900;
   letter-spacing: -0.6px;
 }
 
 .logo-text span {
-  color: #fff;
+  color: var(--admin-ink);
 }
 
 .logo-admin {
   margin-left: auto;
   padding: 5px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fed7aa;
+  border-radius: 2px;
+  background: var(--surface-plain);
+  color: var(--admin-accent);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 1px;
@@ -243,7 +234,7 @@ function switchPage(page) { currentPage.value = page }
 
 .menu-section {
   padding: 18px 14px 8px;
-  color: rgba(255, 255, 255, 0.38);
+  color: #767676;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 1.4px;
@@ -256,8 +247,9 @@ function switchPage(page) { currentPage.value = page }
   gap: 12px;
   min-height: 46px;
   padding: 12px 14px;
-  border-radius: 16px;
-  color: rgba(255, 255, 255, 0.72);
+  border-radius: 4px;
+  border: 1px solid transparent;
+  color: var(--admin-muted);
   font-size: 14px;
   font-weight: 800;
   text-decoration: none;
@@ -266,15 +258,17 @@ function switchPage(page) { currentPage.value = page }
 }
 
 .menu-item:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateX(4px);
+  color: var(--admin-accent);
+  background: var(--surface-plain);
+  border-color: var(--admin-line);
+  transform: none;
 }
 
 .menu-item.active {
-  color: white;
-  background: linear-gradient(135deg, var(--admin-orange), #f97316);
-  box-shadow: 0 14px 28px rgba(255, 107, 0, 0.26);
+  color: var(--on-accent);
+  background: var(--admin-accent);
+  border-color: var(--admin-accent);
+  box-shadow: none;
 }
 
 .menu-item .icon {
@@ -306,8 +300,8 @@ function switchPage(page) { currentPage.value = page }
   gap: 12px;
   padding: 12px;
   margin-bottom: 12px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.07);
+  border-radius: 0;
+  background: #ffffff;
 }
 
 .admin-avatar {
@@ -316,20 +310,20 @@ function switchPage(page) { currentPage.value = page }
   display: grid;
   place-items: center;
   border-radius: 14px;
-  background: #fff7ed;
-  color: var(--admin-orange);
+  background: #e8f7fc;
+  color: var(--admin-accent);
   font-size: 14px;
   font-weight: 900;
 }
 
 .admin-name {
-  color: white;
+  color: var(--admin-ink);
   font-size: 13px;
   font-weight: 900;
 }
 
 .admin-role {
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 700;
 }
@@ -337,9 +331,9 @@ function switchPage(page) { currentPage.value = page }
 .logout-btn {
   display: block;
   padding: 11px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  color: #fed7aa;
+  border: 1px solid #29bcea;
+  border-radius: 4px;
+  color: #29bcea;
   font-size: 13px;
   font-weight: 900;
   text-align: center;
@@ -348,9 +342,9 @@ function switchPage(page) { currentPage.value = page }
 }
 
 .logout-btn:hover {
-  color: white;
-  border-color: rgba(255, 107, 0, 0.7);
-  background: rgba(255, 107, 0, 0.14);
+  color: #ffffff;
+  border-color: #29bcea;
+  background: #29bcea;
 }
 
 .main {
@@ -371,16 +365,16 @@ function switchPage(page) { currentPage.value = page }
   justify-content: space-between;
   gap: 20px;
   padding: 16px 22px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.76);
-  backdrop-filter: blur(22px);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.11);
+  border: 1px solid var(--admin-line);
+  border-radius: 0;
+  background: var(--surface-plain);
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .eyebrow {
   margin: 0 0 3px;
-  color: var(--admin-orange);
+  color: var(--admin-accent);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 1.8px;
@@ -405,8 +399,8 @@ function switchPage(page) { currentPage.value = page }
 .date-tag,
 .notif {
   border: 1px solid var(--admin-line);
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.06);
+  background: var(--surface-plain);
+  box-shadow: none;
 }
 
 .search-box {
@@ -460,18 +454,18 @@ function switchPage(page) { currentPage.value = page }
 
 .stat-card,
 .card {
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 24px;
+  border: 1px solid var(--admin-line);
+  border-radius: 0;
   background: var(--admin-card);
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  box-shadow: none;
+  transition: border-color 0.22s ease;
 }
 
 .stat-card:hover,
 .card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(255, 107, 0, 0.32);
-  box-shadow: 0 26px 58px rgba(255, 107, 0, 0.14);
+  transform: none;
+  border-color: var(--admin-accent);
+  box-shadow: none;
 }
 
 table {
@@ -484,7 +478,7 @@ tr {
 }
 
 tr:hover td {
-  background: #fff7ed;
+  background: var(--hover-row);
 }
 
 @media (max-width: 1180px) {
@@ -551,5 +545,140 @@ tr:hover td {
   .search-box { order: 3; width: 100%; min-width: 0; }
   .date-tag { max-width: calc(100% - 56px); overflow: hidden; text-overflow: ellipsis; }
   .content { padding-top: 14px; }
+}
+
+/* Child admin pages — shared controls */
+.admin-container .btn-primary,
+.admin-container .btn-add,
+.admin-container .btn-save,
+.admin-container .btn-confirm {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 4px;
+  background: #29bcea !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.admin-container .btn-primary:hover,
+.admin-container .btn-add:hover,
+.admin-container .btn-save:hover {
+  background: #1a9fbd !important;
+}
+
+.admin-container .btn-secondary,
+.admin-container .btn-cancel {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid #29bcea !important;
+  border-radius: 4px;
+  background: transparent !important;
+  color: #29bcea !important;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-container .filter-select,
+.admin-container .search-input,
+.admin-container input[type="text"],
+.admin-container input[type="number"],
+.admin-container input[type="date"],
+.admin-container input[type="time"],
+.admin-container select,
+.admin-container textarea {
+  min-height: 44px;
+  border: 1px solid #efefef !important;
+  border-radius: 4px !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.admin-container .data-table th {
+  background: #f7f7f7 !important;
+  color: #767676 !important;
+  border-bottom: 1px solid #efefef !important;
+}
+
+.admin-container .data-table td {
+  border-bottom: 1px solid #efefef !important;
+  color: #7f7e7f !important;
+}
+
+.admin-container .modal-overlay {
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+
+.admin-container .modal {
+  border: 1px solid #efefef !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: none !important;
+}
+
+.admin-container .modal h2,
+.admin-container .modal h3 {
+  color: #000000 !important;
+}
+
+.admin-container .badge,
+.admin-container .status-badge {
+  border-radius: 4px !important;
+}
+
+.admin-container .page-toolbar h2 {
+  color: #000000 !important;
+}
+
+.admin-container .page-toolbar h2 span,
+.admin-container .accent,
+.admin-container .highlight {
+  color: #29bcea !important;
+}
+
+.admin-container .card,
+.admin-container .table-card {
+  border-radius: 0 !important;
+  background: #f7f7f7 !important;
+  border: 1px solid #efefef !important;
+  box-shadow: none !important;
+}
+
+.admin-container tr:hover td,
+.admin-container .data-table tr:hover td,
+.admin-container .top-table tr:hover td {
+  background: #f7fcfe !important;
+}
+
+.admin-container .btn-primary,
+.admin-container .tab.active {
+  background: #29bcea !important;
+  background-image: none !important;
+}
+
+.admin-container .filter-select,
+.admin-container .search-input,
+.admin-container .ctrl-input {
+  border-color: #efefef !important;
+  border-radius: 4px !important;
+}
+
+.admin-container .admin-avatar {
+  background: #e8f7fc !important;
+}
+
+.admin-container .toast--success {
+  background: #ffffff !important;
+  color: #166534 !important;
+  border: 1px solid #86efac !important;
+}
+
+.admin-container .toast--error {
+  background: #ffffff !important;
+  color: #991b1b !important;
+  border: 1px solid #fca5a5 !important;
 }
 </style>

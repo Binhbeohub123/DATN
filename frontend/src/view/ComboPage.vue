@@ -6,7 +6,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </button>
       <span class="top-bar__title">Combo & Đồ ăn</span>
-      <div style="width:38px"></div>
+      <ThemeToggle />
     </header>
 
     <!-- ── Order context strip ── -->
@@ -101,6 +101,7 @@ import { useRouter } from 'vue-router'
 import { useBookingStore } from '@/stores/bookingStore'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router       = useRouter()
 const bookingStore = useBookingStore()
@@ -194,8 +195,9 @@ const ProductCard = defineComponent({
 <style scoped>
 /* ── base ──────────────────────────────────────────────────── */
 .combo-page {
-  background: linear-gradient(160deg,#0b1120 0%,#0f172a 50%,#1a1f35 100%);
-  color: #f1f5f9; min-height: 100vh;
+  background: #ffffff;
+  color: #7f7e7f; min-height: 100vh;
+  font-family: 'Raleway', sans-serif;
   display: flex; flex-direction: column;
   padding-bottom: 200px;
 }
@@ -204,35 +206,35 @@ const ProductCard = defineComponent({
 .top-bar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 20px;
-  background: rgba(11,17,32,.9); backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255,215,0,.12);
+  background: #ffffff;
+  border-bottom: 1px solid #efefef;
   position: sticky; top: 0; z-index: 60;
 }
-.top-bar__title { font-size: 16px; font-weight: 700; }
+.top-bar__title { font-size: 16px; font-weight: 700; color: #29bcea; }
 .icon-btn {
   width: 38px; height: 38px; border-radius: 8px;
-  border: 1px solid rgba(255,215,0,.25);
-  background: rgba(255,215,0,.07); color: #ffd700;
+  border: 1px solid rgba(41,188,234,.25);
+  background: rgba(41,188,234,.07); color: #29bcea;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: background .2s;
 }
-.icon-btn:hover { background: rgba(255,215,0,.15); }
+.icon-btn:hover { background: rgba(41,188,234,.15); }
 .icon-btn svg { width: 18px; height: 18px; }
 
 /* ── context strip ────────────────────────────────────────── */
 .context-strip {
   display: flex; align-items: center;
   padding: 12px 20px;
-  background: rgba(30,41,55,.5);
-  border-bottom: 1px solid rgba(255,215,0,.1);
+  background: #f7f7f7;
+  border-bottom: 1px solid #efefef;
   gap: 0; overflow-x: auto;
 }
 .ctx-item { display: flex; flex-direction: column; gap: 2px; padding: 0 16px; flex-shrink: 0; }
 .ctx-item:first-child { padding-left: 0; }
 .ctx-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; }
 .ctx-value { font-size: 13px; font-weight: 700; }
-.ctx-value.gold { color: #ffd700; }
-.ctx-sep { width: 1px; background: rgba(255,215,0,.12); align-self: stretch; flex-shrink: 0; }
+.ctx-value.gold { color: #29bcea; }
+.ctx-sep { width: 1px; background: rgba(41,188,234,.12); align-self: stretch; flex-shrink: 0; }
 
 /* ── states ───────────────────────────────────────────────── */
 .state-box {
@@ -244,19 +246,19 @@ const ProductCard = defineComponent({
 .state-icon { width: 48px; height: 48px; color: #ef4444; }
 .spinner {
   width: 46px; height: 46px;
-  border: 4px solid rgba(255,215,0,.15);
-  border-top-color: #ffd700; border-radius: 50%;
+  border: 4px solid rgba(41,188,234,.15);
+  border-top-color: #29bcea; border-radius: 50%;
   animation: spin .9s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .btn-retry {
-  padding: 10px 26px; background: #ffd700; color: #0f172a;
+  padding: 10px 26px; background: #29bcea; color: #ffffff;
   border: none; border-radius: 8px; font-weight: 800; cursor: pointer;
 }
 
 /* ── content ──────────────────────────────────────────────── */
 .content { flex: 1; padding: 24px 20px; max-width: 1100px; margin: 0 auto; width: 100%; }
-.group-title { font-size: 16px; font-weight: 800; color: #ffd700; margin: 0 0 16px; }
+.group-title { font-size: 16px; font-weight: 800; color: #29bcea; margin: 0 0 16px; }
 .product-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr));
   gap: 14px; margin-bottom: 32px;
@@ -265,14 +267,14 @@ const ProductCard = defineComponent({
 
 /* ── product card (styles for the inline component) ─────── */
 :deep(.pcard) {
-  background: #1e2937; border: 1px solid rgba(255,215,0,.1);
-  border-radius: 12px; overflow: hidden;
+  background: #f7f7f7; border: 1px solid #efefef;
+  border-radius: 0; overflow: hidden;
   display: flex; flex-direction: column;
   transition: border-color .2s, transform .2s;
 }
-:deep(.pcard:hover) { border-color: rgba(255,215,0,.35); transform: translateY(-3px); }
+:deep(.pcard:hover) { border-color: rgba(41,188,234,.35); transform: translateY(-3px); }
 :deep(.pcard__img) {
-  width: 100%; aspect-ratio: 1; background: rgba(255,215,0,.04);
+  width: 100%; aspect-ratio: 1; background: rgba(41,188,234,.04);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 :deep(.pcard__photo) { width: 100%; height: 100%; object-fit: cover; }
@@ -280,37 +282,37 @@ const ProductCard = defineComponent({
 :deep(.pcard__body) { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
 :deep(.pcard__name) { font-size: 14px; font-weight: 800; margin: 0; line-height: 1.3; }
 :deep(.pcard__desc) { font-size: 11px; color: #94a3b8; margin: 0; flex: 1; }
-:deep(.pcard__price) { font-size: 16px; font-weight: 900; color: #ffd700; margin: 6px 0 0; }
+:deep(.pcard__price) { font-size: 16px; font-weight: 900; color: #29bcea; margin: 6px 0 0; }
 :deep(.pcard__ctrl) {
   display: flex; align-items: center;
   padding: 10px 14px;
-  border-top: 1px solid rgba(255,215,0,.07);
+  border-top: 1px solid rgba(41,188,234,.07);
   gap: 10px;
 }
 :deep(.ctrl-btn) {
   width: 32px; height: 32px; border-radius: 7px;
-  border: 1px solid rgba(255,215,0,.25);
-  background: rgba(255,215,0,.07); color: #ffd700;
+  border: 1px solid rgba(41,188,234,.25);
+  background: rgba(41,188,234,.07); color: #29bcea;
   font-size: 18px; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background .15s;
 }
-:deep(.ctrl-btn:hover:not([disabled])) { background: rgba(255,215,0,.18); }
+:deep(.ctrl-btn:hover:not([disabled])) { background: rgba(41,188,234,.18); }
 :deep(.ctrl-btn[disabled]) { opacity: .35; cursor: not-allowed; }
-:deep(.ctrl-btn--plus) { background: rgba(255,215,0,.12); }
-:deep(.ctrl-btn--plus:hover) { background: rgba(255,215,0,.22); }
+:deep(.ctrl-btn--plus) { background: rgba(41,188,234,.12); }
+:deep(.ctrl-btn--plus:hover) { background: rgba(41,188,234,.22); }
 :deep(.ctrl-qty) {
   flex: 1; text-align: center; font-size: 16px; font-weight: 900;
   color: #94a3b8;
 }
-:deep(.ctrl-qty--active) { color: #ffd700; }
+:deep(.ctrl-qty--active) { color: #29bcea; }
 
 /* ── bottom bar ───────────────────────────────────────────── */
 .bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 55;
   padding: 14px 20px;
-  background: rgba(11,17,32,.97); backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(255,215,0,.2);
+  background: #ffffff;
+  border-top: 1px solid #efefef;
   display: flex; align-items: center; justify-content: space-between; gap: 20px;
 }
 .bottom-bar__totals { flex: 1; display: flex; flex-direction: column; gap: 4px; }
@@ -318,9 +320,9 @@ const ProductCard = defineComponent({
   display: flex; justify-content: space-between; align-items: center;
   font-size: 13px; color: #94a3b8;
 }
-.total-row--main { font-size: 15px; font-weight: 800; color: #f1f5f9; margin-top: 4px; }
-.total-row--main .gold { font-size: 18px; color: #ffd700; }
-.gold { color: #ffd700; }
+.total-row--main { font-size: 15px; font-weight: 800; color: #000000; margin-top: 4px; }
+.total-row--main .gold { font-size: 18px; color: #29bcea; }
+.gold { color: #29bcea; }
 
 .bottom-bar__actions { display: flex; gap: 10px; }
 .btn-skip {
@@ -329,15 +331,15 @@ const ProductCard = defineComponent({
   border: 1px solid rgba(255,255,255,.15);
   font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s;
 }
-.btn-skip:hover { border-color: #ffd700; color: #ffd700; }
+.btn-skip:hover { border-color: #29bcea; color: #29bcea; }
 .btn-next {
-  padding: 11px 26px; border-radius: 8px;
-  background: linear-gradient(135deg,#ffd700,#ffed4e);
-  color: #0f172a; border: none;
+  padding: 11px 26px; border-radius: 4px;
+  background: #29bcea;
+  color: #ffffff; border: none;
   font-size: 14px; font-weight: 900; cursor: pointer; transition: all .2s;
-  box-shadow: 0 4px 16px rgba(255,215,0,.3);
+  box-shadow: 0 4px 16px rgba(41,188,234,.3);
 }
-.btn-next:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,215,0,.4); }
+.btn-next:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(41,188,234,.4); }
 
 /* ── responsive ───────────────────────────────────────────── */
 @media (max-width: 640px) {

@@ -3,6 +3,14 @@ import { ref, computed } from 'vue'
 import api from '@/services/api'
 
 export const useAuthStore = defineStore('auth', () => {
+  function normalizeToken(rawToken) {
+    if (typeof rawToken !== 'string') return null
+    const trimmed = rawToken.trim()
+    if (!trimmed) return null
+    // Handle backend responses that may wrap JWT in quotes.
+    return trimmed.replace(/^"+|"+$/g, '')
+  }
+
   // ── State ──
   const token        = ref(localStorage.getItem('token') || null)
   const user         = ref(null)
@@ -51,8 +59,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function setToken(newToken) {
-    token.value = newToken
-    localStorage.setItem('token', newToken)
+    const normalized = normalizeToken(newToken)
+    if (!normalized) {
+      token.value = null
+      localStorage.removeItem('token')
+      return
+    }
+    token.value = normalized
+    localStorage.setItem('token', normalized)
   }
 
   function logout() {

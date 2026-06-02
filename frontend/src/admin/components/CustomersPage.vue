@@ -166,23 +166,23 @@ onMounted(loadUsers)
 .toast-enter-active,.toast-leave-active{transition:opacity .3s}.toast-enter-from,.toast-leave-to{opacity:0}
 .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .search-input { flex:1; min-width:220px; padding:9px 14px; border:1px solid #e5e7eb; border-radius:9px; font-size:14px; }
-.search-input:focus { outline:none; border-color:#ff6b00; }
+.search-input:focus { outline:none; border-color:#29bcea; }
 .total-tag { padding:6px 14px; background:#f3f4f6; border-radius:999px; font-size:13px; font-weight:700; color:#6b7280; white-space:nowrap; }
 .card { border-radius:18px; background:rgba(255,255,255,0.84); border:1px solid rgba(255,255,255,0.7); box-shadow:0 8px 24px rgba(15,23,42,0.07); }
 .table-card { overflow:hidden; }
 .table-scroll { overflow-x:auto; }
 .state-center { display:flex; justify-content:center; align-items:center; padding:40px; }
 .empty-text { color:#9ca3af; font-size:14px; }
-.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#ff6b00; border-radius:50%; animation:spin .9s linear infinite; }
+.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#29bcea; border-radius:50%; animation:spin .9s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
 .data-table { width:100%; border-collapse:collapse; font-size:13px; }
 .data-table th { padding:11px 14px; text-align:left; font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; background:#f9fafb; border-bottom:1px solid #e5e7eb; white-space:nowrap; }
 .data-table td { padding:11px 14px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
 .data-table tr:last-child td { border-bottom:none; }
-.data-table tr:hover td { background:#fff7ed; }
+.data-table tr:hover td { background:#f7fcfe; }
 .td-name  { font-weight:700; color:#111827; }
 .td-email { color:#6b7280; font-size:12px; }
-.td-spent { font-weight:700; color:#ff6b00; white-space:nowrap; }
+.td-spent { font-weight:700; color:#29bcea; white-space:nowrap; }
 .td-date  { font-size:12px; color:#9ca3af; white-space:nowrap; }
 .rbadge { padding:3px 9px; border-radius:999px; font-size:10px; font-weight:800; background:#f3f4f6; color:#6b7280; }
 .rbadge--admin { background:#fee2e2; color:#991b1b; }
@@ -199,7 +199,7 @@ onMounted(loadUsers)
 .btn-unlock { background:#dcfce7; color:#166534; } .btn-unlock:hover { background:#bbf7d0; }
 .pagination { display:flex; align-items:center; justify-content:center; gap:14px; padding:14px 20px; border-top:1px solid #f3f4f6; }
 .pg-btn { padding:7px 16px; border:1px solid #e5e7eb; border-radius:8px; background:white; font-weight:700; cursor:pointer; }
-.pg-btn:hover:not(:disabled) { border-color:#ff6b00; color:#ff6b00; }
+.pg-btn:hover:not(:disabled) { border-color:#29bcea; color:#29bcea; }
 .pg-btn:disabled { opacity:.4; cursor:not-allowed; }
 .pg-info { font-size:13px; color:#6b7280; font-weight:700; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:500; padding:20px; }
@@ -212,11 +212,11 @@ onMounted(loadUsers)
 .field { display:flex; flex-direction:column; gap:5px; margin-bottom:4px; }
 .field label { font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; }
 .textarea { padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; font-family:inherit; resize:vertical; }
-.textarea:focus { outline:none; border-color:#ff6b00; }
+.textarea:focus { outline:none; border-color:#29bcea; }
 .form-err { color:#ef4444; font-size:13px; margin-top:8px; }
 .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
 .btn-ghost  { padding:9px 18px; background:transparent; border:1px solid #e5e7eb; border-radius:9px; font-weight:700; cursor:pointer; font-size:14px; }
-.btn-ghost:hover { border-color:#ff6b00; color:#ff6b00; }
+.btn-ghost:hover { border-color:#29bcea; color:#29bcea; }
 .btn-danger { padding:9px 18px; background:#dc2626; color:white; border:none; border-radius:9px; font-weight:800; cursor:pointer; font-size:14px; }
 .btn-danger:disabled { opacity:.6; cursor:not-allowed; }
 .btn-danger:hover:not(:disabled) { background:#b91c1c; }

@@ -290,8 +290,8 @@ onMounted(loadRap)
 .cinemas-page { display: flex; flex-direction: column; gap: 20px; }
 .tabs { display: flex; gap: 4px; }
 .tab { padding: 10px 20px; border-radius: 10px; border: 1px solid #e5e7eb; background: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-.tab:hover { border-color: #ff6b00; color: #ff6b00; }
-.tab.active { background: linear-gradient(135deg, #ff6b00, #f97316); color: white; border-color: transparent; }
+.tab:hover { border-color: #29bcea; color: #29bcea; }
+.tab.active { background: #29bcea; color: white; border-color: transparent; }
 
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .toolbar h3 { font-size: 16px; font-weight: 800; margin: 0; }
@@ -303,7 +303,7 @@ table { width: 100%; border-collapse: collapse; }
 th { text-align: left; padding: 12px 16px; font-size: 12px; font-weight: 800; color: #6b7280; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
 td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: #fff7ed; }
+tr:hover td { background: #f7fcfe; }
 .font-bold { font-weight: 700; color: #111827; }
 .empty-text, .loading-text { text-align: center; padding: 40px; color: #9ca3af; font-size: 14px; }
 
@@ -319,11 +319,11 @@ tr:hover td { background: #fff7ed; }
 .btn-delete { background: #fee2e2; }
 .btn-delete:hover { background: #fecaca; }
 
-.btn-primary { padding: 10px 20px; background: linear-gradient(135deg, #ff6b00, #f97316); color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 14px; transition: all 0.2s; white-space: nowrap; }
+.btn-primary { padding: 10px 20px; background: #29bcea; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 14px; transition: all 0.2s; white-space: nowrap; }
 .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(255,107,0,0.3); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-ghost { padding: 10px 20px; background: transparent; border: 1px solid #e5e7eb; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; }
-.btn-ghost:hover { border-color: #ff6b00; color: #ff6b00; }
+.btn-ghost:hover { border-color: #29bcea; color: #29bcea; }
 
 /* Seat map */
 .seat-map { padding: 24px; }
@@ -349,7 +349,7 @@ tr:hover td { background: #fff7ed; }
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .form-group label { font-size: 12px; font-weight: 800; color: #6b7280; text-transform: uppercase; }
 .form-group input, .form-group select { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
-.form-group input:focus, .form-group select:focus { outline: none; border-color: #ff6b00; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #29bcea; }
 .form-error { color: #ef4444; font-size: 13px; margin-bottom: 12px; }
 .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
 </style>

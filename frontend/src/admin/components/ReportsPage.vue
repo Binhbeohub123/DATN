@@ -51,11 +51,11 @@
               class="bar-rect"
             />
             <text :x="item.x+item.w/2" :y="SVG_H-6" text-anchor="middle" font-size="9" fill="#9ca3af">{{ item.label }}</text>
-            <text v-if="item.h>20" :x="item.x+item.w/2" :y="item.y-4" text-anchor="middle" font-size="9" fill="#ff6b00" font-weight="700">{{ fmtShort(item.val) }}</text>
+            <text v-if="item.h>20" :x="item.x+item.w/2" :y="item.y-4" text-anchor="middle" font-size="9" fill="#29bcea" font-weight="700">{{ fmtShort(item.val) }}</text>
           </g>
           <defs>
             <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#ff6b00"/>
+              <stop offset="0%" stop-color="#29bcea"/>
               <stop offset="100%" stop-color="#ffb000"/>
             </linearGradient>
           </defs>
@@ -210,26 +210,26 @@ onMounted(load)
 .field { display:flex; flex-direction:column; gap:4px; }
 .field label { font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; }
 .ctrl-input { padding:8px 12px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; }
-.ctrl-input:focus { outline:none; border-color:#ff6b00; }
+.ctrl-input:focus { outline:none; border-color:#29bcea; }
 .toggle-group { display:flex; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; align-self:flex-end; }
 .tg-btn { padding:8px 14px; background:white; border:none; font-size:13px; font-weight:700; cursor:pointer; color:#6b7280; }
 .tg-btn:not(:last-child) { border-right:1px solid #e5e7eb; }
-.tg-btn--active { background:#ff6b00; color:white; }
-.btn-primary { padding:9px 18px; background:linear-gradient(135deg,#ff6b00,#f97316); color:white; border:none; border-radius:9px; font-weight:800; cursor:pointer; font-size:14px; align-self:flex-end; }
+.tg-btn--active { background:#29bcea; color:white; }
+.btn-primary { padding:9px 18px; background:#29bcea; color:white; border:none; border-radius:9px; font-weight:800; cursor:pointer; font-size:14px; align-self:flex-end; }
 .btn-primary:disabled { opacity:.6; cursor:not-allowed; }
-.btn-export { padding:9px 18px; background:#0f172a; color:#ffd700; border:none; border-radius:9px; font-weight:800; cursor:pointer; font-size:14px; align-self:flex-end; transition:all .2s; }
+.btn-export { padding:9px 18px; background:#29bcea; color:#ffffff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-size:14px; align-self:flex-end; transition:all .2s; min-height:44px; }
 .btn-export:hover:not(:disabled) { background:#1e293b; }
 .btn-export:disabled { opacity:.6; cursor:not-allowed; }
 
 .kpi-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; }
 .kpi-mini { padding:16px; border-radius:14px; background:rgba(255,255,255,0.84); border:1px solid rgba(255,255,255,0.7); box-shadow:0 4px 14px rgba(15,23,42,0.06); }
-.kpi-mini-val { font-size:18px; font-weight:900; color:#ff6b00; }
+.kpi-mini-val { font-size:18px; font-weight:900; color:#29bcea; }
 .kpi-mini-lbl { font-size:11px; color:#6b7280; font-weight:700; margin-top:4px; }
 
 .chart-card h3,.table-card h3 { font-size:15px; font-weight:800; margin:0 0 16px; color:#111827; }
 .state-center { display:flex; justify-content:center; align-items:center; padding:40px; }
 .empty-text { text-align:center; padding:32px; color:#9ca3af; font-size:14px; }
-.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#ff6b00; border-radius:50%; animation:spin .9s linear infinite; }
+.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#29bcea; border-radius:50%; animation:spin .9s linear infinite; }
 @keyframes spin{to{transform:rotate(360deg)}}
 .bar-chart-wrap { overflow-x:auto; }
 .bar-chart { width:100%; min-width:400px; height:220px; }
@@ -241,5 +241,5 @@ onMounted(load)
 .data-table th { padding:10px 14px; text-align:left; font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; background:#f9fafb; border-bottom:1px solid #e5e7eb; }
 .data-table td { padding:10px 14px; border-bottom:1px solid #f3f4f6; }
 .data-table tr:last-child td { border-bottom:none; }
-.td-rev { font-weight:800; color:#ff6b00; }
+.td-rev { font-weight:800; color:#29bcea; }
 </style>

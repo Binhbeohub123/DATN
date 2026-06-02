@@ -1,95 +1,80 @@
 <template>
   <div class="tickets-page">
     <div class="toolbar">
-      <input v-model="search" placeholder="🔍 Tìm mã đặt vé, khách hàng..." class="search-input" />
-      <select v-model="filterStatus" class="filter-select">
-        <option value="">Tất cả</option>
-        <option value="pending">Chờ thanh toán</option>
+      <input v-model="search" class="search-input" placeholder="Tìm theo mã vé, email..." @input="debouncedLoad" />
+      <select v-model="statusFilter" class="filter-select" @change="load">
+        <option value="">Tất cả trạng thái</option>
         <option value="confirmed">Đã xác nhận</option>
+        <option value="pending">Chờ thanh toán</option>
         <option value="cancelled">Đã hủy</option>
       </select>
     </div>
 
     <div class="card">
       <div v-if="loading" class="loading-text">Đang tải...</div>
+      <div v-else-if="tickets.length === 0" class="empty-text">Không có vé nào</div>
       <table v-else>
         <thead>
           <tr>
-            <th>Mã đặt vé</th>
+            <th>Mã vé</th>
             <th>Khách hàng</th>
             <th>Phim</th>
             <th>Suất chiếu</th>
             <th>Tổng tiền</th>
-            <th>Thanh toán</th>
             <th>Trạng thái</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="bk in filteredBookings" :key="bk.id">
-            <td><strong>{{ bk.maDatVe }}</strong></td>
-            <td>{{ bk.nguoiDung?.hoTen || bk.nguoiDung?.email || '—' }}</td>
-            <td>{{ bk.lichChieu?.phim?.tenPhim || '—' }}</td>
-            <td>{{ formatDatetime(bk.lichChieu?.thoiGianBatDau) }}</td>
-            <td>{{ formatPrice(bk.tongTienThanhToan) }}</td>
-            <td><span :class="['badge', payClass(bk.trangThaiThanhToan)]">{{ bk.trangThaiThanhToan }}</span></td>
-            <td><span :class="['badge', statusClass(bk.trangThai)]">{{ bk.trangThai }}</span></td>
-          </tr>
-          <tr v-if="filteredBookings.length === 0">
-            <td colspan="7" class="empty-text">Không có đặt vé</td>
+          <tr v-for="t in tickets" :key="t.id">
+            <td class="mono">{{ t.maDatVe }}</td>
+            <td>{{ t.email || t.hoTen || '—' }}</td>
+            <td>{{ t.tenPhim }}</td>
+            <td>{{ fmtShowtime(t) }}</td>
+            <td class="price">{{ fmtPrice(t.tongTien) }}</td>
+            <td><span :class="['badge', badgeClass(t.trangThai)]">{{ statusLabel(t.trangThai) }}</span></td>
           </tr>
         </tbody>
       </table>
 
-      <!-- Pagination -->
-      <div class="pagination">
-        <button :disabled="page === 0" @click="page--; load()">‹ Trước</button>
+      <div v-if="totalPages > 1" class="pagination">
+        <button :disabled="page === 0" @click="page--; load()">← Trước</button>
         <span>Trang {{ page + 1 }} / {{ totalPages }}</span>
-        <button :disabled="page >= totalPages - 1" @click="page++; load()">Sau ›</button>
+        <button :disabled="page >= totalPages - 1" @click="page++; load()">Sau →</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 
-const bookings = ref([])
+const tickets = ref([])
 const loading = ref(false)
 const search = ref('')
-const filterStatus = ref('')
+const statusFilter = ref('')
 const page = ref(0)
 const totalPages = ref(1)
+let debounceTimer = null
 
-const filteredBookings = computed(() => {
-  return bookings.value.filter(bk => {
-    const matchSearch = !search.value ||
-      bk.maDatVe?.toLowerCase().includes(search.value.toLowerCase()) ||
-      bk.nguoiDung?.hoTen?.toLowerCase().includes(search.value.toLowerCase()) ||
-      bk.nguoiDung?.email?.toLowerCase().includes(search.value.toLowerCase())
-    const matchStatus = !filterStatus.value || bk.trangThai === filterStatus.value
-    return matchSearch && matchStatus
-  })
-})
-
-function formatDatetime(dt) {
-  if (!dt) return '—'
-  return new Date(dt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+function fmtPrice(n) {
+  if (n == null) return '—'
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n)
 }
 
-function formatPrice(val) {
-  if (!val && val !== 0) return '—'
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
+function fmtShowtime(t) {
+  if (!t.ngayChieu) return '—'
+  const d = new Date(t.ngayChieu)
+  return `${d.toLocaleDateString('vi-VN')} ${t.gioChieu || ''}`
 }
 
-function payClass(s) {
-  if (s === 'paid') return 'badge-green'
-  if (s === 'unpaid') return 'badge-yellow'
-  return 'badge-gray'
+function statusLabel(s) {
+  const map = { confirmed: 'Đã xác nhận', pending: 'Chờ TT', cancelled: 'Đã hủy', paid: 'Đã thanh toán' }
+  return map[s] || s || '—'
 }
 
-function statusClass(s) {
-  if (s === 'confirmed') return 'badge-green'
+function badgeClass(s) {
+  if (s === 'confirmed' || s === 'paid') return 'badge-green'
   if (s === 'pending') return 'badge-yellow'
   if (s === 'cancelled') return 'badge-red'
   return 'badge-gray'
@@ -98,38 +83,180 @@ function statusClass(s) {
 async function load() {
   loading.value = true
   try {
-    const res = await api.get(`/admin/dat-ve?page=${page.value}&size=20`)
-    bookings.value = res.data?.content || []
-    totalPages.value = res.data?.totalPages || 1
-  } catch (e) {
-    console.error(e)
+    const params = { page: page.value, size: 15 }
+    if (search.value.trim()) params.q = search.value.trim()
+    if (statusFilter.value) params.trangThai = statusFilter.value
+    const { data } = await api.get('/admin/dat-ve', { params })
+    tickets.value = data.content || data || []
+    totalPages.value = data.totalPages ?? 1
+  } catch {
+    tickets.value = []
   } finally {
     loading.value = false
   }
+}
+
+function debouncedLoad() {
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => { page.value = 0; load() }, 400)
 }
 
 onMounted(load)
 </script>
 
 <style scoped>
-.tickets-page { display: flex; flex-direction: column; gap: 20px; }
-.toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.search-input { flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; }
-.filter-select { padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white; }
-.card { border-radius: 20px; background: rgba(255,255,255,0.84); border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 8px 24px rgba(15,23,42,0.07); overflow: hidden; }
-table { width: 100%; border-collapse: collapse; }
-th { text-align: left; padding: 14px 16px; font-size: 12px; font-weight: 800; color: #6b7280; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: #fff7ed; }
-.badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
-.badge-green { background: #dcfce7; color: #166534; }
-.badge-yellow { background: #fef9c3; color: #854d0e; }
-.badge-red { background: #fee2e2; color: #991b1b; }
-.badge-gray { background: #f3f4f6; color: #6b7280; }
-.loading-text, .empty-text { text-align: center; padding: 40px; color: #9ca3af; font-size: 14px; }
-.pagination { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 16px; border-top: 1px solid #f3f4f6; }
-.pagination button { padding: 8px 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-weight: 700; }
-.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-.pagination span { font-size: 13px; font-weight: 700; color: #6b7280; }
+.tickets-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-family: 'Raleway', sans-serif;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input,
+.filter-select {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #efefef;
+  border-radius: 4px;
+  font-size: 14.4px;
+  background: #ffffff;
+  font-family: inherit;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.card {
+  border-radius: 0;
+  background: #f7f7f7;
+  border: 1px solid #efefef;
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 14px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #767676;
+  text-transform: uppercase;
+  background: #ffffff;
+  border-bottom: 1px solid #efefef;
+}
+
+td {
+  padding: 12px 16px;
+  font-size: 14.4px;
+  color: #7f7e7f;
+  border-bottom: 1px solid #efefef;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background: #f7fcfe;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: #29bcea;
+}
+
+.price {
+  font-weight: 700;
+  color: #29bcea;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-green {
+  background: #e8f7ef;
+  color: #166534;
+}
+
+.badge-yellow {
+  background: #fef9e8;
+  color: #854d0e;
+}
+
+.badge-red {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.badge-gray {
+  background: #f7f7f7;
+  color: #767676;
+  border: 1px solid #efefef;
+}
+
+.loading-text,
+.empty-text {
+  text-align: center;
+  padding: 40px;
+  color: #767676;
+  font-size: 14.4px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid #efefef;
+  background: #ffffff;
+}
+
+.pagination button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid #29bcea;
+  border-radius: 4px;
+  background: transparent;
+  color: #29bcea;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #29bcea;
+  color: #ffffff;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #efefef;
+  color: #767676;
+}
+
+.pagination span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7f7e7f;
+}
 </style>

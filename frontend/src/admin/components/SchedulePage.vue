@@ -185,11 +185,11 @@ async function load() {
     movies.value    = (mvRes.data || []).filter(m => !m.isDeleted)
     // flatten all phongChieu from all raps
     const raps = Array.isArray(rapsRes.data) ? rapsRes.data : []
-    // fetch phong for each rap via admin endpoint
+    // fetch phòng theo từng rạp từ public rap-chieu endpoint
     const phongList = []
     await Promise.all(raps.map(async rap => {
       try {
-        const pRes = await api.get(`/admin/rap-chieu/${rap.id}/phong-chieu`)
+        const pRes = await api.get(`/rap-chieu/${rap.id}/phong`)
         ;(pRes.data || []).forEach(p => phongList.push({ ...p, rapChieu: rap }))
       } catch {
         // try fetching all phong from schedule data
@@ -221,27 +221,27 @@ onMounted(load)
 .toast-enter-active,.toast-leave-active{transition:opacity .3s}.toast-enter-from,.toast-leave-to{opacity:0}
 .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .filter-select { padding:9px 12px; border:1px solid #e5e7eb; border-radius:9px; font-size:13px; background:white; cursor:pointer; }
-.filter-select:focus { outline:none; border-color:#ff6b00; }
-.btn-primary { padding:9px 18px; background:linear-gradient(135deg,#ff6b00,#f97316); color:white; border:none; border-radius:9px; font-weight:800; cursor:pointer; font-size:14px; white-space:nowrap; transition:all .2s; }
+.filter-select:focus { outline:none; border-color:#29bcea; }
+.btn-primary { padding:9px 18px; background:#29bcea; color:white; border:none; border-radius:9px; font-weight:800; cursor:pointer; font-size:14px; white-space:nowrap; transition:all .2s; }
 .btn-primary:hover:not(:disabled) { transform:translateY(-1px); }
 .btn-primary:disabled { opacity:.6; cursor:not-allowed; }
 .btn-ghost { padding:9px 18px; background:transparent; border:1px solid #e5e7eb; border-radius:9px; font-weight:700; cursor:pointer; font-size:14px; }
-.btn-ghost:hover { border-color:#ff6b00; color:#ff6b00; }
+.btn-ghost:hover { border-color:#29bcea; color:#29bcea; }
 .card { border-radius:18px; background:rgba(255,255,255,0.84); border:1px solid rgba(255,255,255,0.7); box-shadow:0 8px 24px rgba(15,23,42,0.07); }
 .table-card { overflow:hidden; }
 .table-scroll { overflow-x:auto; }
 .state-center { display:flex; justify-content:center; align-items:center; padding:40px; }
 .empty-text { color:#9ca3af; font-size:14px; }
-.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#ff6b00; border-radius:50%; animation:spin .9s linear infinite; }
+.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#29bcea; border-radius:50%; animation:spin .9s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
 .data-table { width:100%; border-collapse:collapse; font-size:13px; }
 .data-table th { padding:11px 14px; text-align:left; font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; background:#f9fafb; border-bottom:1px solid #e5e7eb; white-space:nowrap; }
 .data-table td { padding:11px 14px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
 .data-table tr:last-child td { border-bottom:none; }
-.data-table tr:hover td { background:#fff7ed; }
+.data-table tr:hover td { background:#f7fcfe; }
 .td-movie { font-weight:700; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .td-date,.td-time { white-space:nowrap; color:#374151; }
-.td-price { font-weight:700; color:#ff6b00; white-space:nowrap; }
+.td-price { font-weight:700; color:#29bcea; white-space:nowrap; }
 .type-chip { margin-left:6px; padding:2px 7px; background:#dbeafe; color:#1e40af; border-radius:4px; font-size:10px; font-weight:800; }
 .sbadge { padding:3px 9px; border-radius:999px; font-size:11px; font-weight:800; }
 .sbadge--green { background:#dcfce7; color:#166534; }
@@ -258,7 +258,7 @@ onMounted(load)
 .field-full { grid-column:1/-1; }
 .field label { font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; }
 .field input,.field select { padding:9px 12px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; font-family:inherit; }
-.field input:focus,.field select:focus { outline:none; border-color:#ff6b00; }
+.field input:focus,.field select:focus { outline:none; border-color:#29bcea; }
 .conflict-warn { background:#fef3c7; border:1px solid #fcd34d; border-radius:8px; padding:10px 14px; font-size:13px; color:#92400e; font-weight:700; margin-top:12px; }
 .form-err { color:#ef4444; font-size:13px; margin-top:8px; }
 .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }

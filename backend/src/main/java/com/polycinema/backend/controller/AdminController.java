@@ -273,9 +273,31 @@ public class AdminController {
         lichChieu.setId(null);
         lichChieu.setIsDeleted(false);
 
+        if (lichChieu.getPhim() == null || lichChieu.getPhim().getId() == null) {
+            throw new IllegalArgumentException("Thiếu thông tin phim");
+        }
+        if (lichChieu.getPhongChieu() == null || lichChieu.getPhongChieu().getId() == null) {
+            throw new IllegalArgumentException("Thiếu thông tin phòng chiếu");
+        }
+        if (lichChieu.getThoiGianBatDau() == null || lichChieu.getThoiGianKetThuc() == null) {
+            throw new IllegalArgumentException("Thiếu thời gian bắt đầu/kết thúc");
+        }
+        if (!lichChieu.getThoiGianKetThuc().isAfter(lichChieu.getThoiGianBatDau())) {
+            throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+
+        // Always attach managed entities to avoid detached/transient entity issues.
+        Long phimId = lichChieu.getPhim().getId();
+        Long phongId = lichChieu.getPhongChieu().getId();
+        Phim phim = phimRepository.findById(phimId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
+        PhongChieu phongChieu = phongChieuRepository.findById(phongId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
+        lichChieu.setPhim(phim);
+        lichChieu.setPhongChieu(phongChieu);
+
         // Conflict detection: same room, overlapping time
         if (lichChieu.getPhongChieu() != null && lichChieu.getThoiGianBatDau() != null && lichChieu.getThoiGianKetThuc() != null) {
-            Long phongId = lichChieu.getPhongChieu().getId();
             LocalDateTime start = lichChieu.getThoiGianBatDau();
             LocalDateTime end = lichChieu.getThoiGianKetThuc();
 
@@ -305,7 +327,21 @@ public class AdminController {
 
         LocalDateTime start = body.getThoiGianBatDau() != null ? body.getThoiGianBatDau() : lc.getThoiGianBatDau();
         LocalDateTime end = body.getThoiGianKetThuc() != null ? body.getThoiGianKetThuc() : lc.getThoiGianKetThuc();
-        PhongChieu phong = body.getPhongChieu() != null ? body.getPhongChieu() : lc.getPhongChieu();
+        PhongChieu phong = lc.getPhongChieu();
+
+        if (body.getPhongChieu() != null && body.getPhongChieu().getId() != null) {
+            phong = phongChieuRepository.findById(body.getPhongChieu().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
+        }
+        if (body.getPhim() != null && body.getPhim().getId() != null) {
+            Phim phim = phimRepository.findById(body.getPhim().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
+            lc.setPhim(phim);
+        }
+
+        if (start != null && end != null && !end.isAfter(start)) {
+            throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
 
         if (phong != null && start != null && end != null) {
             Long phongId = phong.getId();
@@ -327,8 +363,7 @@ public class AdminController {
         if (body.getThoiGianKetThuc() != null) lc.setThoiGianKetThuc(body.getThoiGianKetThuc());
         if (body.getGiaCoBan() != null) lc.setGiaCoBan(body.getGiaCoBan());
         if (body.getTrangThai() != null) lc.setTrangThai(body.getTrangThai());
-        if (body.getPhongChieu() != null) lc.setPhongChieu(body.getPhongChieu());
-        if (body.getPhim() != null) lc.setPhim(body.getPhim());
+        if (body.getPhongChieu() != null && body.getPhongChieu().getId() != null) lc.setPhongChieu(phong);
 
         return ResponseEntity.ok(lichChieuRepository.save(lc));
     }

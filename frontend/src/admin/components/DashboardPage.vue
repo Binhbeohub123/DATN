@@ -34,8 +34,8 @@
         <svg v-else class="line-chart" :viewBox="`0 0 ${SVG_W} ${SVG_H}`" preserveAspectRatio="none">
           <defs>
             <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#ff6b00" stop-opacity="0.4"/>
-              <stop offset="100%" stop-color="#ff6b00" stop-opacity="0"/>
+              <stop offset="0%" stop-color="#29bcea" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#29bcea" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <!-- grid lines -->
@@ -43,9 +43,9 @@
           <!-- area fill -->
           <path :d="areaPath" fill="url(#revGrad)"/>
           <!-- line -->
-          <path :d="linePath" fill="none" stroke="#ff6b00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path :d="linePath" fill="none" stroke="#29bcea" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
           <!-- dots -->
-          <circle v-for="(p,i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="4" fill="#ff6b00" stroke="white" stroke-width="2"/>
+          <circle v-for="(p,i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="4" fill="#29bcea" stroke="white" stroke-width="2"/>
           <!-- x labels -->
           <text v-for="(p,i) in chartPts.filter((_,i)=>i%(Math.ceil(chartPts.length/6))===0)" :key="'l'+i" :x="p.x" :y="SVG_H-4" text-anchor="middle" font-size="10" fill="#9ca3af">{{ fmtDateShort(p.label) }}</text>
         </svg>
@@ -230,12 +230,12 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 .card-head h3,.card > h3 { font-size:15px; font-weight:800; color:#111827; margin:0 0 16px; }
 .period-btns { display:flex; gap:4px; }
 .pbtn { padding:4px 12px; border-radius:6px; border:1px solid #e5e7eb; background:white; font-size:12px; font-weight:700; cursor:pointer; }
-.pbtn--active { background:#ff6b00; color:white; border-color:#ff6b00; }
+.pbtn--active { background:#29bcea; color:white; border-color:#29bcea; }
 .badge-count { background:#f3f4f6; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:800; color:#6b7280; }
 
 .chart-card { padding:20px; }
 .chart-placeholder { height:180px; display:flex; align-items:center; justify-content:center; }
-.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#ff6b00; border-radius:50%; animation:spin .9s linear infinite; }
+.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#29bcea; border-radius:50%; animation:spin .9s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
 .line-chart { width:100%; height:180px; overflow:visible; }
 
@@ -243,14 +243,14 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 .top-table th,.data-table th { padding:8px 10px; text-align:left; font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; border-bottom:2px solid #f3f4f6; }
 .top-table td,.data-table td { padding:10px; border-bottom:1px solid #f3f4f6; }
 .top-table tr:last-child td,.data-table tr:last-child td { border-bottom:none; }
-.top-table tr:hover td,.data-table tr:hover td { background:#fff7ed; }
+.top-table tr:hover td,.data-table tr:hover td { background:#f7fcfe; }
 .td-movie { font-weight:700; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.td-rev { font-weight:800; color:#ff6b00; white-space:nowrap; }
+.td-rev { font-weight:800; color:#29bcea; white-space:nowrap; }
 .rank { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; font-size:11px; font-weight:900; background:#f3f4f6; color:#6b7280; }
-.rank--1 { background:#ffd700; color:#92400e; }
+.rank--1 { background:#29bcea; color:#ffffff; }
 .rank--2 { background:#e2e8f0; color:#475569; }
 .rank--3 { background:#fed7aa; color:#9a3412; }
-.mono { font-family:monospace; font-size:12px; font-weight:700; color:#ff6b00; }
+.mono { font-family:monospace; font-size:12px; font-weight:700; color:#29bcea; }
 .sbadge { padding:3px 8px; border-radius:999px; font-size:10px; font-weight:800; }
 .sbadge--green  { background:#dcfce7; color:#166534; }
 .sbadge--yellow { background:#fef9c3; color:#854d0e; }

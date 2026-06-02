@@ -1,36 +1,40 @@
-/* PolyCinema Dark Cinematic Theme with Gold Accent */
-:root {
-  /* Primary Colors */
-  --primary: #ffd700;
-  --primary-dark: #ffed4e;
-  --primary-light: #ffe55c;
+:root,
+[data-theme='light'] {
+  --accent: #29bcea;
+  --accent-hover: #1a9fbd;
+  --accent-soft: rgba(41, 188, 234, 0.12);
+  --text-primary: #000000;
+  --text-secondary: #7f7e7f;
+  --text-tertiary: #767676;
+  --page-bg: #ffffff;
+  --surface: #f7f7f7;
+  --surface-plain: #ffffff;
+  --surface-elevated: #efefef;
+  --border: #efefef;
+  --hover-row: #f7fcfe;
+  --overlay: rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --on-accent: #ffffff;
+  color-scheme: light;
+}
 
-  /* Dark Cinematic Palette */
-  --bg-dark: #0f172a;
-  --bg-darker: #060d1a;
-  --bg-secondary: #1a2540;
-  --bg-tertiary: #263348;
-
-  /* Text Colors */
+[data-theme='dark'] {
+  --accent: #29bcea;
+  --accent-hover: #1a9fbd;
+  --accent-soft: rgba(41, 188, 234, 0.18);
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-
-  /* Borders & Surfaces */
-  --border-color: #334155;
-  --surface: #1e2937;
-  --surface-hover: #263348;
-
-  /* Semantic */
-  --color-background: var(--bg-dark);
-  --color-background-soft: var(--bg-secondary);
-  --color-background-mute: var(--bg-tertiary);
-  --color-border: var(--border-color);
-  --color-border-hover: var(--primary);
-  --color-heading: var(--text-primary);
-  --color-text: var(--text-secondary);
-
-  --section-gap: 160px;
+  --text-tertiary: #64748b;
+  --page-bg: #0f1419;
+  --surface: #1a222d;
+  --surface-plain: #161b22;
+  --surface-elevated: #242d3a;
+  --border: #2d3a4a;
+  --hover-row: rgba(41, 188, 234, 0.08);
+  --overlay: rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --on-accent: #ffffff;
+  color-scheme: dark;
 }
 
 *,
@@ -38,48 +42,37 @@
 *::after {
   box-sizing: border-box;
   margin: 0;
-  font-weight: normal;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
   min-height: 100vh;
-  color: var(--color-text);
-  background: var(--color-background);
-  transition: color 0.3s, background-color 0.3s;
-  line-height: 1.6;
-  font-family: 'Be Vietnam Pro', 'Noto Sans Vietnamese', 'Nunito', system-ui, -apple-system, sans-serif;
-  font-size: 15px;
+  color: var(--text-secondary);
+  background: var(--page-bg);
+  line-height: 1.5;
+  font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14.4px;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-dark);
-}
-
-/* Selection */
 ::selection {
-  background: var(--primary);
-  color: var(--bg-dark);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hover);
 }
