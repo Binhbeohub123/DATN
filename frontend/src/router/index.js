@@ -30,7 +30,13 @@ const routes = [
   { path: '/profile', name: 'profile',      component: () => import('@/view/UserProfilePage.vue'),         meta: { requiresAuth: true } },
   { path: '/my-tickets', name: 'my-tickets', component: () => import('@/view/MyTicketsPage.vue'),          meta: { requiresAuth: true } },
   { path: '/transaction-history', name: 'transaction-history', component: () => import('@/view/TransactionHistoryPage.vue'), meta: { requiresAuth: true } },
-  { path: '/admin',   name: 'admin',        component: () => import('@/admin/AdminDashboard.vue'),         meta: { requiresAuth: true, role: 'ADMIN' } },
+  { path: '/admin', redirect: '/admin/dashboard' },
+  {
+    path: '/admin/:tab',
+    name: 'admin',
+    component: () => import('@/admin/AdminDashboard.vue'),
+    meta: { requiresAuth: true, role: 'ADMIN' },
+  },
   // ── 404 catch-all ────────────────────────────────────────────
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/view/NotFoundPage.vue'), meta: { requiresAuth: false } },
 ]
@@ -52,7 +58,7 @@ router.beforeEach(async (to, from, next) => {
   if (oauthToken) {
     localStorage.setItem('token', oauthToken)
     const role = getUserRole()
-    next({ path: role === 'ADMIN' ? '/admin' : '/', replace: true })
+    next({ path: role === 'ADMIN' ? '/admin/dashboard' : '/', replace: true })
     return
   }
 
@@ -82,7 +88,7 @@ router.beforeEach(async (to, from, next) => {
 
   // ── Logged-in user hitting /auth ──
   if (!requiresAuth && token && to.path === '/auth') {
-    next(role === 'ADMIN' ? '/admin' : '/')
+    next(role === 'ADMIN' ? '/admin/dashboard' : '/')
     return
   }
 

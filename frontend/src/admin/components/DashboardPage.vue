@@ -34,8 +34,8 @@
         <svg v-else class="line-chart" :viewBox="`0 0 ${SVG_W} ${SVG_H}`" preserveAspectRatio="none">
           <defs>
             <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#29bcea" stop-opacity="0.4"/>
-              <stop offset="100%" stop-color="#29bcea" stop-opacity="0"/>
+              <stop offset="0%" stop-color="#FFD700" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <!-- grid lines -->
@@ -43,9 +43,9 @@
           <!-- area fill -->
           <path :d="areaPath" fill="url(#revGrad)"/>
           <!-- line -->
-          <path :d="linePath" fill="none" stroke="#29bcea" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path :d="linePath" fill="none" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
           <!-- dots -->
-          <circle v-for="(p,i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="4" fill="#29bcea" stroke="white" stroke-width="2"/>
+          <circle v-for="(p,i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="4" fill="#FFD700" stroke="#111827" stroke-width="2"/>
           <!-- x labels -->
           <text v-for="(p,i) in chartPts.filter((_,i)=>i%(Math.ceil(chartPts.length/6))===0)" :key="'l'+i" :x="p.x" :y="SVG_H-4" text-anchor="middle" font-size="10" fill="#9ca3af">{{ fmtDateShort(p.label) }}</text>
         </svg>
@@ -209,53 +209,42 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 </script>
 
 <style scoped>
-.dashboard { display:flex; flex-direction:column; gap:24px; }
-.toast { position:fixed; top:20px; right:20px; z-index:999; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:700; }
-.toast--error   { background:#7f1d1d; color:#fecaca; }
-.toast--success { background:#14532d; color:#bbf7d0; }
-.toast-enter-active,.toast-leave-active{transition:opacity .3s}
-.toast-enter-from,.toast-leave-to{opacity:0}
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 0.3s;
+}
 
-.kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
-.kpi-card { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:20px; border-radius:18px; background:rgba(255,255,255,0.84); border:1px solid rgba(255,255,255,0.7); box-shadow:0 8px 24px rgba(15,23,42,0.07); }
-.kpi-icon { font-size:32px; }
-.kpi-value { font-size:20px; font-weight:900; color:#111827; }
-.kpi-label { font-size:12px; color:#6b7280; font-weight:700; margin-top:2px; }
-.kpi-trend { font-size:11px; font-weight:700; }
-.kpi-trend.up { color:#16a34a; } .kpi-trend.down { color:#dc2626; }
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+}
 
-.two-col { display:grid; grid-template-columns:1fr 360px; gap:20px; }
-.card { padding:20px; border-radius:18px; background:rgba(255,255,255,0.84); border:1px solid rgba(255,255,255,0.7); box-shadow:0 8px 24px rgba(15,23,42,0.07); }
-.card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.card-head h3,.card > h3 { font-size:15px; font-weight:800; color:#111827; margin:0 0 16px; }
-.period-btns { display:flex; gap:4px; }
-.pbtn { padding:4px 12px; border-radius:6px; border:1px solid #e5e7eb; background:white; font-size:12px; font-weight:700; cursor:pointer; }
-.pbtn--active { background:#29bcea; color:white; border-color:#29bcea; }
-.badge-count { background:#f3f4f6; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:800; color:#6b7280; }
+.line-chart {
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+}
 
-.chart-card { padding:20px; }
-.chart-placeholder { height:180px; display:flex; align-items:center; justify-content:center; }
-.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#29bcea; border-radius:50%; animation:spin .9s linear infinite; }
-@keyframes spin { to{transform:rotate(360deg)} }
-.line-chart { width:100%; height:180px; overflow:visible; }
+.chart-placeholder {
+  height: 180px;
+}
 
-.top-table,.data-table { width:100%; border-collapse:collapse; font-size:13px; }
-.top-table th,.data-table th { padding:8px 10px; text-align:left; font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; border-bottom:2px solid #f3f4f6; }
-.top-table td,.data-table td { padding:10px; border-bottom:1px solid #f3f4f6; }
-.top-table tr:last-child td,.data-table tr:last-child td { border-bottom:none; }
-.top-table tr:hover td,.data-table tr:hover td { background:#f7fcfe; }
-.td-movie { font-weight:700; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.td-rev { font-weight:800; color:#29bcea; white-space:nowrap; }
-.rank { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; font-size:11px; font-weight:900; background:#f3f4f6; color:#6b7280; }
-.rank--1 { background:#29bcea; color:#ffffff; }
-.rank--2 { background:#e2e8f0; color:#475569; }
-.rank--3 { background:#fed7aa; color:#9a3412; }
-.mono { font-family:monospace; font-size:12px; font-weight:700; color:#29bcea; }
-.sbadge { padding:3px 8px; border-radius:999px; font-size:10px; font-weight:800; }
-.sbadge--green  { background:#dcfce7; color:#166534; }
-.sbadge--yellow { background:#fef9c3; color:#854d0e; }
-.sbadge--red    { background:#fee2e2; color:#991b1b; }
-.loading-text,.empty-text { text-align:center; padding:24px; color:#9ca3af; font-size:13px; }
+.td-movie {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-@media(max-width:900px) { .two-col { grid-template-columns:1fr; } }
+.kpi-trend.up {
+  color: #10b981;
+}
+
+.kpi-trend.down {
+  color: #ef4444;
+}
+
+.kpi-icon {
+  font-size: 32px;
+}
 </style>

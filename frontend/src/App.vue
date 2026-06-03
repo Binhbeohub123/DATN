@@ -21,7 +21,7 @@ const route = useRoute()
 const showFabTheme = computed(() => {
   const path = route.path
   if (path === '/' || path.startsWith('/admin')) return false
-  const withBar = ['/movie', '/seats', '/combo', '/checkout', '/profile', '/transaction-history', '/my-tickets']
+  const withBar = ['/phim', '/seat-selection', '/combo', '/checkout', '/profile', '/transaction-history', '/my-tickets']
   return !withBar.some((p) => path.startsWith(p))
 })
 

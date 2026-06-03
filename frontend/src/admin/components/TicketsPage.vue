@@ -46,8 +46,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import api from '@/services/api'
+import { useAdminShellStore } from '@/stores/adminShellStore'
+
+const shell = useAdminShellStore()
 
 const tickets = ref([])
 const loading = ref(false)
@@ -80,6 +83,23 @@ function badgeClass(s) {
   return 'badge-gray'
 }
 
+function mapBooking(b) {
+  const start = b.lichChieu?.thoiGianBatDau
+  return {
+    id: b.id,
+    maDatVe: b.maDatVe,
+    email: b.nguoiDung?.email,
+    hoTen: b.nguoiDung?.hoTen,
+    tenPhim: b.lichChieu?.phim?.tenPhim,
+    ngayChieu: start,
+    gioChieu: start
+      ? new Date(start).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      : '',
+    tongTien: b.tongTienThanhToan,
+    trangThai: b.trangThai,
+  }
+}
+
 async function load() {
   loading.value = true
   try {
@@ -87,7 +107,8 @@ async function load() {
     if (search.value.trim()) params.q = search.value.trim()
     if (statusFilter.value) params.trangThai = statusFilter.value
     const { data } = await api.get('/admin/dat-ve', { params })
-    tickets.value = data.content || data || []
+    const rows = data.content || data || []
+    tickets.value = Array.isArray(rows) ? rows.map(mapBooking) : []
     totalPages.value = data.totalPages ?? 1
   } catch {
     tickets.value = []
@@ -96,167 +117,25 @@ async function load() {
   }
 }
 
+function syncFromShell() {
+  if (shell.searchTargetPage && shell.searchTargetPage !== 'tickets') return
+  if (shell.searchQuery) search.value = shell.searchQuery
+  if (shell.ticketStatusFilter) statusFilter.value = shell.ticketStatusFilter
+  page.value = 0
+  load()
+}
+
+watch(() => shell.searchTick, syncFromShell)
+
 function debouncedLoad() {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => { page.value = 0; load() }, 400)
 }
 
-onMounted(load)
+onMounted(() => {
+  syncFromShell()
+  load()
+})
 </script>
 
-<style scoped>
-.tickets-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  font-family: 'Raleway', sans-serif;
-}
 
-.toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.search-input,
-.filter-select {
-  min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid #efefef;
-  border-radius: 4px;
-  font-size: 14.4px;
-  background: #ffffff;
-  font-family: inherit;
-}
-
-.search-input {
-  flex: 1;
-  min-width: 200px;
-}
-
-.card {
-  border-radius: 0;
-  background: #f7f7f7;
-  border: 1px solid #efefef;
-  overflow: hidden;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th {
-  text-align: left;
-  padding: 14px 16px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #767676;
-  text-transform: uppercase;
-  background: #ffffff;
-  border-bottom: 1px solid #efefef;
-}
-
-td {
-  padding: 12px 16px;
-  font-size: 14.4px;
-  color: #7f7e7f;
-  border-bottom: 1px solid #efefef;
-}
-
-tr:last-child td {
-  border-bottom: none;
-}
-
-tr:hover td {
-  background: #f7fcfe;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-weight: 700;
-  color: #29bcea;
-}
-
-.price {
-  font-weight: 700;
-  color: #29bcea;
-}
-
-.badge {
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.badge-green {
-  background: #e8f7ef;
-  color: #166534;
-}
-
-.badge-yellow {
-  background: #fef9e8;
-  color: #854d0e;
-}
-
-.badge-red {
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.badge-gray {
-  background: #f7f7f7;
-  color: #767676;
-  border: 1px solid #efefef;
-}
-
-.loading-text,
-.empty-text {
-  text-align: center;
-  padding: 40px;
-  color: #767676;
-  font-size: 14.4px;
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 16px;
-  border-top: 1px solid #efefef;
-  background: #ffffff;
-}
-
-.pagination button {
-  min-height: 44px;
-  padding: 8px 16px;
-  border: 1px solid #29bcea;
-  border-radius: 4px;
-  background: transparent;
-  color: #29bcea;
-  cursor: pointer;
-  font-weight: 700;
-  font-family: inherit;
-}
-
-.pagination button:hover:not(:disabled) {
-  background: #29bcea;
-  color: #ffffff;
-}
-
-.pagination button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  border-color: #efefef;
-  color: #767676;
-}
-
-.pagination span {
-  font-size: 13px;
-  font-weight: 700;
-  color: #7f7e7f;
-}
-</style>

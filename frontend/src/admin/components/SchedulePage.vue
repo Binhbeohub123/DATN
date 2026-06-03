@@ -89,7 +89,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
+import { useAdminShellStore } from '@/stores/adminShellStore'
+
+const shell = useAdminShellStore()
 import api from '@/services/api'
 
 const toast = reactive({ show:false, msg:'', type:'success' })
@@ -112,10 +115,17 @@ const filterDate  = ref('')
 
 const form = ref({ phimId:'', phongChieuId:'', date:'', startTime:'', durationMin:120, giaCoBan:80000 })
 
+function scheduleOnDate(dt, dateStr) {
+  if (!dateStr) return true
+  if (!dt) return false
+  const raw = typeof dt === 'string' ? dt : new Date(dt).toISOString()
+  return raw.slice(0, 10) === dateStr
+}
+
 const filtered = computed(() => {
   let list = schedules.value
   if (filterMovie.value) list = list.filter(lc => lc.phim?.id == filterMovie.value)
-  if (filterDate.value)  list = list.filter(lc => lc.thoiGianBatDau?.startsWith(filterDate.value))
+  if (filterDate.value) list = list.filter(lc => scheduleOnDate(lc.thoiGianBatDau, filterDate.value))
   return list
 })
 
@@ -210,56 +220,21 @@ async function load() {
   finally { loading.value=false }
 }
 
-onMounted(load)
+function syncFromShell() {
+  if (shell.filterDate) filterDate.value = shell.filterDate
+}
+
+watch(() => shell.searchTick, syncFromShell)
+
+onMounted(() => {
+  syncFromShell()
+  load()
+})
 </script>
 
 <style scoped>
-.schedule-page { display:flex; flex-direction:column; gap:20px; }
-.toast { position:fixed; top:20px; right:20px; z-index:999; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:700; }
-.toast--error   { background:#7f1d1d; color:#fecaca; }
-.toast--success { background:#14532d; color:#bbf7d0; }
-.toast-enter-active,.toast-leave-active{transition:opacity .3s}.toast-enter-from,.toast-leave-to{opacity:0}
-.toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-.filter-select { padding:9px 12px; border:1px solid #e5e7eb; border-radius:9px; font-size:13px; background:white; cursor:pointer; }
-.filter-select:focus { outline:none; border-color:#29bcea; }
-.btn-primary { padding:9px 18px; background:#29bcea; color:white; border:none; border-radius:9px; font-weight:800; cursor:pointer; font-size:14px; white-space:nowrap; transition:all .2s; }
-.btn-primary:hover:not(:disabled) { transform:translateY(-1px); }
-.btn-primary:disabled { opacity:.6; cursor:not-allowed; }
-.btn-ghost { padding:9px 18px; background:transparent; border:1px solid #e5e7eb; border-radius:9px; font-weight:700; cursor:pointer; font-size:14px; }
-.btn-ghost:hover { border-color:#29bcea; color:#29bcea; }
-.card { border-radius:18px; background:rgba(255,255,255,0.84); border:1px solid rgba(255,255,255,0.7); box-shadow:0 8px 24px rgba(15,23,42,0.07); }
-.table-card { overflow:hidden; }
-.table-scroll { overflow-x:auto; }
-.state-center { display:flex; justify-content:center; align-items:center; padding:40px; }
-.empty-text { color:#9ca3af; font-size:14px; }
-.spinner { width:36px; height:36px; border:4px solid rgba(255,107,0,.2); border-top-color:#29bcea; border-radius:50%; animation:spin .9s linear infinite; }
-@keyframes spin { to{transform:rotate(360deg)} }
-.data-table { width:100%; border-collapse:collapse; font-size:13px; }
-.data-table th { padding:11px 14px; text-align:left; font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; background:#f9fafb; border-bottom:1px solid #e5e7eb; white-space:nowrap; }
-.data-table td { padding:11px 14px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
-.data-table tr:last-child td { border-bottom:none; }
-.data-table tr:hover td { background:#f7fcfe; }
-.td-movie { font-weight:700; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.td-date,.td-time { white-space:nowrap; color:#374151; }
-.td-price { font-weight:700; color:#29bcea; white-space:nowrap; }
-.type-chip { margin-left:6px; padding:2px 7px; background:#dbeafe; color:#1e40af; border-radius:4px; font-size:10px; font-weight:800; }
-.sbadge { padding:3px 9px; border-radius:999px; font-size:11px; font-weight:800; }
-.sbadge--green { background:#dcfce7; color:#166534; }
-.sbadge--gray  { background:#f3f4f6; color:#6b7280; }
-.btn-icon { width:30px; height:30px; border:none; border-radius:7px; cursor:pointer; font-size:13px; transition:all .2s; }
-.btn-del { background:#fee2e2; } .btn-del:hover { background:#fecaca; }
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:500; padding:20px; }
-.modal { background:white; border-radius:18px; padding:28px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; }
-.modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-.modal-head h2 { font-size:18px; font-weight:900; margin:0; }
-.modal-close { width:30px; height:30px; background:#f3f4f6; border:none; border-radius:50%; cursor:pointer; font-size:14px; }
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.field { display:flex; flex-direction:column; gap:5px; }
-.field-full { grid-column:1/-1; }
-.field label { font-size:11px; font-weight:800; color:#6b7280; text-transform:uppercase; }
-.field input,.field select { padding:9px 12px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; font-family:inherit; }
-.field input:focus,.field select:focus { outline:none; border-color:#29bcea; }
-.conflict-warn { background:#fef3c7; border:1px solid #fcd34d; border-radius:8px; padding:10px 14px; font-size:13px; color:#92400e; font-weight:700; margin-top:12px; }
-.form-err { color:#ef4444; font-size:13px; margin-top:8px; }
-.modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+.toast-enter-active,
+.toast-leave-active { transition: opacity 0.3s; }
+.toast-enter-from,
+.toast-leave-to { opacity: 0; }
 </style>

@@ -79,6 +79,8 @@
   color: #ffffff !important;
 }
 
+[data-theme='dark'] .home .movie-card,
+[data-theme='dark'] .home .movie-info,
 [data-theme='dark'] .movie-card,
 [data-theme='dark'] .movie-info,
 [data-theme='dark'] .hero-card,
@@ -266,13 +268,14 @@
 }
 
 [data-theme='dark'] .admin-container .menu-item:hover {
-  background: var(--surface-plain) !important;
-  color: var(--accent) !important;
+  background: #1f2937 !important;
+  color: #e5e5e5 !important;
 }
 
 [data-theme='dark'] .admin-container .menu-item.active {
-  background: var(--accent) !important;
-  color: #ffffff !important;
+  background: rgba(255, 215, 0, 0.1) !important;
+  color: #ffd700 !important;
+  border-left: 2px solid #ffd700 !important;
 }
 
 [data-theme='dark'] .admin-container .card,
@@ -285,6 +288,102 @@
 [data-theme='dark'] .admin-container .modal {
   background: var(--surface-plain) !important;
   color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .admin-container .kpi-card,
+[data-theme='dark'] .dashboard .card,
+[data-theme='dark'] .movies-page .card,
+[data-theme='dark'] .schedule-page .card,
+[data-theme='dark'] .customers-page .card,
+[data-theme='dark'] .cinemas-page .card,
+[data-theme='dark'] .promo-page .card,
+[data-theme='dark'] .reports-page .card,
+[data-theme='dark'] .settings-page .card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .admin-container .modal-overlay {
+  background: var(--overlay) !important;
+}
+
+[data-theme='dark'] .admin-container input,
+[data-theme='dark'] .admin-container select,
+[data-theme='dark'] .admin-container textarea {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .admin-container th {
+  background: var(--surface) !important;
+  color: var(--text-tertiary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .admin-container td {
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .admin-container .banner-title,
+[data-theme='dark'] .admin-container .banner-meta,
+[data-theme='dark'] .admin-container .banner-url,
+[data-theme='dark'] .admin-container .section-title,
+[data-theme='dark'] .admin-container .tab,
+[data-theme='dark'] .admin-container .banner-row,
+[data-theme='dark'] .admin-container .page-toolbar h2,
+[data-theme='dark'] .settings-page .section-title,
+[data-theme='dark'] .settings-page .banner-title,
+[data-theme='dark'] .settings-page .banner-meta,
+[data-theme='dark'] .settings-page .banner-url {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .admin-container .banner-meta,
+[data-theme='dark'] .admin-container .banner-url,
+[data-theme='dark'] .settings-page .banner-meta,
+[data-theme='dark'] .settings-page .banner-url {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme='dark'] .admin-container .banner-row:hover,
+[data-theme='dark'] .settings-page .banner-row:hover {
+  background: var(--hover-row) !important;
+}
+
+[data-theme='dark'] .admin-container .tab--active,
+[data-theme='dark'] .settings-page .tab--active {
+  color: #ffd700 !important;
+  border-bottom-color: #ffd700 !important;
+}
+
+[data-theme='dark'] .admin-container .section-title,
+[data-theme='dark'] .admin-container .card-head h3,
+[data-theme='dark'] .admin-container .card > h3 {
+  color: #ffd700 !important;
+}
+
+[data-theme='dark'] .admin-container .admin-info {
+  background: var(--surface-plain) !important;
+}
+
+[data-theme='dark'] .admin-container .topbar-popover,
+[data-theme='dark'] .admin-container .popover-title,
+[data-theme='dark'] .admin-container .notif-item__title {
+  background: var(--surface-plain) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .admin-container .notif-item__sub,
+[data-theme='dark'] .admin-container .popover-empty {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme='dark'] .admin-container .date-tag,
+[data-theme='dark'] .admin-container .date-tag__text,
+[data-theme='dark'] .admin-container .search-go {
+  color: var(--text-secondary) !important;
 }
 
 [data-theme='dark'] .hamburger {
@@ -359,4 +458,28 @@
   background: var(--surface) !important;
   border-color: var(--border) !important;
   color: var(--accent) !important;
+}
+
+[data-theme='dark'] .topbar-popover,
+[data-theme='dark'] .topbar-search-wrap,
+[data-theme='dark'] .search-input,
+[data-theme='dark'] .search-go,
+[data-theme='dark'] .date-tag,
+[data-theme='dark'] .notif {
+  background: var(--surface-plain) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .search-input {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .notif-item:hover {
+  background: var(--hover-row) !important;
+}
+
+[data-theme='dark'] .notif-item__badge--pending {
+  background: rgba(234, 179, 8, 0.2) !important;
+  color: #fde047 !important;
 }

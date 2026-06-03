@@ -247,12 +247,16 @@ onUnmounted(() => {
 
 .logo {
   text-decoration: none;
-  color: #000000;
+  color: var(--text-primary);
   font-weight: 700;
   font-size: 20px;
 }
 
-.logo span { color: #29bcea; }
+.logo span { color: var(--accent); }
+
+.drawer-theme-row {
+  margin-bottom: 4px;
+}
 
 .nav-actions { display: flex; align-items: center; gap: 12px; }
 
@@ -635,12 +639,12 @@ onUnmounted(() => {
 }
 
 .movie-card {
-  background: #f7f7f7;
+  background: var(--surface);
   border-radius: 0;
   overflow: hidden;
   cursor: pointer;
   transition: border-color 0.2s;
-  border: 1px solid #efefef;
+  border: 1px solid var(--border);
 }
 
 .movie-card:hover { border-color: #29bcea; }
@@ -676,7 +680,7 @@ onUnmounted(() => {
 }
 
 .poster-icon { font-size: 36px; }
-.poster-title { font-size: 12px; font-weight: 700; color: #767676; line-height: 1.3; max-width: 90%; }
+.poster-title { font-size: 12px; font-weight: 700; color: var(--text-tertiary); line-height: 1.3; max-width: 90%; }
 
 .movie-card:hover .movie-poster img { transform: scale(1.05); }
 
@@ -694,17 +698,17 @@ onUnmounted(() => {
 
 .movie-card:hover .movie-overlay { opacity: 1; }
 
-.movie-info { padding: 16px; background: #ffffff; }
+.movie-info { padding: 16px; background: var(--surface-plain); }
 
 .movie-info h3 {
   font-size: 14px;
   font-weight: 700;
   margin-bottom: 8px;
   line-height: 1.3;
-  color: #000000;
+  color: var(--text-primary);
 }
 
-.movie-info p { font-size: 12px; color: #767676; margin: 4px 0; }
+.movie-info p { font-size: 12px; color: var(--text-tertiary); margin: 4px 0; }
 .rating { color: #29bcea; font-weight: 700; }
 
 .loading, .error { text-align: center; padding: 40px; color: #767676; }

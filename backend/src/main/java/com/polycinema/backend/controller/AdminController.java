@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
@@ -514,10 +515,33 @@ public class AdminController {
     // ─────────────────────────────────────────────────────────────
 
     @GetMapping("/dat-ve")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getAllBookings(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        List<DatVe> all = datVeRepository.findAll();
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String trangThai) {
+        String query = q != null ? q.trim().toLowerCase() : "";
+        List<DatVe> all = datVeRepository.findAll().stream()
+                .filter(dv -> trangThai == null || trangThai.isBlank()
+                        || trangThai.equalsIgnoreCase(dv.getTrangThai()))
+                .filter(dv -> {
+                    if (query.isEmpty()) return true;
+                    if (dv.getMaDatVe() != null && dv.getMaDatVe().toLowerCase().contains(query)) return true;
+                    if (dv.getNguoiDung() != null) {
+                        if (dv.getNguoiDung().getEmail() != null
+                                && dv.getNguoiDung().getEmail().toLowerCase().contains(query)) return true;
+                        if (dv.getNguoiDung().getHoTen() != null
+                                && dv.getNguoiDung().getHoTen().toLowerCase().contains(query)) return true;
+                    }
+                    if (dv.getLichChieu() != null && dv.getLichChieu().getPhim() != null
+                            && dv.getLichChieu().getPhim().getTenPhim() != null
+                            && dv.getLichChieu().getPhim().getTenPhim().toLowerCase().contains(query)) return true;
+                    return false;
+                })
+                .sorted(Comparator.comparing(DatVe::getNgayTao, Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(Collectors.toList());
+
         int total = all.size();
         int start = page * size;
         int end = Math.min(start + size, total);
@@ -526,7 +550,7 @@ public class AdminController {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("content", paged);
         result.put("totalElements", total);
-        result.put("totalPages", (int) Math.ceil((double) total / size));
+        result.put("totalPages", Math.max(1, (int) Math.ceil((double) total / size)));
         return ResponseEntity.ok(result);
     }
 

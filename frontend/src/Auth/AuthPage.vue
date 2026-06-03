@@ -651,7 +651,8 @@ function loginDiscord() {
 
 <style scoped>
 * { box-sizing: border-box; }
-.page { min-height: 100vh; display: flex; justify-content: center; align-items: center; background: #ffffff; padding: 20px; }
+.page { position: relative; min-height: 100vh; display: flex; justify-content: center; align-items: center; background: var(--page-bg); padding: 20px; }
+.auth-theme { position: fixed; top: 16px; right: 16px; z-index: 20; }
 .auth-card { width: 1000px; min-height: 650px; background: #fff; border: 1px solid #efefef; display: flex; overflow: hidden; }
 .left { width: 42%; color: #29bcea; padding: 40px; background: #f7f7f7; border-right: 1px solid #efefef; display: flex; align-items: center; }
 .left h1 { font-size: 40px; margin-bottom: 10px; color: #29bcea; font-weight: 700; }
