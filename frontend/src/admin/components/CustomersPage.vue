@@ -1,11 +1,13 @@
 <template>
   <div class="customers-page">
-    <transition name="toast"><div v-if="toast.show" :class="['toast',`toast--${toast.type}`]">{{ toast.msg }}</div></transition>
+    <transition name="toast">
+      <div v-if="toast.show" :class="['toast', `toast--${toast.type}`]">{{ toast.msg }}</div>
+    </transition>
 
     <!-- Toolbar -->
     <div class="toolbar">
-      <input v-model="search" placeholder="🔍 Tìm tên, email..." class="search-input" @input="page=1" />
-      <div class="total-tag">{{ total }} người dùng</div>
+      <input v-model="search" placeholder="Tìm tên, email..." class="search-input" @input="page=1" />
+      <span class="badge-count">{{ total }} người dùng</span>
     </div>
 
     <!-- Table -->
@@ -14,27 +16,39 @@
       <div v-else-if="pageData.length===0" class="state-center empty-text">Không tìm thấy người dùng</div>
       <div v-else class="table-scroll">
         <table class="data-table">
-          <thead><tr>
-            <th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Hạng</th>
-            <th>Chi tiêu</th><th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Hạng</th>
+              <th>Chi tiêu</th><th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="u in pageData" :key="u.id">
               <td class="td-name">{{ u.hoTen || '—' }}</td>
               <td class="td-email">{{ u.email }}</td>
-              <td><span :class="['rbadge', u.vaiTro==='admin'?'rbadge--admin':'']">{{ u.vaiTro }}</span></td>
-              <td><span :class="['lbadge', levelClass(u.capDoThanhVien)]">{{ u.capDoThanhVien||'Thường' }}</span></td>
+              <td>
+                <span :class="['sbadge', u.vaiTro==='admin' ? 'sbadge--amber' : 'sbadge--gray']">{{ u.vaiTro }}</span>
+              </td>
+              <td>
+                <span :class="['lbadge', levelClass(u.capDoThanhVien)]">{{ u.capDoThanhVien || 'Thường' }}</span>
+              </td>
               <td class="td-spent">{{ fmtPrice(u.tongTienDaChi) }}</td>
               <td>
-                <span :class="['sbadge', u.trangThai?'sbadge--green':'sbadge--red']">
+                <span :class="['sbadge', u.trangThai ? 'sbadge--green' : 'sbadge--red']">
                   {{ u.trangThai ? 'Hoạt động' : 'Bị khóa' }}
                 </span>
               </td>
               <td class="td-date">{{ fmtDate(u.ngayTao) }}</td>
               <td>
                 <div class="act-btns">
-                  <button v-if="u.trangThai" class="btn-sm btn-lock" @click="openLock(u)">🔒 Khóa</button>
-                  <button v-else class="btn-sm btn-unlock" @click="unlock(u)">🔓 Mở</button>
+                  <button v-if="u.trangThai" class="btn-sm btn-lock" @click="openLock(u)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Khóa
+                  </button>
+                  <button v-else class="btn-sm btn-unlock" @click="unlock(u)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                    Mở
+                  </button>
                 </div>
               </td>
             </tr>
@@ -59,7 +73,7 @@
         <p class="lock-user-info">{{ lockTarget?.hoTen || lockTarget?.email }}</p>
         <div class="field">
           <label>Lý do khóa *</label>
-          <textarea v-model="lockReason" rows="4" placeholder="Nhập lý do khóa tài khoản..." class="textarea"></textarea>
+          <textarea v-model="lockReason" rows="4" placeholder="Nhập lý do khóa tài khoản..."></textarea>
         </div>
         <p v-if="lockErr" class="form-err">{{ lockErr }}</p>
         <div class="modal-footer">

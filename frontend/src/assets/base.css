@@ -56,7 +56,7 @@ body {
   color: var(--text-secondary);
   background: var(--page-bg);
   line-height: 1.5;
-  font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   font-size: 14.4px;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

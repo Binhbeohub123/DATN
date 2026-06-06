@@ -1,6 +1,8 @@
 <template>
   <div class="schedule-page">
-    <transition name="toast"><div v-if="toast.show" :class="['toast',`toast--${toast.type}`]">{{ toast.msg }}</div></transition>
+    <transition name="toast">
+      <div v-if="toast.show" :class="['toast', `toast--${toast.type}`]">{{ toast.msg }}</div>
+    </transition>
 
     <!-- Toolbar -->
     <div class="toolbar">
@@ -9,7 +11,10 @@
         <option v-for="m in movies" :key="m.id" :value="m.id">{{ m.tenPhim }}</option>
       </select>
       <input v-model="filterDate" type="date" class="filter-select" />
-      <button class="btn-primary" @click="openAdd">+ Thêm lịch chiếu</button>
+      <button class="btn-primary" @click="openAdd">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Thêm lịch chiếu
+      </button>
     </div>
 
     <!-- Table -->
@@ -18,20 +23,36 @@
       <div v-else-if="filtered.length===0" class="state-center empty-text">Không có lịch chiếu</div>
       <div v-else class="table-scroll">
         <table class="data-table">
-          <thead><tr>
-            <th>Phim</th><th>Phòng chiếu</th><th>Ngày</th>
-            <th>Giờ bắt đầu</th><th>Giờ kết thúc</th><th>Giá</th><th>Trạng thái</th><th>Thao tác</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th>Phim</th><th>Phòng chiếu</th><th>Ngày</th>
+              <th>Giờ bắt đầu</th><th>Giờ kết thúc</th><th>Giá</th><th>Trạng thái</th><th>Thao tác</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="lc in filtered" :key="lc.id">
               <td class="td-movie">{{ lc.phim?.tenPhim || '—' }}</td>
-              <td>{{ lc.phongChieu?.tenPhong || '—' }}<span class="type-chip">{{ lc.phongChieu?.loaiPhong }}</span></td>
+              <td>
+                {{ lc.phongChieu?.tenPhong || '—' }}
+                <span :class="['sbadge', lc.phongChieu?.loaiPhong==='VIP'?'sbadge--amber':'sbadge--gray']" style="margin-left:6px">{{ lc.phongChieu?.loaiPhong }}</span>
+              </td>
               <td class="td-date">{{ fmtDate(lc.thoiGianBatDau) }}</td>
               <td class="td-time">{{ fmtTime(lc.thoiGianBatDau) }}</td>
               <td class="td-time">{{ fmtTime(lc.thoiGianKetThuc) }}</td>
               <td class="td-price">{{ fmtPrice(lc.giaCoBan) }}</td>
-              <td><span :class="['sbadge', lc.trangThai==='active'?'sbadge--green':'sbadge--gray']">{{ lc.trangThai }}</span></td>
-              <td><button class="btn-icon btn-del" @click="del(lc)" title="Xóa">🗑️</button></td>
+              <td>
+                <span :class="['sbadge', lc.trangThai==='active'?'sbadge--green':'sbadge--gray']">{{ lc.trangThai }}</span>
+              </td>
+              <td>
+                <div class="act-btns">
+                  <button class="btn-icon btn-edit" @click="openAdd" title="Sửa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="btn-icon btn-del" @click="del(lc)" title="Xóa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -60,22 +81,10 @@
               <option v-for="p in phongs" :key="p.id" :value="p.id">{{ p.tenPhong }} ({{ p.loaiPhong }}) — {{ p.rapChieu?.tenRap }}</option>
             </select>
           </div>
-          <div class="field">
-            <label>Ngày chiếu *</label>
-            <input v-model="form.date" type="date" />
-          </div>
-          <div class="field">
-            <label>Giờ bắt đầu *</label>
-            <input v-model="form.startTime" type="time" />
-          </div>
-          <div class="field">
-            <label>Thời lượng (phút)</label>
-            <input v-model.number="form.durationMin" type="number" min="30" />
-          </div>
-          <div class="field">
-            <label>Giá cơ bản (VND) *</label>
-            <input v-model.number="form.giaCoBan" type="number" min="0" step="1000" />
-          </div>
+          <div class="field"><label>Ngày chiếu *</label><input v-model="form.date" type="date" /></div>
+          <div class="field"><label>Giờ bắt đầu *</label><input v-model="form.startTime" type="time" /></div>
+          <div class="field"><label>Thời lượng (phút)</label><input v-model.number="form.durationMin" type="number" min="30" /></div>
+          <div class="field"><label>Giá cơ bản (VND) *</label><input v-model.number="form.giaCoBan" type="number" min="0" step="1000" /></div>
         </div>
         <div v-if="conflict" class="conflict-warn">⚠️ {{ conflict }}</div>
         <p v-if="formErr" class="form-err">{{ formErr }}</p>

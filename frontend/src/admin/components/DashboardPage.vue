@@ -1,91 +1,123 @@
 <template>
-  <div class="dashboard">
+  <div class="db-page">
     <!-- Toast -->
-    <transition name="toast"><div v-if="toast.show" :class="['toast',`toast--${toast.type}`]">{{ toast.msg }}</div></transition>
+    <transition name="toast">
+      <div v-if="toast.show" :class="['db-toast', `db-toast--${toast.type}`]">{{ toast.msg }}</div>
+    </transition>
 
-    <!-- KPI cards -->
-    <div class="kpi-grid">
-      <div v-for="k in kpis" :key="k.label" class="kpi-card">
-        <div class="kpi-left">
-          <div class="kpi-icon">{{ k.icon }}</div>
-          <div :class="['kpi-trend', k.up ? 'up' : 'down']" v-if="k.trend != null">
-            {{ k.up ? '▲' : '▼' }} {{ k.trend }}
-          </div>
+    <!-- KPI row -->
+    <div class="db-kpi-row reveal is-visible">
+      <div v-for="k in kpis" :key="k.label" class="db-kpi glass-card">
+        <div class="db-kpi__icon">
+          <!-- Revenue -->
+          <svg v-if="k.label.includes('thu')" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <!-- Tickets -->
+          <svg v-else-if="k.label.includes('Vé')" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4V9z"/><line x1="9" y1="12" x2="9.01" y2="12"/><line x1="13" y1="12" x2="15" y2="12"/></svg>
+          <!-- Users -->
+          <svg v-else-if="k.label.includes('người')" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
+          <!-- Movies -->
+          <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5"/></svg>
         </div>
-        <div class="kpi-body">
-          <div class="kpi-value">{{ k.value }}</div>
-          <div class="kpi-label">{{ k.label }}</div>
+        <div class="db-kpi__body">
+          <div class="db-kpi__value">{{ k.value }}</div>
+          <div class="db-kpi__label">{{ k.label }}</div>
+          <span v-if="k.trend != null" :class="['db-kpi__trend', k.up ? 'db-kpi__trend--up' : 'db-kpi__trend--down']">
+            {{ k.up ? '▲' : '▼' }} {{ k.trend }}
+          </span>
         </div>
       </div>
     </div>
 
-    <!-- Revenue line chart (SVG) + Top movies -->
-    <div class="two-col">
-      <div class="card chart-card">
-        <div class="card-head">
-          <h3>Doanh Thu 30 Ngày</h3>
-          <div class="period-btns">
-            <button :class="['pbtn', period===7?'pbtn--active':'']"  @click="period=7;loadRevenue()">7N</button>
-            <button :class="['pbtn', period===30?'pbtn--active':'']" @click="period=30;loadRevenue()">30N</button>
+    <!-- Chart + Top movies -->
+    <div class="db-two-col">
+      <!-- Revenue chart -->
+      <div class="db-chart-card glass-card">
+        <div class="db-card-head">
+          <h3 class="db-section-title">Doanh Thu</h3>
+          <div class="db-period-btns">
+            <button :class="['db-pbtn', period===7 ? 'db-pbtn--active' : '']" @click="period=7; loadRevenue()">7N</button>
+            <button :class="['db-pbtn', period===30 ? 'db-pbtn--active' : '']" @click="period=30; loadRevenue()">30N</button>
           </div>
         </div>
-        <div v-if="loadingRev" class="chart-placeholder"><div class="spinner"></div></div>
-        <div v-else-if="revData.length===0" class="empty-text">Chưa có dữ liệu doanh thu</div>
-        <svg v-else class="line-chart" :viewBox="`0 0 ${SVG_W} ${SVG_H}`" preserveAspectRatio="none">
+        <div v-if="loadingRev" class="db-chart-placeholder"><div class="db-spinner"></div></div>
+        <div v-else-if="revData.length === 0" class="db-empty">Chưa có dữ liệu doanh thu</div>
+        <svg v-else class="db-line-chart" :viewBox="`0 0 ${SVG_W} ${SVG_H}`" preserveAspectRatio="none">
           <defs>
-            <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#FFD700" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
+            <linearGradient id="dbRevGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#C9A84C" stop-opacity="0.28"/>
+              <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/>
             </linearGradient>
           </defs>
-          <!-- grid lines -->
-          <line v-for="y in yLines" :key="y" :x1="PAD" :y1="y" :x2="SVG_W-PAD/2" :y2="y" stroke="rgba(17,24,39,0.12)" stroke-width="1"/>
-          <!-- area fill -->
-          <path :d="areaPath" fill="url(#revGrad)"/>
-          <!-- line -->
-          <path :d="linePath" fill="none" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- dots -->
-          <circle v-for="(p,i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="4" fill="#FFD700" stroke="#111827" stroke-width="2"/>
-          <!-- x labels -->
-          <text v-for="(p,i) in chartPts.filter((_,i)=>i%(Math.ceil(chartPts.length/6))===0)" :key="'l'+i" :x="p.x" :y="SVG_H-4" text-anchor="middle" font-size="10" fill="#9ca3af">{{ fmtDateShort(p.label) }}</text>
+          <line v-for="y in yLines" :key="y" :x1="PAD" :y1="y" :x2="SVG_W - PAD/2" :y2="y" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+          <path :d="areaPath" fill="url(#dbRevGrad)"/>
+          <path :d="linePath" fill="none" stroke="#C9A84C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle v-for="(p, i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#C9A84C" stroke="#0a0a0f" stroke-width="2"/>
+          <text
+            v-for="(p, i) in chartPts.filter((_, i) => i % (Math.ceil(chartPts.length / 6)) === 0)"
+            :key="'l' + i"
+            :x="p.x" :y="SVG_H - 4"
+            text-anchor="middle" font-size="10" fill="#94a3b8"
+          >{{ fmtDateShort(p.label) }}</text>
         </svg>
       </div>
 
-      <div class="card">
-        <h3>Top 5 Phim Doanh Thu</h3>
-        <div v-if="loadingTop" class="loading-text">Đang tải...</div>
-        <div v-else-if="topMovies.length===0" class="empty-text">Chưa có dữ liệu</div>
-        <table v-else class="top-table">
-          <thead><tr><th>#</th><th>Phim</th><th>Vé</th><th>Doanh thu</th></tr></thead>
-          <tbody>
-            <tr v-for="(m,i) in topMovies" :key="m.id">
-              <td><span class="rank" :class="i<3?`rank--${i+1}`:''">{{i+1}}</span></td>
-              <td class="td-movie">{{ m.tenPhim }}</td>
-              <td>{{ m.tickets }}</td>
-              <td class="td-rev">{{ fmtPrice(m.revenue) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Top 5 movies -->
+      <div class="db-top-card glass-card">
+        <h3 class="db-section-title">Top 5 Phim Doanh Thu</h3>
+        <div v-if="loadingTop" class="db-loading">Đang tải...</div>
+        <div v-else-if="topMovies.length === 0" class="db-empty">Chưa có dữ liệu</div>
+        <div v-else class="db-table-wrap">
+          <table class="db-table">
+            <thead>
+              <tr>
+                <th>#</th><th>Phim</th><th>Vé</th><th>Doanh thu</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(m, i) in topMovies" :key="m.id">
+                <td><span class="db-rank" :class="i < 3 ? `db-rank--${i+1}` : ''">{{ i + 1 }}</span></td>
+                <td class="db-td-movie">{{ m.tenPhim }}</td>
+                <td>{{ m.tickets }}</td>
+                <td class="db-td-rev">{{ fmtPrice(m.revenue) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     <!-- Recent bookings -->
-    <div class="card">
-      <div class="card-head"><h3>Đặt Vé Gần Đây</h3><span class="badge-count">{{ recentBookings.length }}</span></div>
-      <div v-if="loadingBook" class="loading-text">Đang tải...</div>
-      <div v-else-if="recentBookings.length===0" class="empty-text">Chưa có đặt vé nào</div>
-      <table v-else class="data-table">
-        <thead><tr><th>Mã</th><th>Khách hàng</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th></tr></thead>
-        <tbody>
-          <tr v-for="bk in recentBookings" :key="bk.id">
-            <td class="mono">{{ bk.maDatVe }}</td>
-            <td>{{ bk.nguoiDung?.hoTen || bk.nguoiDung?.email || '—' }}</td>
-            <td class="td-rev">{{ fmtPrice(bk.tongTienThanhToan) }}</td>
-            <td>{{ bk.trangThaiThanhToan }}</td>
-            <td><span :class="['sbadge', bk.trangThai==='confirmed'?'sbadge--green':bk.trangThai==='cancelled'?'sbadge--red':'sbadge--yellow']">{{ bk.trangThai }}</span></td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="db-bookings-card glass-card reveal is-visible">
+      <div class="db-card-head">
+        <h3 class="db-section-title">Đặt Vé Gần Đây</h3>
+        <span class="db-count-badge">{{ recentBookings.length }}</span>
+      </div>
+      <div v-if="loadingBook" class="db-loading">Đang tải...</div>
+      <div v-else-if="recentBookings.length === 0" class="db-empty">Chưa có đặt vé nào</div>
+      <div v-else class="db-table-wrap">
+        <table class="db-table">
+          <thead>
+            <tr>
+              <th>Mã</th><th>Khách hàng</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="bk in recentBookings" :key="bk.id">
+              <td class="db-td-mono">{{ bk.maDatVe }}</td>
+              <td>{{ bk.nguoiDung?.hoTen || bk.nguoiDung?.email || '—' }}</td>
+              <td class="db-td-rev">{{ fmtPrice(bk.tongTienThanhToan) }}</td>
+              <td>{{ bk.trangThaiThanhToan }}</td>
+              <td>
+                <span :class="[
+                  'db-badge',
+                  bk.trangThai === 'confirmed' ? 'db-badge--green' :
+                  bk.trangThai === 'cancelled' ? 'db-badge--red' : 'db-badge--yellow'
+                ]">{{ bk.trangThai }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -209,42 +241,271 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 </script>
 
 <style scoped>
-.toast-enter-active,
-.toast-leave-active {
-  transition: opacity 0.3s;
+/* ── Page wrapper ── */
+.db-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 100%;
+  background: var(--void);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
 }
 
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
+/* ── Toast ── */
+.toast-enter-active, .toast-leave-active { transition: opacity 0.3s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; }
+.db-toast {
+  position: fixed;
+  top: 20px; right: 20px;
+  z-index: 9999;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+}
+.db-toast--error   { background: rgba(127,29,29,0.92); color: #fecaca; border-color: #ef4444; }
+.db-toast--success { background: rgba(20,83,45,0.92);  color: #bbf7d0; border-color: #22c55e; }
+
+/* ── KPI row ── */
+.db-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1100px) { .db-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .db-kpi-row { grid-template-columns: 1fr; } }
+
+.db-kpi {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-left: 3px solid var(--gold);
+  transition: box-shadow 200ms var(--ease-out);
+}
+.db-kpi:hover { box-shadow: var(--glow-gold); }
+
+.db-kpi__icon {
+  flex-shrink: 0;
+  color: var(--gold);
 }
 
-.line-chart {
-  width: 100%;
-  height: 180px;
-  overflow: visible;
+.db-kpi__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
-.chart-placeholder {
-  height: 180px;
-}
-
-.td-movie {
-  max-width: 160px;
+.db-kpi__value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.kpi-trend.up {
-  color: #10b981;
+.db-kpi__label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.kpi-trend.down {
-  color: #ef4444;
+.db-kpi__trend {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  display: inline-block;
+  width: fit-content;
+}
+.db-kpi__trend--up   { background: rgba(34,197,94,0.12);  color: #22c55e; }
+.db-kpi__trend--down { background: rgba(239,68,68,0.12);  color: #ef4444; }
+
+/* ── Two-column layout ── */
+.db-two-col {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+}
+@media (max-width: 960px) { .db-two-col { grid-template-columns: 1fr; } }
+
+/* ── Card common ── */
+.db-chart-card,
+.db-top-card,
+.db-bookings-card {
+  padding: 20px 24px;
+  overflow: hidden;
 }
 
-.kpi-icon {
-  font-size: 32px;
+.db-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+/* ── Section title ── */
+.db-section-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 0 0 16px;
+  padding-left: 12px;
+  border-left: 3px solid var(--gold);
+  line-height: 1.3;
+}
+.db-card-head .db-section-title { margin-bottom: 0; }
+
+/* ── Period buttons ── */
+.db-period-btns { display: flex; gap: 4px; }
+.db-pbtn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms var(--ease-out);
+}
+.db-pbtn:hover       { color: var(--text-primary); border-color: var(--glass-border); }
+.db-pbtn--active     { background: var(--gold-soft); color: var(--gold); border-color: var(--gold); }
+
+/* ── Chart ── */
+.db-line-chart {
+  display: block;
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+}
+.db-chart-placeholder {
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.db-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--glass-border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: db-spin 0.8s linear infinite;
+}
+@keyframes db-spin { to { transform: rotate(360deg); } }
+
+/* ── Table pattern ── */
+.db-table-wrap { overflow-x: auto; }
+
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.db-table thead tr {
+  background: var(--glass-bg);
+}
+
+.db-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-ghost);
+  border-bottom: 1px solid var(--glass-border);
+  white-space: nowrap;
+}
+
+.db-table tbody tr {
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 150ms var(--ease-out);
+}
+.db-table tbody tr:last-child { border-bottom: none; }
+.db-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+.db-table td {
+  padding: 14px 16px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+/* ── Table cell helpers ── */
+.db-td-movie {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.db-td-rev  { font-weight: 700; color: var(--gold); }
+.db-td-mono { font-family: 'Courier New', monospace; font-size: 13px; color: var(--gold); }
+
+/* ── Rank badges ── */
+.db-rank {
+  display: inline-flex;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+}
+.db-rank--1 { background: var(--gold);             color: #000; }
+.db-rank--2 { background: var(--glass-bg-heavy);   color: var(--text-primary); }
+.db-rank--3 { background: rgba(245,158,11,0.2);    color: #f59e0b; }
+
+/* ── Status badges ── */
+.db-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.db-badge--green  { background: rgba(34,197,94,0.12);  color: #22c55e; }
+.db-badge--red    { background: rgba(239,68,68,0.12);  color: #ef4444; }
+.db-badge--yellow { background: rgba(245,158,11,0.12); color: #f59e0b; }
+
+/* ── Count badge ── */
+.db-count-badge {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Empty / loading ── */
+.db-empty,
+.db-loading {
+  padding: 32px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 </style>

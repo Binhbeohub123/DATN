@@ -1,63 +1,82 @@
 <template>
   <div class="admin-container">
     <!-- SIDEBAR -->
-    <div class="sidebar">
+    <aside class="sidebar">
+      <!-- Logo -->
       <div class="sidebar-logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24"><path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg>
-        </div>
-        <span class="logo-text">Poly<span>Cinema</span></span>
-        <span class="logo-admin">ADMIN</span>
+        <svg class="logo-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+          <rect x="2" y="2" width="20" height="20" rx="2.5"/>
+          <path d="M7 2v20M17 2v20M2 12h20M2 7h5M17 7h5M2 17h5M17 17h5"/>
+        </svg>
+        <span class="logo-text">PolyCinema</span>
+        <span class="logo-badge chip-glass chip-glass--gold">ADMIN</span>
       </div>
 
-      <div class="sidebar-menu">
+      <!-- Nav -->
+      <nav class="sidebar-menu">
         <div class="menu-section">TỔNG QUAN</div>
         <RouterLink to="/admin/dashboard" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">📊</span><span>Tổng Quan</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Tổng Quan</span>
         </RouterLink>
 
         <div class="menu-section">QUẢN LÝ</div>
         <RouterLink to="/admin/movies" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">🎬</span><span>Quản Lý Phim</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5"/></svg>
+          <span>Quản Lý Phim</span>
         </RouterLink>
         <RouterLink to="/admin/schedule" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">📅</span><span>Lịch Chiếu</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span>Lịch Chiếu</span>
         </RouterLink>
         <RouterLink to="/admin/tickets" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">🎟️</span><span>Đặt Vé</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4V9z"/></svg>
+          <span>Đặt Vé</span>
           <span class="menu-badge" v-if="pendingTickets > 0">{{ pendingTickets }}</span>
         </RouterLink>
         <RouterLink to="/admin/customers" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">👥</span><span>Khách Hàng</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M2 20c0-4 2.7-7 6-7h4c3.3 0 6 3 6 7"/><circle cx="17" cy="6" r="2.5"/><path d="M21 18c0-3-1.8-5-4-5"/></svg>
+          <span>Khách Hàng</span>
         </RouterLink>
         <RouterLink to="/admin/cinemas" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">🏢</span><span>Rạp Chiếu</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Rạp Chiếu</span>
         </RouterLink>
 
         <div class="menu-section">HỆ THỐNG</div>
         <RouterLink to="/admin/promo" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">🎁</span><span>Khuyến Mãi</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          <span>Khuyến Mãi</span>
         </RouterLink>
         <RouterLink to="/admin/reports" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">📈</span><span>Báo Cáo</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Báo Cáo</span>
         </RouterLink>
         <RouterLink to="/admin/settings" class="menu-item" active-class="active" @click="onNavClick">
-          <span class="icon">⚙️</span><span>Cài Đặt</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Cài Đặt</span>
         </RouterLink>
-      </div>
+      </nav>
 
+      <!-- Footer user card -->
       <div class="sidebar-footer">
-        <div class="admin-info">
+        <div class="admin-info glass-card">
           <div class="admin-avatar">AD</div>
-          <div>
+          <div class="admin-info-text">
             <div class="admin-name">Admin PolyCinema</div>
             <div class="admin-role">Quản Trị Viên</div>
           </div>
         </div>
-        <button type="button" class="home-btn" @click="goHome">🏠 Về trang chủ</button>
-        <a href="#" class="logout-btn" @click.prevent="logout">🔓 Đăng Xuất</a>
+        <button type="button" class="btn-ghost home-btn" @click="goHome">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          Trang chủ
+        </button>
+        <button type="button" class="btn-ghost logout-btn" @click="logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Đăng Xuất
+        </button>
       </div>
-    </div>
+    </aside>
 
     <!-- MAIN CONTENT -->
     <div class="main">
@@ -68,19 +87,22 @@
         @click="shell.closePanels()"
       />
 
-      <div class="topbar">
+      <!-- Topbar -->
+      <header class="topbar">
         <div class="topbar-head">
-          <p class="eyebrow">Control room</p>
+          <p class="eyebrow">{{ currentPage }}</p>
           <h1>{{ pageTitles[currentPage] }}</h1>
         </div>
 
         <div class="topbar-toolbar" ref="topbarToolbarRef">
           <div class="topbar-toolbar-start">
-            <button type="button" class="home-btn home-btn--topbar" title="Về trang chủ" @click="goHome">
-              🏠 <span class="home-btn__label">Trang chủ</span>
+            <button type="button" class="btn-ghost home-btn--topbar" title="Về trang chủ" @click="goHome">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="home-btn__label">Trang chủ</span>
             </button>
             <ThemeToggle />
             <div class="topbar-search-wrap">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input
                 v-model="shell.searchQuery"
                 type="search"
@@ -89,37 +111,35 @@
                 aria-label="Tìm kiếm"
                 @keydown.enter.prevent="runSearch"
               />
-              <button type="button" class="search-go" title="Tìm" @click="runSearch">⌕</button>
+              <button type="button" class="search-go" title="Tìm" @click="runSearch">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             </div>
           </div>
 
           <div class="topbar-toolbar-end">
             <div class="topbar-popover-wrap">
-              <button type="button" class="date-tag" @click.stop="shell.toggleDatePanel()">
-                📅 <span class="date-tag__text">{{ shell.formattedFilterDate }}</span>
+              <button type="button" class="date-tag chip-glass" @click.stop="shell.toggleDatePanel()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <span class="date-tag__text">{{ shell.formattedFilterDate }}</span>
               </button>
-              <div v-if="shell.showDatePanel" class="topbar-popover date-popover" @click.stop>
+              <div v-if="shell.showDatePanel" class="topbar-popover date-popover glass-card" @click.stop>
                 <p class="popover-title">Chọn ngày lọc lịch chiếu</p>
                 <input v-model="shell.filterDate" type="date" class="popover-date-input" />
                 <div class="popover-actions">
-                  <button type="button" class="popover-btn" @click.stop="shell.showDatePanel = false">Đóng</button>
-                  <button type="button" class="popover-btn popover-btn--primary" @click.stop="applyDateFilter">Áp dụng</button>
-                  <button type="button" class="popover-btn" @click.stop="setTodayAndApply">Hôm nay</button>
+                  <button type="button" class="btn-ghost popover-btn" @click.stop="shell.showDatePanel = false">Đóng</button>
+                  <button type="button" class="btn-primary popover-btn" @click.stop="applyDateFilter">Áp dụng</button>
+                  <button type="button" class="btn-ghost popover-btn" @click.stop="setTodayAndApply">Hôm nay</button>
                 </div>
               </div>
             </div>
 
             <div class="topbar-popover-wrap">
-              <button
-                type="button"
-                class="notif"
-                aria-label="Thông báo"
-                @click.stop="shell.toggleNotifPanel()"
-              >
-                🔔
+              <button type="button" class="notif" aria-label="Thông báo" @click.stop="shell.toggleNotifPanel()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span v-if="shell.pendingCount > 0" class="notif-dot">{{ shell.pendingCount > 9 ? '9+' : shell.pendingCount }}</span>
               </button>
-              <div v-if="shell.showNotifPanel" class="topbar-popover notif-popover" @click.stop>
+              <div v-if="shell.showNotifPanel" class="topbar-popover notif-popover glass-card" @click.stop>
                 <div class="popover-head">
                   <p class="popover-title">Thông báo</p>
                   <button type="button" class="popover-link" @click="goPendingTickets">Chờ TT ({{ shell.pendingCount }})</button>
@@ -143,31 +163,20 @@
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div class="content">
-        <!-- Dashboard -->
         <DashboardPage v-if="currentPage === 'dashboard'" />
-        <!-- Movies -->
-        <MoviesPage v-if="currentPage === 'movies'" />
-        <!-- Schedule -->
-        <SchedulePage v-if="currentPage === 'schedule'" />
-        <!-- Tickets -->
-        <TicketsPage v-if="currentPage === 'tickets'" />
-        <!-- Customers -->
+        <MoviesPage    v-if="currentPage === 'movies'" />
+        <SchedulePage  v-if="currentPage === 'schedule'" />
+        <TicketsPage   v-if="currentPage === 'tickets'" />
         <CustomersPage v-if="currentPage === 'customers'" />
-        <!-- Cinemas -->
-        <CinemasPage v-if="currentPage === 'cinemas'" />
-        <!-- Promo -->
-        <PromoPage v-if="currentPage === 'promo'" />
-        <!-- Reports -->
-        <ReportsPage v-if="currentPage === 'reports'" />
-        <!-- Settings -->
-        <SettingsPage v-if="currentPage === 'settings'" />
+        <CinemasPage   v-if="currentPage === 'cinemas'" />
+        <PromoPage     v-if="currentPage === 'promo'" />
+        <ReportsPage   v-if="currentPage === 'reports'" />
+        <SettingsPage  v-if="currentPage === 'settings'" />
       </div>
     </div>
-
-    <!-- Modals sẽ được quản lý qua composable hoặc event bus sau này -->
   </div>
 </template>
 
@@ -314,292 +323,169 @@ onUnmounted(() => {
 </script>
 
 <style>
-@import '@/assets/admin-gold.css';
+@import '../assets/tokens.css';
+@import '../assets/cinema.css';
+@import '../assets/admin-gold.css';
 
-:root {
-  --admin-accent: #ffd700;
-  --admin-ink: #e5e5e5;
-  --admin-muted: #9ca3af;
-  --admin-line: #374151;
-  --admin-card: #111827;
-  --admin-sidebar: 280px;
-}
+/* ── Shell layout variables ── */
+:root { --admin-sidebar: 240px; }
 
-.admin-container,
-.admin-container * {
-  box-sizing: border-box;
-}
-
+/* ── Grid layout ── */
 .admin-container {
   width: 100%;
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--admin-sidebar) minmax(0, 1fr);
-  column-gap: 18px;
   align-items: start;
-  padding: 18px;
-  color: var(--admin-ink);
-  font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #0d0d0d;
-  transition: background 0.25s ease, color 0.25s ease;
+  background: var(--void);
 }
 
+/* ── Sidebar ── */
 .sidebar {
   grid-column: 1;
   grid-row: 1;
   position: sticky;
-  top: 18px;
+  top: 0;
   z-index: 500;
-  width: 100%;
-  min-width: 0;
-  height: calc(100vh - 36px);
-  max-height: calc(100vh - 36px);
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--admin-line);
-  border-radius: 0;
-  background: var(--admin-card);
-  box-shadow: none;
+  background: var(--void);
+  border-right: 1px solid var(--glass-border);
   overflow: hidden;
-  isolation: isolate;
-  pointer-events: auto;
-}
-
-.sidebar-logo,
-.sidebar-footer {
-  position: relative;
-  z-index: 1;
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 24px 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 10px;
+  height: 64px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
 }
-
-.logo-icon {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 4px;
-  background: var(--admin-accent);
-  box-shadow: none;
-}
-
-.logo-icon svg {
-  width: 24px;
-  height: 24px;
-  fill: #0d0d0d;
-}
-
+.logo-icon-svg { color: var(--gold); flex-shrink: 0; }
 .logo-text {
-  color: var(--admin-accent);
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.6px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
-
-.logo-text span {
-  color: var(--admin-ink);
-}
-
-.logo-admin {
-  margin-left: auto;
-  padding: 5px 8px;
-  border-radius: 2px;
-  background: #1f2937;
-  color: var(--admin-accent);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
+.logo-badge { margin-left: auto; font-size: 10px; letter-spacing: 0.1em; }
 
 .sidebar-menu {
-  position: relative;
-  z-index: 2;
   flex: 1;
-  padding: 18px 14px;
+  padding: 12px 8px;
   overflow-y: auto;
-  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-border) transparent;
 }
-
 .menu-section {
-  padding: 18px 14px 8px;
-  color: #9ca3af;
+  padding: 20px 12px 6px;
+  font-family: var(--font-ui);
   font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 1.4px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-ghost);
 }
-
-a.menu-item {
+.menu-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  min-height: 46px;
-  padding: 12px 14px;
-  border-radius: 4px;
-  border: 1px solid transparent;
+  min-height: 40px;
+  padding: 10px 16px;
+  margin: 2px 0;
+  border-radius: var(--radius-sm);
+  border: none;
   background: transparent;
-  color: var(--admin-muted);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
   font-size: 14px;
-  font-weight: 800;
-  font-family: inherit;
-  text-align: left;
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.22s ease, background 0.22s ease, color 0.22s ease;
-  -webkit-tap-highlight-color: transparent;
+  transition: all 300ms var(--ease-out);
 }
-
-.menu-item:hover {
-  color: #e5e5e5;
-  background: #1f2937;
-  border-color: transparent;
-  transform: none;
-}
-
-.menu-item.active {
-  color: #ffd700;
-  background: rgba(255, 215, 0, 0.1);
-  border-color: transparent;
-  border-left: 2px solid #ffd700;
-  box-shadow: none;
-}
-
-.menu-item .icon {
-  width: 24px;
-  text-align: center;
-  font-size: 18px;
-}
-
+.menu-item:hover { background: var(--glass-bg); color: var(--text-primary); }
+.menu-item.active { background: var(--gold-soft); color: var(--gold); font-weight: 600; }
+.menu-item > svg { flex-shrink: 0; opacity: 0.75; }
+.menu-item.active > svg,
+.menu-item:hover > svg { opacity: 1; }
 .menu-badge {
   margin-left: auto;
-  min-width: 22px;
-  padding: 2px 7px;
-  border-radius: 999px;
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
   background: #ef4444;
-  color: white;
-  font-size: 11px;
-  font-weight: 900;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
   text-align: center;
 }
 
 .sidebar-footer {
-  padding: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
 }
-
 .admin-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 12px;
-  margin-bottom: 12px;
-  border-radius: 8px;
-  background: #1f2937;
-  border: 1px solid #374151;
+  margin-bottom: 4px;
 }
-
 .admin-avatar {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
-  border-radius: 14px;
-  background: rgba(255, 215, 0, 0.15);
-  color: #ffd700;
-  font-size: 14px;
-  font-weight: 900;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #000;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
 }
-
+.admin-info-text { min-width: 0; }
 .admin-name {
-  color: var(--admin-ink);
+  font-family: var(--font-ui);
   font-size: 13px;
-  font-weight: 900;
-}
-
-.admin-role {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.home-btn {
-  display: block;
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 11px 12px;
-  border: 1px solid var(--admin-line);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--admin-ink);
-  font-size: 13px;
-  font-weight: 800;
-  font-family: inherit;
-  text-align: center;
-  cursor: pointer;
-  transition: 0.22s ease;
-}
-
-.home-btn:hover {
-  border-color: var(--admin-accent);
-  color: var(--admin-accent);
-  background: var(--accent-soft);
-}
-
-.home-btn--topbar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: auto;
-  margin-bottom: 0;
-  min-height: 44px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: var(--surface-plain);
+  font-weight: 600;
+  color: var(--text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-role {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.home-btn, .logout-btn {
+  width: 100%;
+  justify-content: center;
 }
 
-.home-btn__label {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.logout-btn {
-  display: block;
-  padding: 11px 12px;
-  border: 1px solid #374151;
-  border-radius: 8px;
-  color: #e5e5e5;
-  font-size: 13px;
-  font-weight: 700;
-  text-align: center;
-  text-decoration: none;
-  transition: 0.22s ease;
-}
-
-.logout-btn:hover {
-  color: #ffd700;
-  border-color: #ffd700;
-  background: rgba(255, 215, 0, 0.08);
-}
-
+/* ── Main column ── */
 .main {
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
-  min-height: calc(100vh - 36px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  z-index: 1;
-  isolation: isolate;
 }
-
 .admin-panel-backdrop {
   position: absolute;
   inset: 0;
@@ -608,570 +494,256 @@ a.menu-item {
   cursor: default;
 }
 
+/* ── Topbar ── */
 .topbar {
   position: sticky;
-  top: 18px;
+  top: 0;
   z-index: 45;
-  width: 100%;
-  max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 22px;
-  border: 1px solid var(--admin-line);
-  border-radius: 12px;
-  background: #111827;
-  box-shadow: none;
-  overflow: visible;
+  gap: 12px;
+  padding: 16px 24px;
+  background: color-mix(in srgb, var(--void) 80%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
 }
-
-.topbar-head {
-  min-width: 0;
-}
-
+.topbar-head { min-width: 0; }
 .eyebrow {
-  margin: 0 0 3px;
-  color: var(--admin-accent);
+  margin: 0 0 2px;
+  font-family: var(--font-ui);
   font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 1.8px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
+  color: var(--text-ghost);
 }
-
 .topbar h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-size: 20px;
   font-weight: 700;
-  color: #e5e5e5;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
 }
-
 .topbar-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
+  gap: 10px;
 }
-
 .topbar-toolbar-start {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1 1 240px;
   min-width: 0;
 }
-
 .topbar-toolbar-end {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
+.topbar-popover-wrap { position: relative; flex-shrink: 0; }
+.home-btn--topbar { white-space: nowrap; }
+.home-btn__label { font-size: 12px; }
 
-.topbar-popover-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
+/* Search bar */
 .topbar-search-wrap {
   display: flex;
   align-items: center;
-  min-width: 0;
-  width: min(320px, 100%);
-  max-width: 100%;
   flex: 1 1 180px;
-  border: 1px solid var(--admin-line);
-  border-radius: 999px;
-  background: #111827;
+  min-width: 0;
+  width: min(300px, 100%);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
   overflow: hidden;
+  transition: border-color 200ms var(--ease-out);
 }
-
+.topbar-search-wrap:focus-within { border-color: var(--gold); }
+.search-icon { margin-left: 12px; color: var(--text-secondary); flex-shrink: 0; }
 .search-input {
   flex: 1;
   min-width: 0;
-  min-height: 44px;
-  padding: 10px 12px 10px 16px;
+  min-height: 38px;
+  padding: 8px 10px;
   border: none;
   background: transparent;
-  color: var(--admin-ink);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
   font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
   outline: none;
 }
-
-.search-input::placeholder {
-  color: var(--admin-muted);
-}
-
+.search-input::placeholder { color: var(--text-ghost); }
 .search-go {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 38px;
+  min-height: 38px;
   border: none;
-  border-left: 1px solid var(--admin-line);
-  background: var(--surface);
-  color: var(--admin-accent);
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.search-go:hover {
-  background: rgba(255, 215, 0, 0.1);
-}
-
-.date-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--admin-line);
-  background: #111827;
-  color: var(--admin-muted);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  max-width: min(240px, 42vw);
-}
-
-.date-tag__text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.date-tag:hover {
-  border-color: var(--admin-accent);
-  color: var(--admin-accent);
-}
-
-.notif {
-  position: relative;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 10px;
+  border-left: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--gold);
   display: grid;
   place-items: center;
-  border-radius: 4px;
-  border: 1px solid var(--admin-line);
-  background: #111827;
   cursor: pointer;
-  font-size: 18px;
-  font-family: inherit;
+  transition: background 200ms var(--ease-out);
 }
+.search-go:hover { background: var(--gold-soft); }
 
-.notif:hover {
-  border-color: var(--admin-accent);
+/* Date tag */
+.date-tag {
+  cursor: pointer;
+  max-width: min(220px, 42vw);
+  min-height: 36px;
+  border: none;
+  background: transparent;
 }
+.date-tag__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Notif bell */
+.notif {
+  position: relative;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0 9px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: border-color 200ms var(--ease-out), color 200ms var(--ease-out);
+}
+.notif:hover { border-color: var(--gold); color: var(--gold); }
 .notif-dot {
   position: absolute;
   top: 4px;
   right: 4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border: 2px solid var(--surface-plain);
-  border-radius: 999px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
   background: #ef4444;
   color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 14px;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
   text-align: center;
 }
 
+/* Popovers */
 .topbar-popover {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 60;
   min-width: 280px;
-  max-width: min(360px, calc(100vw - 40px));
-  padding: 14px;
-  border: 1px solid var(--admin-line);
-  background: #111827;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  max-width: min(340px, calc(100vw - 40px));
+  padding: 16px;
+  box-shadow: var(--shadow-lg);
   pointer-events: auto;
 }
-
-.date-popover {
-  right: 0;
-}
-
-.notif-popover {
-  right: 0;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
+.notif-popover { max-height: 380px; overflow-y: auto; }
 .popover-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
-
 .popover-title {
   margin: 0;
+  font-family: var(--font-ui);
   font-size: 14px;
-  font-weight: 700;
-  color: var(--admin-ink);
+  font-weight: 600;
+  color: var(--text-primary);
 }
-
 .popover-link {
   border: none;
   background: none;
-  color: var(--admin-accent);
+  color: var(--gold);
+  font-family: var(--font-ui);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  font-family: inherit;
 }
-
 .popover-date-input {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid var(--admin-line);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--admin-ink);
-  font-family: inherit;
-  font-size: 14px;
+  margin-bottom: 10px;
 }
-
-.popover-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.popover-btn {
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid var(--admin-line);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--admin-muted);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.popover-btn--primary {
-  background: var(--admin-accent);
-  border-color: var(--admin-accent);
-  color: #0d0d0d;
-}
-
-.popover-btn--primary:hover {
-  filter: brightness(1.1);
-}
-
+.popover-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.popover-btn { padding: 8px 14px; min-height: 36px; font-size: 13px; }
 .popover-empty {
   padding: 16px 8px;
   text-align: center;
-  color: var(--admin-muted);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
   font-size: 13px;
 }
-
-.notif-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
+.notif-list { list-style: none; margin: 0; padding: 0; }
 .notif-item {
   display: flex;
   width: 100%;
   gap: 10px;
   padding: 10px 8px;
   border: none;
-  border-bottom: 1px solid var(--admin-line);
+  border-bottom: 1px solid var(--glass-border);
   background: transparent;
   text-align: left;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-ui);
+  transition: background 150ms var(--ease-out);
 }
-
-.notif-item:last-child {
-  border-bottom: none;
-}
-
-.notif-item:hover {
-  background: var(--hover-row);
-}
-
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--glass-bg); }
 .notif-item__badge {
-  width: 28px;
-  height: 28px;
+  width: 26px; height: 26px;
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--admin-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.notif-item__badge--pending {
-  background: #fef9e8;
-  color: #854d0e;
-}
-
-.notif-item__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.notif-item__title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--admin-ink);
-}
-
-.notif-item__sub {
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  color: var(--text-secondary);
   font-size: 11px;
-  color: var(--admin-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 700;
 }
+.notif-item__badge--pending { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.notif-item__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.notif-item__title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.notif-item__sub { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.35); opacity: 0.64; }
+/* Content area */
+.content { flex: 1; padding: 24px; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  :root { --admin-sidebar: 200px; }
 }
-
-.content {
-  padding: 24px 0 0;
-}
-
-.stat-card,
-.card {
-  border: 1px solid var(--admin-line);
-  border-radius: 0;
-  background: var(--admin-card);
-  box-shadow: none;
-  transition: border-color 0.22s ease;
-}
-
-.stat-card:hover,
-.card:hover {
-  transform: none;
-  border-color: var(--admin-accent);
-  box-shadow: none;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-tr {
-  transition: background-color 0.15s ease;
-}
-
-tr:hover td {
-  background: var(--hover-row);
-}
-
-@media (max-width: 1180px) {
-  :root { --admin-sidebar: 242px; }
-  .topbar-toolbar-start {
-    flex: 1 1 100%;
-  }
-  .topbar-search-wrap {
-    flex: 1 1 100%;
-    width: 100%;
-    max-width: 100%;
-  }
-  .topbar-toolbar-end {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
 @media (max-width: 900px) {
-  :root { --admin-sidebar: 76px; }
-  .admin-container {
-    grid-template-columns: 76px minmax(0, 1fr);
-    column-gap: 12px;
-    padding: 12px;
-  }
-  .sidebar {
-    top: 12px;
-    height: calc(100vh - 24px);
-    max-height: calc(100vh - 24px);
-    border-radius: 24px;
-  }
-  .sidebar-logo { justify-content: center; padding: 18px 10px; }
-  .logo-text,
-  .logo-admin,
-  .menu-section,
-  .menu-item span:not(.icon),
-  .admin-info > div,
-  .home-btn:not(.home-btn--topbar),
-  .logout-btn { display: none; }
-  .menu-item { justify-content: center; padding: 14px 10px; }
-  .menu-item:hover { transform: translateX(0) scale(1.04); }
-  .menu-badge { position: absolute; top: 7px; right: 8px; }
-  .sidebar-footer { padding: 12px; }
-  .admin-info { justify-content: center; padding: 8px; }
-  .topbar { top: 12px; border-radius: 22px; }
+  :root { --admin-sidebar: 68px; }
+  .logo-text, .logo-badge, .menu-section,
+  .menu-item > span, .admin-info-text,
+  .home-btn > span:not(.logo-badge), .logout-btn > span { display: none; }
+  .sidebar-logo { justify-content: center; padding: 0 12px; }
+  .menu-item { justify-content: center; padding: 10px 12px; }
+  .menu-badge { position: absolute; top: 6px; right: 6px; }
+  .sidebar-footer { padding: 10px; align-items: center; }
+  .admin-info { padding: 8px; justify-content: center; }
+  .home-btn, .logout-btn { justify-content: center; padding: 10px; min-width: 38px; }
 }
-
 @media (max-width: 640px) {
-  .admin-container {
-    display: block;
-    padding: 10px;
-    padding-bottom: 88px;
-  }
-  .sidebar,
-  .main {
-    grid-column: auto;
-    grid-row: auto;
-  }
-  .sidebar {
-    position: fixed;
-    top: auto;
-    right: 10px;
-    bottom: 10px;
-    left: 10px;
-    z-index: 120;
-    width: auto;
-    min-height: 0;
-    height: 66px;
-    max-height: none;
-    border-radius: 22px;
-  }
-  .sidebar-logo,
-  .sidebar-footer,
-  .menu-section { display: none; }
-  .sidebar-menu {
-    display: flex;
-    gap: 6px;
-    padding: 8px;
-    overflow-x: auto;
-  }
-  .menu-item {
-    min-width: 48px;
-    min-height: 48px;
-    border-radius: 16px;
-    flex: 0 0 auto;
-  }
-  .main {
-    min-height: 0;
-  }
-  .topbar {
-    position: relative;
-    top: 0;
-    z-index: 20;
-    min-height: auto;
-    padding: 16px;
-  }
-  .topbar-toolbar { gap: 8px; }
-  .topbar-search-wrap { width: 100%; min-width: 0; max-width: none; }
-  .home-btn--topbar .home-btn__label { display: none; }
-  .date-tag { max-width: min(200px, 50vw); }
-  .content { padding-top: 14px; }
-}
-
-.topbar .search-input {
-  border: none !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: #e5e5e5 !important;
-  box-shadow: none !important;
-}
-
-.topbar-search-wrap {
-  background: #111827;
-  border-color: #374151;
-}
-
-.search-go {
-  color: #ffd700;
-  background: #1f2937;
-  border-left-color: #374151;
-}
-
-.search-go:hover {
-  background: rgba(255, 215, 0, 0.1);
-}
-
-.date-tag,
-.notif {
-  background: #111827;
-  border-color: #374151;
-  color: #9ca3af;
-}
-
-.date-tag:hover,
-.notif:hover {
-  border-color: #ffd700;
-  color: #ffd700;
-}
-
-.topbar-popover {
-  background: #111827;
-  border-color: #374151;
-}
-
-.popover-title,
-.notif-item__title {
-  color: #e5e5e5;
-}
-
-.popover-link {
-  color: #ffd700;
-}
-
-.popover-empty,
-.notif-item__sub {
-  color: #9ca3af;
-}
-
-.home-btn--topbar {
-  background: #111827;
-  border-color: #374151;
-  color: #e5e5e5;
-}
-
-.home-btn--topbar:hover {
-  border-color: #ffd700;
-  color: #ffd700;
-  background: rgba(255, 215, 0, 0.08);
-}
-
-.logo-admin {
-  background: #1f2937;
-  color: #ffd700;
-}
-
-.logo-text span {
-  color: #e5e5e5;
-}
-
-.sidebar-logo {
-  border-bottom-color: #374151;
-}
-
-.sidebar-footer {
-  border-top-color: #374151;
+  .admin-container { display: flex; flex-direction: column; }
+  .sidebar { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; width: 100%; z-index: 120; flex-direction: row; border-right: none; border-top: 1px solid var(--glass-border); }
+  .sidebar-logo, .sidebar-footer, .menu-section { display: none; }
+  .sidebar-menu { display: flex; flex-direction: row; padding: 6px; overflow-x: auto; gap: 4px; }
+  .menu-item { min-width: 44px; min-height: 44px; flex: 0 0 auto; border-radius: var(--radius-sm); }
+  .main { padding-bottom: 68px; }
+  .topbar { padding: 12px 16px; }
+  .content { padding: 16px; }
 }
 </style>

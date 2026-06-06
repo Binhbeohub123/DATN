@@ -3,18 +3,21 @@
     <div class="auth-theme">
       <ThemeToggle />
     </div>
-    <div class="auth-card">
+    <div class="auth-card glass-card--heavy">
 
       <!-- LEFT -->
       <div class="left">
-        <div>
-          <h1>🎬 PolyCinema</h1>
+        <div class="left-inner">
+          <h1 class="brand-title">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
+            PolyCinema
+          </h1>
           <p class="sub">Đặt vé phim nhanh chóng và tiện lợi</p>
           <div class="feature-list">
-            <div class="feature">🎟 Đặt vé online</div>
-            <div class="feature">💺 Chọn ghế trực tiếp</div>
-            <div class="feature">🕒 Lịch sử đặt vé</div>
-            <div class="feature">🎁 Voucher ưu đãi</div>
+            <span class="chip-glass"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg> Đặt vé online</span>
+            <span class="chip-glass"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Chọn ghế trực tiếp</span>
+            <span class="chip-glass"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Lịch sử đặt vé</span>
+            <span class="chip-glass"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="none"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Voucher ưu đãi</span>
           </div>
         </div>
       </div>
@@ -34,38 +37,50 @@
           <!-- ================= LOGIN ================= -->
           <div v-if="!isRegister && !isForgot && !isVerify">
             <div class="field-group">
-              <input
-                v-model="loginForm.email"
-                placeholder="Email"
-                type="email"
-                :class="{ 'input-err': fieldErrors.loginEmail }"
-                @input="fieldErrors.loginEmail = ''"
-                @keyup.enter="login"
-              />
+              <div class="input-wrap">
+                <input
+                  v-model="loginForm.email"
+                  placeholder=" "
+                  type="email"
+                  :class="{ 'input-err': fieldErrors.loginEmail }"
+                  @input="fieldErrors.loginEmail = ''"
+                  @keyup.enter="login"
+                />
+                <label>Email</label>
+              </div>
               <span v-if="fieldErrors.loginEmail" class="field-err-msg">{{ fieldErrors.loginEmail }}</span>
             </div>
             <div class="field-group">
-              <input
-                v-model="loginForm.password"
-                type="password"
-                placeholder="Mật khẩu"
-                :class="{ 'input-err': fieldErrors.loginPw }"
-                @input="fieldErrors.loginPw = ''"
-                @keyup.enter="login"
-              />
+              <div class="input-wrap">
+                <input
+                  v-model="loginForm.password"
+                  type="password"
+                  placeholder=" "
+                  :class="{ 'input-err': fieldErrors.loginPw }"
+                  @input="fieldErrors.loginPw = ''"
+                  @keyup.enter="login"
+                />
+                <label>Mật khẩu</label>
+              </div>
               <span v-if="fieldErrors.loginPw" class="field-err-msg">{{ fieldErrors.loginPw }}</span>
             </div>
 
-            <button @click="login" :disabled="isLoading.login">
+            <button class="btn-bib" @click="login" :disabled="isLoading.login">
               {{ isLoading.login ? 'Đang đăng nhập...' : 'Đăng nhập' }}
             </button>
 
             <div class="social">
-              <button class="google" @click="loginGoogle" :disabled="isLoading.google">
-                <span class="google-icon">🔐</span> Google
+              <button class="btn-social google" @click="loginGoogle" :disabled="isLoading.google">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Google
               </button>
-              <button class="discord" @click="loginDiscord" :disabled="isLoading.discord">
-                <span class="discord-icon">🎮</span> Discord
+              <button class="btn-social discord" @click="loginDiscord" :disabled="isLoading.discord">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.033.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                </svg>
+                Discord
               </button>
             </div>
 
@@ -81,55 +96,70 @@
           <!-- ================= REGISTER ================= -->
           <div v-if="isRegister">
             <div class="field-group">
-              <input
-                v-model="registerForm.hoTen"
-                placeholder="Họ và tên đầy đủ"
-                :class="{ 'input-err': fieldErrors.hoTen }"
-                @input="fieldErrors.hoTen = ''"
-              />
+              <div class="input-wrap">
+                <input
+                  v-model="registerForm.hoTen"
+                  placeholder=" "
+                  :class="{ 'input-err': fieldErrors.hoTen }"
+                  @input="fieldErrors.hoTen = ''"
+                />
+                <label>Họ và tên đầy đủ</label>
+              </div>
               <span v-if="fieldErrors.hoTen" class="field-err-msg">{{ fieldErrors.hoTen }}</span>
             </div>
             <div class="field-group">
-              <input
-                v-model="registerForm.email"
-                placeholder="Email"
-                type="email"
-                :class="{ 'input-err': fieldErrors.regEmail }"
-                @input="fieldErrors.regEmail = ''"
-              />
+              <div class="input-wrap">
+                <input
+                  v-model="registerForm.email"
+                  placeholder=" "
+                  type="email"
+                  :class="{ 'input-err': fieldErrors.regEmail }"
+                  @input="fieldErrors.regEmail = ''"
+                />
+                <label>Email</label>
+              </div>
               <span v-if="fieldErrors.regEmail" class="field-err-msg">{{ fieldErrors.regEmail }}</span>
             </div>
             <div class="field-group">
-              <input
-                v-model="registerForm.soDienThoai"
-                placeholder="Số điện thoại (0xxxxxxxxx)"
-                :class="{ 'input-err': fieldErrors.phone }"
-                @input="fieldErrors.phone = ''"
-              />
+              <div class="input-wrap">
+                <input
+                  v-model="registerForm.soDienThoai"
+                  placeholder=" "
+                  :class="{ 'input-err': fieldErrors.phone }"
+                  @input="fieldErrors.phone = ''"
+                />
+                <label>Số điện thoại (0xxxxxxxxx)</label>
+              </div>
               <span v-if="fieldErrors.phone" class="field-err-msg">{{ fieldErrors.phone }}</span>
             </div>
             <div class="field-group">
-              <input
-                v-model="registerForm.password"
-                type="password"
-                placeholder="Mật khẩu (tối thiểu 8 ký tự)"
-                :class="{ 'input-err': fieldErrors.regPw }"
-                @input="fieldErrors.regPw = ''"
-              />
+              <div class="input-wrap">
+                <input
+                  v-model="registerForm.password"
+                  type="password"
+                  placeholder=" "
+                  :class="{ 'input-err': fieldErrors.regPw }"
+                  @input="fieldErrors.regPw = ''"
+                />
+                <label>Mật khẩu (tối thiểu 8 ký tự)</label>
+              </div>
               <span v-if="fieldErrors.regPw" class="field-err-msg">{{ fieldErrors.regPw }}</span>
             </div>
             <div class="field-group">
-              <input
-                v-model="registerForm.confirmPassword"
-                type="password"
-                placeholder="Xác nhận mật khẩu"
-                :class="{ 'input-err': fieldErrors.confirmPw }"
-                @input="fieldErrors.confirmPw = ''"
-              />
+              <div class="input-wrap">
+                <input
+                  v-model="registerForm.confirmPassword"
+                  type="password"
+                  placeholder=" "
+                  :class="{ 'input-err': fieldErrors.confirmPw }"
+                  @input="fieldErrors.confirmPw = ''"
+                />
+                <label>Xác nhận mật khẩu</label>
+              </div>
               <span v-if="fieldErrors.confirmPw" class="field-err-msg">{{ fieldErrors.confirmPw }}</span>
             </div>
 
-            <button @click="register" :disabled="isLoading.register">
+            <button class="btn-bib" @click="register" :disabled="isLoading.register">
               {{ isLoading.register ? 'Đang xử lý...' : 'Đăng ký' }}
             </button>
 
@@ -145,15 +175,18 @@
               Chúng tôi đã gửi mã OTP đến email:<br>
               <strong>{{ verifyForm.email }}</strong>
             </p>
-            
-            <input 
-              v-model="verifyForm.otp" 
-              placeholder="Nhập mã OTP 6 số" 
-              maxlength="6"
-              type="number"
-            />
-            
-            <button @click="verifyOtp" :disabled="isLoading.verify">Xác thực Email</button>
+
+            <div class="input-wrap">
+              <input
+                v-model="verifyForm.otp"
+                placeholder=" "
+                maxlength="6"
+                type="number"
+              />
+              <label>Nhập mã OTP 6 số</label>
+            </div>
+
+            <button class="btn-bib" @click="verifyOtp" :disabled="isLoading.verify">Xác thực Email</button>
             <button class="secondary" @click="resendOtp" :disabled="isLoading.resend">
               {{ isLoading.resend ? 'Đang gửi...' : 'Gửi lại OTP' }}
             </button>
@@ -168,33 +201,47 @@
             <!-- STEP 1: email input -->
             <div v-if="!forgotEmailSent">
               <div class="field-group">
-                <input
-                  v-model="forgotForm.email"
-                  placeholder="Nhập email của bạn"
-                  type="email"
-                  :class="{ 'input-err': fieldErrors.forgotEmail }"
-                  @input="fieldErrors.forgotEmail = ''"
-                  @keyup.enter="sendOtp"
-                />
+                <div class="input-wrap">
+                  <input
+                    v-model="forgotForm.email"
+                    placeholder=" "
+                    type="email"
+                    :class="{ 'input-err': fieldErrors.forgotEmail }"
+                    @input="fieldErrors.forgotEmail = ''"
+                    @keyup.enter="sendOtp"
+                  />
+                  <label>Nhập email của bạn</label>
+                </div>
                 <span v-if="fieldErrors.forgotEmail" class="field-err-msg">{{ fieldErrors.forgotEmail }}</span>
               </div>
-              <button @click="sendOtp" :disabled="isLoading.forgot">
+              <button class="btn-bib" @click="sendOtp" :disabled="isLoading.forgot">
                 {{ isLoading.forgot ? 'Đang gửi...' : 'Gửi OTP đặt lại mật khẩu' }}
               </button>
             </div>
             <!-- STEP 2: "Check your email" + OTP reset form -->
             <div v-else>
-              <div class="check-email-box">
-                <div class="check-email-icon">📧</div>
+              <div class="check-email-box glass-card">
+                <div class="check-email-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="m2 7 10 7 10-7" />
+                  </svg>
+                </div>
                 <p class="check-email-title">Kiểm tra email của bạn</p>
                 <p class="check-email-sub">
                   Chúng tôi đã gửi mã OTP đến<br>
                   <strong>{{ forgotForm.email }}</strong>
                 </p>
               </div>
-              <input v-model="forgotForm.otp" placeholder="Nhập mã OTP 6 số" maxlength="6" type="text" inputmode="numeric" />
-              <input v-model="forgotForm.newPassword" type="password" placeholder="Mật khẩu mới (tối thiểu 8 ký tự)" />
-              <button @click="resetPassword" :disabled="isLoading.reset">
+              <div class="input-wrap">
+                <input v-model="forgotForm.otp" placeholder=" " maxlength="6" type="text" inputmode="numeric" />
+                <label>Nhập mã OTP 6 số</label>
+              </div>
+              <div class="input-wrap">
+                <input v-model="forgotForm.newPassword" type="password" placeholder=" " />
+                <label>Mật khẩu mới (tối thiểu 8 ký tự)</label>
+              </div>
+              <button class="btn-bib" @click="resetPassword" :disabled="isLoading.reset">
                 {{ isLoading.reset ? 'Đang đổi...' : 'Đặt lại mật khẩu' }}
               </button>
               <button class="secondary" @click="forgotEmailSent = false; forgotForm.otp = ''">
@@ -209,14 +256,25 @@
 
           <!-- ================= MESSAGE ================= -->
           <transition name="slide">
-            <div v-if="error" class="msg error">
-              <span class="icon">⚠️</span>
+            <div v-if="error" class="msg error glass-card">
+              <span class="icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <circle cx="12" cy="16" r="0.5" fill="currentColor" />
+                </svg>
+              </span>
               <span class="text">{{ error }}</span>
             </div>
           </transition>
           <transition name="slide">
-            <div v-if="success" class="msg success">
-              <span class="icon">✓</span>
+            <div v-if="success" class="msg success glass-card">
+              <span class="icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="m8 12 3 3 5-5" />
+                </svg>
+              </span>
               <span class="text">{{ success }}</span>
             </div>
           </transition>
@@ -651,57 +709,261 @@ function loginDiscord() {
 
 <style scoped>
 * { box-sizing: border-box; }
-.page { position: relative; min-height: 100vh; display: flex; justify-content: center; align-items: center; background: var(--page-bg); padding: 20px; }
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--void, #050508);
+  padding: 20px;
+}
+
 .auth-theme { position: fixed; top: 16px; right: 16px; z-index: 20; }
-.auth-card { width: 1000px; min-height: 650px; background: #fff; border: 1px solid #efefef; display: flex; overflow: hidden; }
-.left { width: 42%; color: #29bcea; padding: 40px; background: #f7f7f7; border-right: 1px solid #efefef; display: flex; align-items: center; }
-.left h1 { font-size: 40px; margin-bottom: 10px; color: #29bcea; font-weight: 700; }
-.sub { color: #7f7e7f; margin-bottom: 24px; font-size: 14.4px; line-height: 1.5; }
-.feature-list { display: flex; flex-direction: column; gap: 12px; }
-.feature { background: #ffffff; padding: 12px; border: 1px solid #efefef; font-size: 14.4px; color: #7f7e7f; }
-.right { flex: 1; display: flex; justify-content: center; align-items: center; padding: 40px; background: #ffffff; }
-.form-box { width: 100%; max-width: 420px; }
-h2 { font-size: 32px; margin-bottom: 24px; color: #29bcea; font-weight: 700; text-align: center; }
-input { width: 100%; min-height: 44px; padding: 12px; margin-bottom: 12px; border: 1px solid #efefef; font-size: 14.4px; font-family: inherit; color: #000; background: #fff; }
-input:focus { outline: none; border-color: #29bcea; box-shadow: 0 0 0 2px rgba(41,188,234,.15); }
-input::placeholder { color: #767676; }
+
+.auth-card {
+  width: 1000px;
+  min-height: 650px;
+  display: flex;
+  overflow: hidden;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  box-shadow: var(--shadow-lg, 0 12px 40px rgba(0,0,0,0.55));
+}
+
+/* ── LEFT PANEL ── */
+.left {
+  position: relative;
+  width: 42%;
+  padding: 48px 40px;
+  background: linear-gradient(135deg, var(--deep, #0a0a0f) 0%, var(--surface-1, #0f0f17) 100%);
+  border-right: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.left::before {
+  content: '';
+  position: absolute;
+  top: 30%;
+  left: 40%;
+  width: 320px;
+  height: 320px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--electric-glow, rgba(41,188,234,0.25)) 0%, transparent 70%);
+  animation: glow-pulse 4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes glow-pulse {
+  from { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0.8; transform: translate(-50%, -50%) scale(1.15); }
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: clamp(28px, 3vw, 40px);
+  letter-spacing: -0.03em;
+  color: var(--text-primary, #f1f5f9);
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.sub {
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 28px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.left-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.feature-list .chip-glass {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-pill, 999px);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  width: fit-content;
+}
+
+/* ── RIGHT PANEL ── */
+.right {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 40px;
+  background: var(--surface-1, #0f0f17);
+}
+
+.form-box {
+  width: 100%;
+  max-width: 420px;
+}
+
+h2 {
+  font-size: clamp(22px, 3vw, 32px);
+  margin-bottom: 28px;
+  color: var(--text-primary, #f1f5f9);
+  font-weight: 700;
+  text-align: center;
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+}
+
+/* ── Inputs ── */
+input {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-sm, 6px);
+  font-size: 14px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  color: var(--text-primary, #f1f5f9);
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  transition: border-color 0.3s var(--ease-out, cubic-bezier(0.4,0,0.2,1)),
+              box-shadow 0.3s var(--ease-out, cubic-bezier(0.4,0,0.2,1));
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--electric, #29bcea);
+  box-shadow: 0 0 0 2px var(--electric-soft, rgba(41,188,234,0.08));
+}
+
+input::placeholder { color: var(--text-ghost, rgba(241,245,249,0.45)); }
+
 .field-group { position: relative; margin-bottom: 4px; }
 .field-group input { margin-bottom: 0; }
-.input-err { border-color: #c63b3b !important; background: #fff9f9 !important; }
-.field-err-msg { display: block; font-size: 12px; color: #c63b3b; font-weight: 700; margin: 4px 0 8px 2px; line-height: 1.4; }
-.check-email-box { text-align: center; padding: 16px 12px; background: #f7f7f7; border: 1px solid #efefef; margin-bottom: 16px; }
+.input-err { border-color: #f87171 !important; }
+.field-err-msg { display: block; font-size: 12px; color: #f87171; font-weight: 600; margin: 4px 0 8px 2px; line-height: 1.4; }
+
+.check-email-box {
+  text-align: center;
+  padding: 20px;
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-md, 12px);
+  margin-bottom: 20px;
+}
 .check-email-icon { font-size: 34px; margin-bottom: 8px; }
-.check-email-title { font-size: 16.8px; font-weight: 700; color: #29bcea; margin: 0 0 6px; }
-.check-email-sub { font-size: 14.4px; color: #7f7e7f; margin: 0; line-height: 1.5; }
-button { width: 100%; min-height: 44px; padding: 12px; border: none; background: #29bcea; color: #fff; font-weight: 700; font-size: 14.4px; cursor: pointer; margin-bottom: 10px; transition: background-color .2s ease; }
-button:hover:not(:disabled) { background: #1a9fbd; }
-button:disabled { opacity: .7; cursor: not-allowed; }
-.secondary { background: transparent; color: #29bcea; border: 1px solid #29bcea; }
-.secondary:hover:not(:disabled) { background: #29bcea; color: #fff; }
+.check-email-title { font-size: 16px; font-weight: 700; color: var(--electric, #29bcea); margin: 0 0 6px; }
+.check-email-sub { font-size: 14px; color: var(--text-secondary, #94a3b8); margin: 0; line-height: 1.5; }
+
+/* ── Buttons ── */
+button {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px;
+  border: none;
+  background: var(--electric, #29bcea);
+  color: var(--on-accent, #ffffff);
+  font-weight: 700;
+  font-size: 14px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  cursor: pointer;
+  margin-bottom: 10px;
+  border-radius: var(--radius-sm, 6px);
+  transition: background 0.2s, transform 0.2s var(--spring, cubic-bezier(0.34,1.56,0.64,1));
+}
+
+button:hover:not(:disabled) { background: var(--electric-hover, #1a9fbd); transform: translateY(-1px); }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-bib {
+  outline: 1.5px solid rgba(41,188,234,0.45);
+  outline-offset: 3px;
+  will-change: transform;
+}
+
+.btn-bib:hover:not(:disabled) {
+  box-shadow: 0 6px 20px var(--electric-glow, rgba(41,188,234,0.30));
+  outline-offset: 5px;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--electric, #29bcea);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+}
+.secondary:hover:not(:disabled) { background: var(--glass-bg, rgba(255,255,255,0.04)); transform: none; }
+
 .social { display: flex; gap: 10px; margin-top: 12px; }
-.google,.discord { background: #ffffff; color: #29bcea; border: 1px solid #29bcea; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.google:hover:not(:disabled),.discord:hover:not(:disabled) { background: #29bcea; color: #fff; }
-.google-icon,.discord-icon { font-size: 16px; }
-.bottom-link { margin-top: 12px; text-align: center; font-size: 14.4px; color: #7f7e7f; }
-.bottom-link span { color: #29bcea; cursor: pointer; font-weight: 700; }
+.google, .discord {
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.google:hover:not(:disabled), .discord:hover:not(:disabled) {
+  border-color: var(--electric, #29bcea);
+  color: var(--electric, #29bcea);
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  transform: none;
+}
+.google-icon, .discord-icon { font-size: 16px; }
+
+.bottom-link { margin-top: 12px; text-align: center; font-size: 14px; color: var(--text-secondary, #94a3b8); }
+.bottom-link span { color: var(--electric, #29bcea); cursor: pointer; font-weight: 700; }
 .bottom-link span:hover { text-decoration: underline; }
-.info-text { text-align: center; margin-bottom: 15px; color: #7f7e7f; font-size: 14.4px; line-height: 1.5; }
-.msg { margin-top: 14px; padding: 12px; text-align: left; display: flex; align-items: center; gap: 10px; font-size: 14.4px; }
+
+.info-text { text-align: center; margin-bottom: 15px; color: var(--text-secondary, #94a3b8); font-size: 14px; line-height: 1.5; }
+
+.msg {
+  margin-top: 14px;
+  padding: 12px 14px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-sm, 6px);
+  backdrop-filter: blur(8px);
+}
 .msg .icon { font-size: 16px; flex-shrink: 0; }
 .msg .text { flex: 1; word-break: break-word; }
-.error { background: #fff5f5; color: #8f2a2a; border: 1px solid #f0d4d4; }
-.success { background: #f0fcf7; color: #177245; border: 1px solid #d2efdf; }
-.slide-enter-active, .slide-leave-active { transition: all .2s ease; }
+.error { border-color: rgba(248,113,113,0.3); color: #f87171; }
+.success { border-color: rgba(52,211,153,0.3); color: #34d399; }
+
+.slide-enter-active, .slide-leave-active { transition: all 0.2s ease; }
 .slide-enter-from, .slide-leave-to { opacity: 0; transform: translateY(-6px); }
-@media(max-width:900px){
+
+@media (max-width: 900px) {
   .auth-card { flex-direction: column; width: 100%; min-height: auto; }
-  .left { width: 100%; padding: 28px; }
-  .right { padding: 28px 20px; }
+  .left { width: 100%; padding: 32px 24px; }
+  .right { padding: 32px 24px; }
 }
-@media(max-width:640px){
+
+@media (max-width: 640px) {
   .page { padding: 10px; }
-  .left h1 { font-size: 28px; }
-  h2 { font-size: 24px; }
-  .feature { font-size: 13px; }
+  .brand-title { font-size: 26px; }
+  h2 { font-size: 22px; }
 }
 </style>

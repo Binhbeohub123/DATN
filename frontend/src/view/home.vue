@@ -2,44 +2,64 @@
   <div class="home">
     <!-- NAV -->
     <nav class="nav">
-      <router-link to="/" class="logo">🎬 Poly<span>Cinema</span></router-link>
+      <div class="nav-island">
+        <router-link to="/" class="logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
+          <span class="logo-text">Poly<span class="logo-accent">Cinema</span></span>
+        </router-link>
 
-      <!-- Desktop nav-actions -->
-      <div class="nav-actions">
-        <ThemeToggle />
-        <button class="icon-btn" @click="toggleLang">{{ lang === 'vi' ? 'EN' : 'VI' }}</button>
-        <template v-if="!authStore.isLoggedIn">
-          <router-link to="/auth" class="btn btn-ghost">{{ t('login') }}</router-link>
-          <router-link to="/auth?mode=register" class="btn btn-primary">{{ t('register') }}</router-link>
-        </template>
-        <template v-else>
-          <div class="user-menu-wrapper">
-            <button class="user-menu" @click.stop="showDropdown = !showDropdown" :aria-expanded="showDropdown" aria-haspopup="true">
-              <div class="avatar">
-                <img v-if="authStore.user?.anhDaiDien" :src="authStore.user.anhDaiDien" :alt="authStore.userInitials" class="avatar-img" @error="e => e.target.style.display='none'" />
-                <span v-else>{{ authStore.userInitials }}</span>
+        <!-- Desktop nav-actions -->
+        <div class="nav-actions">
+          <ThemeToggle />
+          <button class="icon-btn" @click="toggleLang">{{ lang === 'vi' ? 'EN' : 'VI' }}</button>
+          <template v-if="!authStore.isLoggedIn">
+            <router-link to="/auth" class="btn btn-ghost">{{ t('login') }}</router-link>
+            <router-link to="/auth?mode=register" class="btn btn-primary btn-bib">{{ t('register') }}</router-link>
+          </template>
+          <template v-else>
+            <div class="user-menu-wrapper">
+              <button class="user-menu" @click.stop="showDropdown = !showDropdown" :aria-expanded="showDropdown" aria-haspopup="true">
+                <div class="avatar">
+                  <img v-if="authStore.user?.anhDaiDien" :src="authStore.user.anhDaiDien" :alt="authStore.userInitials" class="avatar-img" @error="e => e.target.style.display='none'" />
+                  <span v-else>{{ authStore.userInitials }}</span>
+                </div>
+                <span class="user-name">{{ authStore.user?.hoTen || authStore.user?.email }}</span>
+                <span class="chevron" aria-hidden="true">{{ showDropdown ? '▲' : '▼' }}</span>
+              </button>
+              <div v-if="showDropdown" class="dropdown glass-card" role="menu">
+                <router-link to="/profile" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  {{ t('profile') }}
+                </router-link>
+                <router-link to="/my-tickets" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+                  {{ t('tickets') }}
+                </router-link>
+                <router-link to="/transaction-history" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><path d="M9 12h6M9 16h4"/></svg>
+                  Lịch sử GD
+                </router-link>
+                <a v-if="authStore.isAdmin" href="/admin" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><circle cx="12" cy="12" r="8"/></svg>
+                  Admin Panel
+                </a>
+                <hr class="dropdown-hr" />
+                <a href="#" @click.prevent="authStore.logout(); showDropdown=false" class="dropdown-item logout" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  {{ t('logout') }}
+                </a>
               </div>
-              <span class="user-name">{{ authStore.user?.hoTen || authStore.user?.email }}</span>
-              <span class="chevron" aria-hidden="true">{{ showDropdown ? '▲' : '▼' }}</span>
-            </button>
-            <div v-if="showDropdown" class="dropdown" role="menu">
-              <router-link to="/profile" class="dropdown-item" @click="showDropdown=false" role="menuitem">👤 {{ t('profile') }}</router-link>
-              <router-link to="/my-tickets" class="dropdown-item" @click="showDropdown=false" role="menuitem">🎟️ {{ t('tickets') }}</router-link>
-              <router-link to="/transaction-history" class="dropdown-item" @click="showDropdown=false" role="menuitem">📋 Lịch sử GD</router-link>
-              <a v-if="authStore.isAdmin" href="/admin" class="dropdown-item" @click="showDropdown=false" role="menuitem">⚙️ Admin Panel</a>
-              <hr class="dropdown-hr" />
-              <a href="#" @click.prevent="authStore.logout(); showDropdown=false" class="dropdown-item logout" role="menuitem">🔓 {{ t('logout') }}</a>
             </div>
-          </div>
-        </template>
-      </div>
+          </template>
+        </div>
 
-      <!-- Mobile hamburger -->
-      <button class="hamburger" @click.stop="showMobileMenu = !showMobileMenu" :aria-expanded="showMobileMenu" aria-label="Menu">
-        <span :class="['ham-line', { 'ham-line--open1': showMobileMenu }]"></span>
-        <span :class="['ham-line', { 'ham-line--open2': showMobileMenu }]"></span>
-        <span :class="['ham-line', { 'ham-line--open3': showMobileMenu }]"></span>
-      </button>
+        <!-- Mobile hamburger -->
+        <button class="hamburger" @click.stop="showMobileMenu = !showMobileMenu" :aria-expanded="showMobileMenu" aria-label="Menu">
+          <span :class="['ham-line', { 'ham-line--open1': showMobileMenu }]"></span>
+          <span :class="['ham-line', { 'ham-line--open2': showMobileMenu }]"></span>
+          <span :class="['ham-line', { 'ham-line--open3': showMobileMenu }]"></span>
+        </button>
+      </div>
     </nav>
 
     <!-- Mobile drawer -->
@@ -76,20 +96,26 @@
       </div>
     </transition>
 
-    <!-- BANNER SLIDER -->
-    <div v-if="currentBanner" class="banner-slider" :style="{ backgroundImage: `url(${currentBanner.hinhAnh})` }">
-      <div class="banner-overlay"></div>
-      <div class="banner-content">
-        <h1>{{ currentBanner.tieuDe }}</h1>
-        <p>{{ currentBanner.moTa }}</p>
-        <button class="btn btn-primary btn-lg" @click="bookNow">{{ t('bookNow') }}</button>
+    <!-- HERO STAGE -->
+    <div class="hero-stage">
+      <div
+        class="hero-bg"
+        :style="currentBanner ? { backgroundImage: `url(${currentBanner.hinhAnh})` } : {}"
+      ></div>
+      <div class="hero-vignette"></div>
+      <div class="hero-fade"></div>
+      <div class="hero-grain"></div>
+      <div class="hero-content" v-if="currentBanner">
+        <h1 class="hero-title">{{ currentBanner.tieuDe }}</h1>
+        <p class="hero-desc">{{ currentBanner.moTa }}</p>
+        <button class="btn-bib btn-hero" @click="bookNow">{{ t('bookNow') }}</button>
+      </div>
+      <div class="hero-content" v-else>
+        <p class="hero-loading">{{ t('loading') }}...</p>
       </div>
       <div v-if="movieStore.banners.length > 1" class="banner-dots">
         <button v-for="(_, i) in movieStore.banners" :key="i" :class="['dot', { active: bannerIndex === i }]" @click="bannerIndex = i"></button>
       </div>
-    </div>
-    <div v-else class="banner-placeholder">
-      <p>{{ t('loading') }}...</p>
     </div>
 
     <!-- MOVIES SECTION -->
@@ -104,13 +130,16 @@
       <div v-else-if="displayMovies.length === 0" class="error">{{ t('noMovies') || 'Không có phim' }}</div>
       <div v-else class="movie-grid">
         <div 
-          v-for="movie in displayMovies" 
+          v-for="(movie, index) in displayMovies" 
           :key="movie.id" 
-          class="movie-card" 
+          class="movie-card"
+          :style="{ '--card-index': index }"
           @click="goToMovie(movie.id)"
           role="button"
           tabindex="0"
           @keypress.enter="goToMovie(movie.id)"
+          @mousemove="(e) => { const r=e.currentTarget.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width-0.5; const y=(e.clientY-r.top)/r.height-0.5; e.currentTarget.style.transform=`perspective(1000px) rotateY(${x*16}deg) rotateX(${-y*16}deg)`; }"
+          @mouseleave="(e) => { e.currentTarget.style.transform=''; }"
         >
           <div class="movie-poster">
             <img
@@ -133,8 +162,8 @@
           </div>
           <div class="movie-info">
             <h3>{{ movie.title }}</h3>
-            <p>⏱ {{ movie.duration }} phút</p>
-            <p class="rating">⭐ {{ movie.rating ? Number(movie.rating).toFixed(1) : 'Chưa có' }}</p>
+            <p class="movie-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {{ movie.duration }} phút</p>
+            <p class="movie-meta rating"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> {{ movie.rating ? Number(movie.rating).toFixed(1) : 'Chưa có' }}</p>
           </div>
         </div>
       </div>
@@ -234,23 +263,50 @@ onUnmounted(() => {
 }
 
 .nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 40px;
-  background: var(--surface-plain);
-  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 40px;
+  background: transparent;
+}
+
+.nav-island {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1400px;
+  border-radius: var(--radius-pill);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  background: rgba(5, 5, 8, 0.85);
+  padding: 8px 20px;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
 }
 
 .logo {
   text-decoration: none;
-  color: var(--text-primary);
+  color: var(--text-primary, #f1f5f9);
   font-weight: 700;
   font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
+
+.logo-text {
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  letter-spacing: -0.02em;
+}
+
+.logo-accent { color: var(--electric, #29bcea); }
 
 .logo span { color: var(--accent); }
 
@@ -258,21 +314,22 @@ onUnmounted(() => {
   margin-bottom: 4px;
 }
 
-.nav-actions { display: flex; align-items: center; gap: 12px; }
+.nav-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 
 .icon-btn {
   min-width: 44px;
   min-height: 44px;
-  border-radius: 4px;
-  border: 1px solid #efefef;
-  background: #f7f7f7;
-  color: #29bcea;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  color: var(--electric, #29bcea);
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
+  transition: background 0.2s, border-color 0.2s;
 }
 
-.icon-btn:hover { border-color: #29bcea; background: #ffffff; }
+.icon-btn:hover { border-color: var(--electric, #29bcea); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); }
 
 .btn {
   min-height: 44px;
@@ -289,24 +346,49 @@ onUnmounted(() => {
 
 .btn-ghost {
   background: transparent;
-  color: #29bcea;
-  border: 1px solid #29bcea;
+  color: var(--text-secondary, #94a3b8);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.btn-ghost:hover { background: #29bcea; color: #ffffff; }
+.btn-ghost:hover { background: var(--glass-bg, rgba(255,255,255,0.04)); color: var(--text-primary, #f1f5f9); border-color: var(--electric, #29bcea); }
 
 .btn-primary {
-  background: #29bcea;
-  color: #ffffff;
+  background: var(--electric, #29bcea);
+  color: var(--on-accent, #ffffff);
   border: none;
 }
 
-.btn-primary:hover { background: #1a9fbd; }
+.btn-primary:hover { background: var(--electric-hover, #1a9fbd); }
 
-.banner-content .btn-lg {
-  padding: 10px 22px;
-  font-size: 14.4px;
-  min-height: 44px;
+/* .btn-bib styles are provided by cinema.css; these supplement in nav context */
+.btn-bib {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  background: var(--electric, #29bcea);
+  color: var(--on-accent, #ffffff);
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  outline: 1.5px solid rgba(41,188,234,0.45);
+  outline-offset: 3px;
+  transition: transform 0.3s var(--spring, cubic-bezier(0.34,1.56,0.64,1)),
+              box-shadow 0.3s var(--ease-out, cubic-bezier(0.4,0,0.2,1)),
+              outline-offset 0.3s var(--spring, cubic-bezier(0.34,1.56,0.64,1));
+  will-change: transform;
+  text-decoration: none;
+}
+
+.btn-bib:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--electric-glow, rgba(41,188,234,0.30));
+  outline-offset: 5px;
 }
 
 .btn-white {
@@ -325,25 +407,26 @@ onUnmounted(() => {
   gap: 8px;
   cursor: pointer;
   padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid #efefef;
-  background: #f7f7f7;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  background: var(--glass-bg, rgba(255,255,255,0.04));
   user-select: none;
+  transition: background 0.2s, border-color 0.2s;
 }
 
-.user-menu:hover { border-color: #29bcea; }
+.user-menu:hover { border-color: var(--electric, #29bcea); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); }
 
 .user-name {
   font-size: 14px;
-  font-weight: 700;
-  color: #000000;
+  font-weight: 600;
+  color: var(--text-primary, #f1f5f9);
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.chevron { font-size: 10px; color: #767676; }
+.chevron { font-size: 10px; color: var(--text-ghost, rgba(241,245,249,0.45)); }
 
 .avatar {
   width: 32px;
@@ -366,32 +449,38 @@ onUnmounted(() => {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: #ffffff;
-  border: 1px solid #efefef;
-  border-radius: 4px;
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  backdrop-filter: var(--glass-blur, blur(20px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(20px));
+  border-radius: var(--radius-md, 12px);
   min-width: 220px;
   z-index: 200;
   overflow: hidden;
+  box-shadow: var(--shadow-lg, 0 12px 40px rgba(0,0,0,0.55));
 }
 
 .dropdown-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 12px 16px;
-  color: #7f7e7f;
+  color: var(--text-secondary, #94a3b8);
   text-decoration: none;
   font-size: 14px;
-  font-weight: 700;
-  transition: background 0.15s;
+  font-weight: 600;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  transition: background 0.15s, color 0.15s;
   cursor: pointer;
 }
 
-.dropdown-item:not(:last-child) { border-bottom: 1px solid #efefef; }
+.dropdown-item:not(:last-child) { border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.08)); }
 
-.dropdown-item:hover { background: #f7f7f7; color: #29bcea; }
+.dropdown-item:hover { background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); color: var(--text-primary, #f1f5f9); }
 
-.dropdown-item.logout { color: #dc2626; }
+.dropdown-item.logout { color: #f87171; }
 
-.dropdown-hr { border: none; border-top: 1px solid #efefef; margin: 0; }
+.dropdown-hr { border: none; border-top: 1px solid var(--glass-border, rgba(255,255,255,0.08)); margin: 0; }
 
 .hamburger {
   display: none;
@@ -401,7 +490,8 @@ onUnmounted(() => {
   background: none;
   border: none;
   cursor: pointer;
-  color: #000000;
+  color: var(--text-primary, #f1f5f9);
+  margin-left: auto;
 }
 
 .ham-line {
@@ -505,71 +595,87 @@ onUnmounted(() => {
 .drawer-enter-from, .drawer-leave-to { opacity: 0; }
 .drawer-enter-from .drawer-panel, .drawer-leave-to .drawer-panel { transform: translateX(100%); }
 
-.banner-slider {
-  height: clamp(200px, 32vh, 300px);
-  max-height: 300px;
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  align-items: center;
+.hero-stage {
   position: relative;
+  height: 100svh;
+  min-height: 600px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
-.banner-placeholder {
-  height: clamp(200px, 32vh, 300px);
-  max-height: 300px;
-  background: #f7f7f7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #767676;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.banner-overlay {
+.hero-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15));
+  width: 100%;
+  height: 120%;
+  top: -10%;
+  background-size: cover;
+  background-position: center;
+  will-change: transform;
 }
 
-.banner-content {
-  position: relative;
+.hero-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(5,5,8,0.85) 100%);
+  z-index: 1;
+}
+
+.hero-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, var(--void, #050508) 100%);
   z-index: 2;
-  color: #ffffff;
-  text-align: left;
-  max-width: 520px;
-  padding: 20px 32px;
 }
 
-.banner-content h1 {
-  font-size: clamp(22px, 3.5vw, 32px);
+.hero-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  z-index: 3;
+}
+
+.hero-content {
+  position: absolute;
+  bottom: 15%;
+  left: 5%;
+  z-index: 10;
+  color: var(--text-primary, #f1f5f9);
+  max-width: 600px;
+}
+
+.hero-title {
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: clamp(40px, 7vw, 88px);
   font-weight: 700;
-  margin-bottom: 10px;
-  color: #ffffff;
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+  color: var(--text-primary, #f1f5f9);
 }
 
-.banner-content p {
-  font-size: 14.4px;
-  margin-bottom: 16px;
-  opacity: 0.95;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.hero-desc {
+  font-size: clamp(14px, 1.5vw, 18px);
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 28px;
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+.hero-loading {
+  color: var(--text-ghost, rgba(241,245,249,0.45));
+  font-size: 18px;
+}
+
+.btn-hero {
+  padding: 14px 36px;
+  font-size: 15px;
 }
 
 .banner-dots {
   position: absolute;
-  bottom: 12px;
+  bottom: 28px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -585,25 +691,27 @@ onUnmounted(() => {
   min-height: 8px;
   padding: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255,255,255,0.35);
   border: none;
   cursor: pointer;
-  transition: background 0.2s, width 0.2s;
+  transition: background 0.3s var(--spring, cubic-bezier(0.34,1.56,0.64,1)), width 0.4s var(--spring, cubic-bezier(0.34,1.56,0.64,1));
+  will-change: width;
 }
 
 .dot.active {
-  background: #29bcea;
-  width: 20px;
-  border-radius: 4px;
+  background: var(--electric, #29bcea);
+  width: 24px;
+  border-radius: var(--radius-pill, 999px);
 }
 
 .section { padding: 60px 40px; max-width: 1400px; margin: 0 auto; }
 
 .section-title {
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
   font-size: 32px;
   font-weight: 700;
   margin-bottom: 40px;
-  color: #000000;
+  color: var(--text-primary, #f1f5f9);
 }
 
 .section-title span { color: #29bcea; }
@@ -621,16 +729,16 @@ onUnmounted(() => {
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
-  color: #7f7e7f;
+  color: var(--text-secondary, #94a3b8);
   cursor: pointer;
   font-weight: 700;
   margin-bottom: -1px;
   transition: color 0.2s, border-color 0.2s;
 }
 
-.tab:hover { color: #000000; }
+.tab:hover { color: var(--text-primary, #f1f5f9); }
 
-.tab.active { color: #29bcea; border-bottom-color: #29bcea; }
+.tab.active { color: var(--electric, #29bcea); border-bottom-color: var(--electric, #29bcea); }
 
 .movie-grid {
   display: grid;
@@ -639,15 +747,21 @@ onUnmounted(() => {
 }
 
 .movie-card {
-  background: var(--surface);
-  border-radius: 0;
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border-radius: var(--radius-md, 12px);
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 0.2s;
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out, box-shadow 0.3s ease-out;
+  animation: card-fade-in 0.5s var(--ease-out, cubic-bezier(0.4,0,0.2,1)) both;
+  animation-delay: calc(var(--card-index, 0) * 50ms);
 }
-
-.movie-card:hover { border-color: #29bcea; }
+@keyframes card-fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.movie-card:hover { box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.45)); }
 
 .movie-poster {
   position: relative;
@@ -687,18 +801,19 @@ onUnmounted(() => {
 .movie-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(41, 188, 234, 0.75);
+  background: linear-gradient(to top, rgba(5,5,8,0.92) 0%, rgba(5,5,8,0.4) 50%, transparent 100%);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s;
+  transform: translateY(8px);
+  transition: opacity 0.3s var(--ease-out, cubic-bezier(0.4,0,0.2,1)), transform 0.3s var(--ease-out);
   color: #ffffff;
 }
+.movie-card:hover .movie-overlay { opacity: 1; transform: translateY(0); }
 
-.movie-card:hover .movie-overlay { opacity: 1; }
-
-.movie-info { padding: 16px; background: var(--surface-plain); }
+.movie-info { padding: 16px; background: var(--surface-2, #14141f); }
 
 .movie-info h3 {
   font-size: 14px;
@@ -709,7 +824,15 @@ onUnmounted(() => {
 }
 
 .movie-info p { font-size: 12px; color: var(--text-tertiary); margin: 4px 0; }
-.rating { color: #29bcea; font-weight: 700; }
+.movie-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary, #94a3b8);
+  margin: 3px 0;
+}
+.rating { color: var(--gold-bright, #F5D17E); font-weight: 700; }
 
 .loading, .error { text-align: center; padding: 40px; color: #767676; }
 .error { color: #dc2626; }
@@ -735,15 +858,18 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .nav { padding: 12px 20px; }
+  .nav { padding: 8px 16px; }
+  .nav-island { padding: 6px 14px; border-radius: var(--radius-lg, 20px); }
   .nav-actions { display: none; }
   .hamburger { display: flex; }
-  .banner-slider,
-  .banner-placeholder {
-    height: clamp(180px, 28vh, 240px);
-    max-height: 240px;
+  .hero-stage {
+    min-height: 480px;
   }
-  .banner-content { padding: 16px 20px; }
+  .hero-content {
+    left: 5%;
+    right: 5%;
+    max-width: 100%;
+  }
   .section { padding: 40px 20px; }
   .movie-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
   .promo { margin: 40px 20px; }

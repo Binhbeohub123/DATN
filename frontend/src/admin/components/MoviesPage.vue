@@ -1,17 +1,22 @@
 <template>
   <div class="movies-page">
-    <transition name="toast"><div v-if="toast.show" :class="['toast',`toast--${toast.type}`]">{{ toast.msg }}</div></transition>
+    <transition name="toast">
+      <div v-if="toast.show" :class="['toast', `toast--${toast.type}`]">{{ toast.msg }}</div>
+    </transition>
 
     <!-- Toolbar -->
     <div class="toolbar">
-      <input v-model="search" placeholder="🔍 Tìm phim..." class="search-input" />
+      <input v-model="search" placeholder="Tìm phim..." class="search-input" />
       <select v-model="statusFilter" class="filter-select">
         <option value="">Tất cả trạng thái</option>
         <option value="dang_chieu">Đang chiếu</option>
         <option value="sap_chieu">Sắp chiếu</option>
         <option value="ngung_chieu">Ngừng chiếu</option>
       </select>
-      <button class="btn-primary" @click="openCreate">+ Thêm phim</button>
+      <button class="btn-primary" @click="openCreate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Thêm phim
+      </button>
     </div>
 
     <!-- Table -->
@@ -20,23 +25,36 @@
       <div v-else-if="filteredMovies.length===0" class="state-center empty-text">Không có phim nào</div>
       <div v-else class="table-scroll">
         <table class="data-table">
-          <thead><tr>
-            <th>Poster</th><th>Tên phim</th><th>Thể loại</th><th>TL</th>
-            <th>Trạng thái</th><th>Điểm</th><th>Ngày tạo</th><th>Thao tác</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th>Poster</th><th>Tên phim</th><th>Thể loại</th><th>TL</th>
+              <th>Trạng thái</th><th>Điểm</th><th>Ngày tạo</th><th>Thao tác</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="m in filteredMovies" :key="m.id">
-              <td><img v-if="m.posterUrl" :src="m.posterUrl" class="poster-thumb" :alt="m.tenPhim" /><div v-else class="poster-fallback">🎬</div></td>
+              <td>
+                <img v-if="m.posterUrl" :src="m.posterUrl" class="poster-thumb" :alt="m.tenPhim" />
+                <div v-else class="poster-fallback">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5"/></svg>
+                </div>
+              </td>
               <td><div class="movie-name">{{ m.tenPhim }}</div><div class="movie-en">{{ m.tenPhimTiengAnh }}</div></td>
               <td class="td-genre">{{ m.theLoai }}</td>
               <td class="td-dur">{{ m.thoiLuong }}p</td>
-              <td><span :class="['sbadge',statusClass(m.trangThai)]">{{ statusLabel(m.trangThai) }}</span></td>
+              <td>
+                <span :class="['sbadge', statusClass(m.trangThai)]">{{ statusLabel(m.trangThai) }}</span>
+              </td>
               <td>{{ m.diemDanhGia?.toFixed(1) || '—' }}</td>
               <td class="td-date">{{ fmtDate(m.ngayTao) }}</td>
               <td>
                 <div class="act-btns">
-                  <button class="btn-icon btn-edit" @click="openEdit(m)" title="Sửa">✏️</button>
-                  <button class="btn-icon btn-del"  @click="del(m)"     title="Xóa">🗑️</button>
+                  <button class="btn-icon btn-edit" @click="openEdit(m)" title="Sửa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="btn-icon btn-del" @click="del(m)" title="Xóa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -199,8 +217,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.toast-enter-active,
-.toast-leave-active { transition: opacity 0.3s; }
-.toast-enter-from,
-.toast-leave-to { opacity: 0; }
+.toast-enter-active, .toast-leave-active { transition: opacity 0.3s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; }
 </style>
