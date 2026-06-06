@@ -229,7 +229,7 @@ public class DataInitializer implements CommandLineRunner {
                 ghe.setSoGhe(num);
                 // D and E rows are VIP
                 boolean isVip = "D".equals(row) || "E".equals(row);
-                ghe.setLoaiGhe(isVip ? "vip" : "thường");
+                ghe.setLoaiGhe(isVip ? "vip" : "thuong");
                 ghe.setHeSoGia(isVip ? new BigDecimal("1.50") : BigDecimal.ONE);
                 gheNgoiRepository.save(ghe);
                 created++;
