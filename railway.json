@@ -1,0 +1,17 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "services": [
+    {
+      "name": "backend",
+      "path": "backend",
+      "buildCommand": "./mvnw clean install -DskipTests",
+      "startCommand": "java -jar target/*.jar"
+    },
+    {
+      "name": "frontend",
+      "path": "frontend",
+      "buildCommand": "npm install && npm run build",
+      "startCommand": "npm run preview"
+    }
+  ]
+}
