@@ -294,7 +294,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 const router = useRouter()
 const route  = useRoute()
 const authStore = useAuthStore()
-const API = 'http://localhost:8080/api/auth'
+const API = (import.meta.env.VITE_API_BASE_URL || '/api') + '/auth'
 
 // ================= STATE =================
 const isRegister = ref(false)
@@ -697,13 +697,13 @@ async function resetPassword() {
 function loginGoogle() {
   clearMsg()
   isLoading.value.google = true
-  window.location.href = 'http://localhost:8080/oauth2/authorization/google'
+  window.location.href = (import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace('/api', '') : '') + '/oauth2/authorization/google'
 }
 
 function loginDiscord() {
   clearMsg()
   isLoading.value.discord = true
-  window.location.href = 'http://localhost:8080/oauth2/authorization/discord'
+  window.location.href = (import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace('/api', '') : '') + '/oauth2/authorization/discord'
 }
 </script>
 
