@@ -205,9 +205,21 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedSeats(PhongChieu phong) {
-        long existingSeats = gheNgoiRepository.findByPhongChieuId(phong.getId()).size();
-        if (existingSeats >= 10) {
-            return; // Already has seats
+        // Fix #1: complete-set guard — only skip if all 50 seats are already present.
+        // A threshold of >= 10 allowed partial dirty states (< 10 seats) to pass through
+        // and then hit UNIQUE KEY violations on re-insert.
+        List<GheNgoi> existingList = gheNgoiRepository.findByPhongChieuId(phong.getId());
+        if (existingList.size() >= 50) {
+            return; // Room is fully seeded
+        }
+
+        // Fix #2 + #3: load the existing seat set once, outside the loop, and trim
+        // HangGhe values to neutralize SQL Server CHAR(2) trailing-space padding.
+        // "A ".trim() == "A" so the equals check is reliable even against padded DB values.
+        java.util.Set<String> existingKeys = new java.util.HashSet<>();
+        for (GheNgoi g : existingList) {
+            String hang = g.getHangGhe() != null ? g.getHangGhe().trim() : "";
+            existingKeys.add(hang + "-" + g.getSoGhe());
         }
 
         String[] rows = {"A", "B", "C", "D", "E"};
@@ -216,23 +228,47 @@ public class DataInitializer implements CommandLineRunner {
 
         for (String row : rows) {
             for (int num = 1; num <= seatsPerRow; num++) {
-                // Check if seat already exists
-                final String r = row;
-                final int n = num;
-                boolean exists = gheNgoiRepository.findByPhongChieuId(phong.getId())
-                        .stream().anyMatch(g -> r.equals(g.getHangGhe()) && n == g.getSoGhe());
-                if (exists) continue;
+                String key = row + "-" + num;
+                if (existingKeys.contains(key)) {
+                    continue; // Seat already present — skip without hitting the DB
+                }
+
+                // Fix #3 (value correctness): set LoaiGhe and HeSoGia per confirmed schema:
+                //   A/B/C → 'thường'  HeSoGia 1.00
+                //   D     → 'vip'     HeSoGia 1.50
+                //   E     → 'cặp đôi' HeSoGia 2.00   (Fix #4: was incorrectly 'vip'/1.50)
+                // CHECK constraint on GheNgoi.LoaiGhe only permits these three values.
+                String loaiGhe;
+                BigDecimal heSoGia;
+                if ("D".equals(row)) {
+                    loaiGhe = "vip";
+                    heSoGia = new BigDecimal("1.50");
+                } else if ("E".equals(row)) {
+                    loaiGhe = "cặp đôi";         // Fix #4: must use diacritics — 'cặp đôi'
+                    heSoGia = new BigDecimal("2.00");
+                } else {
+                    loaiGhe = "thường";           // A/B/C — must use diacritic 'thường'
+                    heSoGia = BigDecimal.ONE;
+                }
 
                 GheNgoi ghe = new GheNgoi();
                 ghe.setPhongChieu(phong);
                 ghe.setHangGhe(row);
                 ghe.setSoGhe(num);
-                // D and E rows are VIP
-                boolean isVip = "D".equals(row) || "E".equals(row);
-                ghe.setLoaiGhe(isVip ? "vip" : "thuong");
-                ghe.setHeSoGia(isVip ? new BigDecimal("1.50") : BigDecimal.ONE);
-                gheNgoiRepository.save(ghe);
-                created++;
+                ghe.setLoaiGhe(loaiGhe);
+                ghe.setHeSoGia(heSoGia);
+
+                // Fix #5: wrap save() in try-catch so any remaining constraint violation
+                // (e.g. a race condition or an edge case not yet identified) is logged
+                // and skipped rather than crashing the entire application startup.
+                try {
+                    gheNgoiRepository.save(ghe);
+                    existingKeys.add(key); // Keep the in-memory set consistent
+                    created++;
+                } catch (Exception e) {
+                    System.out.println("[DataInitializer] Skipped seat " + row + num
+                            + " in " + phong.getTenPhong() + ": " + e.getMessage());
+                }
             }
         }
         if (created > 0) {
