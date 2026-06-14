@@ -70,10 +70,17 @@ public class SecurityConfig {
                     "/api/thanh-toan/vnpay/callback",
                     "/api/thanh-toan/momo/callback",
                     "/oauth2/**",
-                    "/login/**"
+                    "/login/**",
+                    "/",
+                    "/index.html",
+                    "/assets/**",
+                    "/favicon.ico",
+                    "/*.png",
+                    "/*.svg"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/staff/**").hasAnyRole("STAFF", "ADMIN")
+                .requestMatchers("/{path:[^\\.]*}", "/**/{path:[^\\.]*}").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
