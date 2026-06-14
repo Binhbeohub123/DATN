@@ -321,10 +321,10 @@ const groupedGhe = computed(() => {
 
 function seatTypeClass(loai) {
   if (!loai) return 'thuong'
-  const l = loai.toLowerCase()
-  if (l === 'vip' || l.includes('vip')) return 'vip'
-  if (l === 'cap_doi' || l.includes('cap_doi') || l.includes('đôi') || l.includes('couple')) return 'doi'
-  return 'thuong'
+  const l = loai.trim()
+  if (l === 'vip') return 'vip'
+  if (l === 'cặp đôi') return 'doi'
+  return 'thuong'  // 'thường' and any unknown value → default gray
 }
 
 async function loadGhe() {
