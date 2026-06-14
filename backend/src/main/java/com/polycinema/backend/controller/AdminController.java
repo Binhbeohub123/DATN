@@ -412,6 +412,20 @@ public class AdminController {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // SEAT (GHE NGOI) — read-only list for admin seat map display
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/admin/ghe-ngoi?phongChieuId={id}
+     * Returns all seats for the given room.
+     * Used by the admin "Ghế ngồi" tab seat-map display.
+     */
+    @GetMapping("/ghe-ngoi")
+    public ResponseEntity<?> getGheByPhong(@RequestParam Long phongChieuId) {
+        return ResponseEntity.ok(gheNgoiRepository.findByPhongChieuId(phongChieuId));
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // ROOM ADMIN CRUD
     // ─────────────────────────────────────────────────────────────
 

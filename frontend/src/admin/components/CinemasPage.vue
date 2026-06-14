@@ -167,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/services/api'
 
 const activeTab = ref('rap')
@@ -286,10 +286,30 @@ async function loadGhe() {
   if (!selectedPhongId.value) { gheList.value = []; return }
   loadingGhe.value = true
   try {
-    const res = await api.get(`/lich-chieu/0/ghe-trong`)
+    const res = await api.get(`/admin/ghe-ngoi?phongChieuId=${selectedPhongId.value}`)
     gheList.value = res.data || []
   } catch (e) { gheList.value = [] } finally { loadingGhe.value = false }
 }
+
+// When user switches to the Ghế ngồi tab, ensure rapList and phongList are populated.
+// phongList depends on selectedRapId, which is only populated if the user visited
+// the Phòng tab first. If they navigate directly to Ghế, we auto-load the first rap.
+watch(activeTab, async (tab) => {
+  if (tab === 'ghe') {
+    if (rapList.value.length === 0) {
+      await loadRap()
+    }
+    if (phongList.value.length === 0 && rapList.value.length > 0) {
+      selectedRapId.value = rapList.value[0].id
+      await loadPhong()
+    }
+  }
+})
+
+// Auto-reload seat map whenever the selected room changes in the Ghế tab.
+watch(selectedPhongId, (newId) => {
+  if (newId) loadGhe()
+})
 
 onMounted(loadRap)
 </script>
