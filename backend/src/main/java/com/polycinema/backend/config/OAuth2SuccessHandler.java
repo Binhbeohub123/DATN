@@ -96,7 +96,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                 );
 
         response.sendRedirect(
-                "http://localhost:5173/?token=" + token
+                "/?token=" + token
         );
     }
 }
