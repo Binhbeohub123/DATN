@@ -18,10 +18,10 @@
           <button :class="['tg-btn', groupBy==='week'?'tg-btn--active':'']" @click="groupBy='week';load()">Tuần</button>
           <button :class="['tg-btn', groupBy==='month'?'tg-btn--active':'']" @click="groupBy='month';load()">Tháng</button>
         </div>
-        <button class="btn-primary" @click="load" :disabled="loading">🔍 Xem</button>
+        <button class="btn-primary" @click="load" :disabled="loading">Xem báo cáo</button>
         <button class="btn-export" @click="exportExcel" :disabled="exporting">
-          <span v-if="exporting">⏳ Đang xuất...</span>
-          <span v-else>📥 Xuất Excel</span>
+          <span v-if="exporting">Đang xuất...</span>
+          <span v-else>Xuất Excel</span>
         </button>
       </div>
     </div>
@@ -51,12 +51,12 @@
               class="bar-rect"
             />
             <text :x="item.x+item.w/2" :y="SVG_H-6" text-anchor="middle" font-size="9" fill="#9ca3af">{{ item.label }}</text>
-            <text v-if="item.h>20" :x="item.x+item.w/2" :y="item.y-4" text-anchor="middle" font-size="9" fill="#FFD700" font-weight="700">{{ fmtShort(item.val) }}</text>
+            <text v-if="item.h>20" :x="item.x+item.w/2" :y="item.y-4" text-anchor="middle" font-size="9" fill="#FFFFFF" font-weight="700">{{ fmtShort(item.val) }}</text>
           </g>
           <defs>
             <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#FFD700"/>
-              <stop offset="100%" stop-color="#B8860B"/>
+              <stop offset="0%" stop-color="#FFFFFF"/>
+              <stop offset="100%" stop-color="#9CA3AF"/>
             </linearGradient>
           </defs>
         </svg>
@@ -200,8 +200,219 @@ onMounted(load)
 </script>
 
 <style scoped>
-.toast-enter-active,
-.toast-leave-active { transition: opacity 0.3s; }
-.toast-enter-from,
-.toast-leave-to { opacity: 0; }
+.toast-enter-active, .toast-leave-active { transition: opacity 0.3s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; }
+
+/* ── Page root ── */
+.reports-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #0D0D0D;
+  color: #E5E5E5;
+}
+
+/* ── Controls card ── */
+.controls-card {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 20px;
+}
+.controls-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ctrl-input {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  background: #111827;
+  color: #E5E5E5;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  transition: border-color 150ms ease;
+}
+.ctrl-input:focus { outline: none; border-color: #FFFFFF; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+
+/* ── Toggle group ── */
+.toggle-group {
+  display: flex;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.tg-btn {
+  padding: 9px 16px;
+  border: none;
+  border-right: 1px solid #374151;
+  background: transparent;
+  color: #9CA3AF;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.tg-btn:last-child { border-right: none; }
+.tg-btn:hover { color: #E5E5E5; }
+.tg-btn--active { background: #1F2937; color: #FFFFFF; }
+
+/* ── Primary / ghost buttons ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #FFFFFF;
+  color: #0D0D0D;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: filter 150ms ease;
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Export button is secondary (ghost) — not gold */
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #E5E5E5;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+.btn-export:hover:not(:disabled) { border-color: #FFFFFF; color: #FFFFFF; }
+.btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── KPI mini row ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+.kpi-mini {
+  background: #111827;
+  border: 1px solid #374151;
+  border-left: 3px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 16px 20px;
+  transition: border-color 150ms ease;
+}
+.kpi-mini:hover { border-color: rgba(255,255,255,0.25); }
+.kpi-mini-val {
+  font-family: var(--font-display, 'Playfair Display', serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1.2;
+}
+.kpi-mini-lbl {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  color: #9CA3AF;
+  margin-top: 4px;
+}
+
+/* ── Chart card ── */
+.chart-card {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 20px;
+  overflow: hidden;
+}
+.chart-card h3 {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 0 0 16px;
+  padding-left: 12px;
+  border-left: 3px solid #FFFFFF;
+}
+.bar-chart-wrap { overflow-x: auto; }
+.bar-chart { width: 100%; min-width: 400px; height: 220px; }
+.bar-rect { transition: opacity 150ms ease; cursor: pointer; }
+.bar-rect:hover { opacity: 0.8; }
+
+/* ── Data table card ── */
+.table-card {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.table-card h3 {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 0;
+  padding: 20px 20px 16px;
+  padding-left: 32px;
+  border-left: 3px solid #FFFFFF;
+  border-bottom: 1px solid #374151;
+}
+.table-scroll { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table thead tr { background: #0D0D0D; }
+.data-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9CA3AF;
+  border-bottom: 2px solid #374151;
+  white-space: nowrap;
+}
+.data-table tbody tr { border-bottom: 1px solid #1F2937; transition: background 150ms ease; }
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background: #1F2937; }
+.data-table td { padding: 14px 16px; font-family: var(--font-ui, 'Inter', sans-serif); font-size: 14px; color: #E5E5E5; vertical-align: middle; }
+.td-rev { font-weight: 700; color: #FFFFFF; }
+
+/* ── Loading / empty ── */
+.state-center { display: flex; justify-content: center; align-items: center; padding: 40px; }
+.empty-text { text-align: center; padding: 24px; color: #9CA3AF; font-size: 14px; }
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #374151;
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: rp-spin 0.8s linear infinite;
+}
+@keyframes rp-spin { to { transform: rotate(360deg); } }
 </style>

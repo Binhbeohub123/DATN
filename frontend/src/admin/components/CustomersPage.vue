@@ -27,7 +27,7 @@
               <td class="td-name">{{ u.hoTen || '—' }}</td>
               <td class="td-email">{{ u.email }}</td>
               <td>
-                <span :class="['sbadge', u.vaiTro==='admin' ? 'sbadge--amber' : 'sbadge--gray']">{{ u.vaiTro }}</span>
+                <span :class="['rbadge', u.vaiTro==='admin' ? 'rbadge--admin' : '']">{{ u.vaiTro }}</span>
               </td>
               <td>
                 <span :class="['lbadge', levelClass(u.capDoThanhVien)]">{{ u.capDoThanhVien || 'Thường' }}</span>
@@ -189,8 +189,43 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.toast-enter-active,
-.toast-leave-active { transition: opacity 0.3s; }
-.toast-enter-from,
-.toast-leave-to { opacity: 0; }
+.toast-enter-active, .toast-leave-active { transition: opacity 0.3s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; }
+
+/* ── Page root ── */
+.customers-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #0D0D0D;
+  color: #E5E5E5;
+}
+
+/* ── Search input — explicit override, not relying solely on admin-theme.css ── */
+.search-input {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  color: #E5E5E5;
+  padding: 9px 14px;
+  min-height: 40px;
+  font-size: 14px;
+  flex: 1;
+  min-width: 200px;
+  transition: border-color 200ms cubic-bezier(0.16,1,0.3,1), box-shadow 200ms cubic-bezier(0.16,1,0.3,1);
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+.search-input::placeholder { color: #9CA3AF; }
+.search-input:focus {
+  border-color: #FFFFFF;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.15);
+}
+
+/* ── Cell helpers ── */
+.td-name  { font-weight: 600; font-size: 14px; color: #E5E5E5; }
+.td-email { font-size: 12px; color: #9CA3AF; }
+.td-date  { font-size: 12px; color: #9CA3AF; }
+.td-spent { font-weight: 700; color: #FFFFFF; }
 </style>

@@ -32,8 +32,12 @@
               </td>
               <td>
                 <div class="act-btns">
-                  <button class="btn-icon btn-edit" @click="openEdit(km)" title="Sửa">✏️</button>
-                  <button class="btn-icon btn-del"  @click="del(km)"     title="Xóa">🗑️</button>
+                  <button class="btn-icon btn-edit" @click="openEdit(km)" title="Sửa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="btn-icon btn-del"  @click="del(km)" title="Xóa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -161,8 +165,52 @@ onMounted(load)
 </script>
 
 <style scoped>
-.toast-enter-active,
-.toast-leave-active { transition: opacity 0.3s; }
-.toast-enter-from,
-.toast-leave-to { opacity: 0; }
+.toast-enter-active, .toast-leave-active { transition: opacity 0.3s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; }
+
+/* ── Page root ── */
+.promo-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #0D0D0D;
+  color: #E5E5E5;
+}
+
+/* ── Cell helpers ── */
+.td-code { font-family: 'Courier New', monospace; font-size: 13px; color: #FFFFFF; font-weight: 600; }
+.td-name { font-weight: 600; font-size: 14px; color: #E5E5E5; }
+.td-date { font-size: 12px; color: #9CA3AF; }
+.td-val  { font-weight: 600; color: #E5E5E5; }
+
+/* ── FIX: badge clipping on Trạng thái ── */
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  min-width: fit-content;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+}
+.toggle-btn--on  { background: rgba(16,185,129,0.15); color: #10B981; }
+.toggle-btn--off { background: rgba(156,163,175,0.15); color: #9CA3AF; }
+
+/* ── Type badges ── */
+.tbadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+.tbadge--blue   { background: rgba(255,255,255,0.10); color: #FFFFFF; }
+.tbadge--purple { background: rgba(255,255,255,0.10); color: #FFFFFF; }
 </style>

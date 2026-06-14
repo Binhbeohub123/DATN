@@ -44,14 +44,14 @@
         <svg v-else class="db-line-chart" :viewBox="`0 0 ${SVG_W} ${SVG_H}`" preserveAspectRatio="none">
           <defs>
             <linearGradient id="dbRevGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#C9A84C" stop-opacity="0.28"/>
-              <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/>
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.28"/>
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <line v-for="y in yLines" :key="y" :x1="PAD" :y1="y" :x2="SVG_W - PAD/2" :y2="y" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
           <path :d="areaPath" fill="url(#dbRevGrad)"/>
-          <path :d="linePath" fill="none" stroke="#C9A84C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle v-for="(p, i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#C9A84C" stroke="#0a0a0f" stroke-width="2"/>
+          <path :d="linePath" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle v-for="(p, i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#FFFFFF" stroke="#0a0a0f" stroke-width="2"/>
           <text
             v-for="(p, i) in chartPts.filter((_, i) => i % (Math.ceil(chartPts.length / 6)) === 0)"
             :key="'l' + i"
@@ -247,8 +247,8 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   flex-direction: column;
   gap: 24px;
   min-height: 100%;
-  background: var(--void);
-  color: var(--text-primary);
+  background: #0D0D0D;
+  color: #E5E5E5;
   font-family: var(--font-ui);
 }
 
@@ -284,14 +284,14 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   align-items: center;
   gap: 16px;
   padding: 20px 24px;
-  border-left: 3px solid var(--gold);
+  border-left: 3px solid #FFFFFF;
   transition: box-shadow 200ms var(--ease-out);
 }
-.db-kpi:hover { box-shadow: var(--glow-gold); }
+.db-kpi:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-color: rgba(255,255,255,0.20); }
 
 .db-kpi__icon {
   flex-shrink: 0;
-  color: var(--gold);
+  color: #FFFFFF;
 }
 
 .db-kpi__body {
@@ -327,8 +327,8 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   display: inline-block;
   width: fit-content;
 }
-.db-kpi__trend--up   { background: rgba(34,197,94,0.12);  color: #22c55e; }
-.db-kpi__trend--down { background: rgba(239,68,68,0.12);  color: #ef4444; }
+.db-kpi__trend--up   { background: rgba(16,185,129,0.12);  color: #10B981; }
+.db-kpi__trend--down { background: rgba(239,68,68,0.12);  color: #EF4444; }
 
 /* ── Two-column layout ── */
 .db-two-col {
@@ -359,10 +359,10 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  color: var(--gold);
+  color: #FFFFFF;
   margin: 0 0 16px;
   padding-left: 12px;
-  border-left: 3px solid var(--gold);
+  border-left: 3px solid #FFFFFF;
   line-height: 1.3;
 }
 .db-card-head .db-section-title { margin-bottom: 0; }
@@ -382,7 +382,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   transition: all 200ms var(--ease-out);
 }
 .db-pbtn:hover       { color: var(--text-primary); border-color: var(--glass-border); }
-.db-pbtn--active     { background: var(--gold-soft); color: var(--gold); border-color: var(--gold); }
+.db-pbtn--active     { background: rgba(255,255,255,0.08); color: #FFFFFF; border-color: #FFFFFF; }
 
 /* ── Chart ── */
 .db-line-chart {
@@ -400,7 +400,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 .db-spinner {
   width: 32px; height: 32px;
   border: 3px solid var(--glass-border);
-  border-top-color: var(--gold);
+  border-top-color: #FFFFFF;
   border-radius: 50%;
   animation: db-spin 0.8s linear infinite;
 }
@@ -415,7 +415,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 }
 
 .db-table thead tr {
-  background: var(--glass-bg);
+  background: #0D0D0D;
 }
 
 .db-table th {
@@ -436,7 +436,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   transition: background 150ms var(--ease-out);
 }
 .db-table tbody tr:last-child { border-bottom: none; }
-.db-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.db-table tbody tr:hover { background: #1F2937; }
 
 .db-table td {
   padding: 14px 16px;
@@ -454,8 +454,8 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   text-overflow: ellipsis;
   font-weight: 600;
 }
-.db-td-rev  { font-weight: 700; color: var(--gold); }
-.db-td-mono { font-family: 'Courier New', monospace; font-size: 13px; color: var(--gold); }
+.db-td-rev  { font-weight: 700; color: #FFFFFF; }
+.db-td-mono { font-family: 'Courier New', monospace; font-size: 13px; color: #FFFFFF; }
 
 /* ── Rank badges ── */
 .db-rank {
@@ -470,7 +470,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   background: var(--glass-bg);
   color: var(--text-secondary);
 }
-.db-rank--1 { background: var(--gold);             color: #000; }
+.db-rank--1 { background: #FFFFFF;             color: #000; }
 .db-rank--2 { background: var(--glass-bg-heavy);   color: var(--text-primary); }
 .db-rank--3 { background: rgba(245,158,11,0.2);    color: #f59e0b; }
 
@@ -484,16 +484,16 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   font-weight: 600;
   white-space: nowrap;
 }
-.db-badge--green  { background: rgba(34,197,94,0.12);  color: #22c55e; }
-.db-badge--red    { background: rgba(239,68,68,0.12);  color: #ef4444; }
-.db-badge--yellow { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.db-badge--green  { background: rgba(16,185,129,0.15); color: #10B981; }
+.db-badge--red    { background: rgba(239,68,68,0.15);  color: #EF4444; }
+.db-badge--yellow { background: rgba(245,158,11,0.15); color: #F59E0B; }
 
 /* ── Count badge ── */
 .db-count-badge {
   padding: 3px 10px;
   border-radius: var(--radius-pill);
-  background: var(--gold-soft);
-  color: var(--gold);
+  background: rgba(255,255,255,0.08);
+  color: #FFFFFF;
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 600;

@@ -2,9 +2,9 @@
   <div class="cinemas-page">
     <!-- Tabs -->
     <div class="tabs">
-      <button :class="['tab', { active: activeTab === 'rap' }]" @click="activeTab = 'rap'">🏢 Rạp chiếu</button>
-      <button :class="['tab', { active: activeTab === 'phong' }]" @click="activeTab = 'phong'">🎭 Phòng chiếu</button>
-      <button :class="['tab', { active: activeTab === 'ghe' }]" @click="activeTab = 'ghe'">💺 Ghế ngồi</button>
+      <button :class="['tab', { active: activeTab === 'rap' }]" @click="activeTab = 'rap'">Rạp chiếu</button>
+      <button :class="['tab', { active: activeTab === 'phong' }]" @click="activeTab = 'phong'">Phòng chiếu</button>
+      <button :class="['tab', { active: activeTab === 'ghe' }]" @click="activeTab = 'ghe'">Ghế ngồi</button>
     </div>
 
     <!-- RAP CHIEU TAB -->
@@ -27,8 +27,12 @@
               <td><span :class="['badge', rap.trangThai ? 'badge-green' : 'badge-gray']">{{ rap.trangThai ? 'Hoạt động' : 'Dừng' }}</span></td>
               <td>
                 <div class="action-btns">
-                  <button class="btn-edit" @click="openRapModal(rap)">✏️</button>
-                  <button class="btn-delete" @click="deleteRap(rap)">🗑️</button>
+                  <button class="btn-edit" @click="openRapModal(rap)" title="Sửa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="btn-delete" @click="deleteRap(rap)" title="Xóa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -65,8 +69,12 @@
               <td><span :class="['badge', phong.trangThai ? 'badge-green' : 'badge-gray']">{{ phong.trangThai ? 'Hoạt động' : 'Dừng' }}</span></td>
               <td>
                 <div class="action-btns">
-                  <button class="btn-edit" @click="openPhongModal(phong)">✏️</button>
-                  <button class="btn-delete" @click="deactivatePhong(phong)" :title="phong.trangThai ? 'Vô hiệu hóa phòng' : 'Phòng đã ngừng'">🗑️</button>
+                  <button class="btn-edit" @click="openPhongModal(phong)" title="Sửa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="btn-delete" @click="deactivatePhong(phong)" :title="phong.trangThai ? 'Vô hiệu hóa phòng' : 'Phòng đã ngừng'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -287,3 +295,270 @@ onMounted(loadRap)
 </script>
 
 
+
+<style scoped>
+/* ── Page root ── */
+.cinemas-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #0D0D0D;
+  color: #E5E5E5;
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.toolbar h3 {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  padding-left: 12px;
+  border-left: 3px solid #FFFFFF;
+  margin: 0;
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Filter select ── */
+.filter-select {
+  min-height: 40px;
+  padding: 9px 36px 9px 14px;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  background: #111827;
+  color: #E5E5E5;
+  font-size: 14px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239CA3AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+.filter-select:focus { outline: none; border-color: #FFFFFF; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+
+/* ── Card ── */
+.card {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── Table ── */
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: #0D0D0D; }
+th {
+  padding: 12px 16px;
+  text-align: left;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9CA3AF;
+  border-bottom: 2px solid #374151;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid #1F2937; transition: background 150ms ease; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #1F2937; }
+td {
+  padding: 14px 16px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  color: #E5E5E5;
+  vertical-align: middle;
+}
+.font-bold { font-weight: 600; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 3px 12px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-green { background: rgba(16,185,129,0.15); color: #10B981; }
+.badge-gray  { background: rgba(156,163,175,0.15); color: #9CA3AF; }
+.badge-blue  { background: rgba(255,255,255,0.10);  color: #FFFFFF; }
+
+/* ── Action buttons ── */
+.action-btns { display: flex; gap: 4px; align-items: center; }
+.btn-edit, .btn-delete {
+  width: 32px; height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 150ms ease, background 150ms ease;
+}
+.btn-edit:hover   { color: #FFFFFF; background: rgba(255,255,255,0.10); }
+.btn-delete:hover { color: #EF4444; background: rgba(239,68,68,0.1); }
+
+/* ── Primary / ghost buttons ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #FFFFFF;
+  color: #0D0D0D;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 150ms ease;
+}
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #E5E5E5;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+.btn-ghost:hover { border-color: #FFFFFF; color: #FFFFFF; }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+}
+.modal {
+  width: min(480px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #1F2937;
+  border: 1px solid #374151;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+  color: #E5E5E5;
+}
+.modal h2 {
+  font-family: var(--font-display, 'Playfair Display', serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0 0 20px;
+  padding-left: 12px;
+  border-left: 3px solid #FFFFFF;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.form-group label {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.form-group input, .form-group select {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  background: #111827;
+  color: #E5E5E5;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 150ms ease;
+}
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #FFFFFF; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+.form-error { color: #EF4444; font-size: 13px; margin-top: 8px; }
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* ── Loading / empty ── */
+.loading-text, .empty-text {
+  text-align: center;
+  padding: 32px;
+  color: #9CA3AF;
+  font-size: 14px;
+}
+
+/* ── Seat map ── */
+.seat-map { padding: 24px; }
+.screen-label {
+  text-align: center;
+  padding: 8px;
+  margin-bottom: 20px;
+  background: #1F2937;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #9CA3AF;
+}
+.seat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.row-label { width: 24px; text-align: center; font-size: 12px; font-weight: 700; color: #9CA3AF; }
+.seats { display: flex; flex-wrap: wrap; gap: 4px; }
+.seat-chip {
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
+.seat-chip.thuong { background: #1F2937; border: 1px solid #374151; color: #E5E5E5; }
+.seat-chip.vip    { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #FFFFFF; }
+.seat-chip.doi    { background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #ec4899; }
+.seat-legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #374151; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #9CA3AF; }
+.chip { width: 16px; height: 16px; border-radius: 3px; }
+.chip.thuong { background: #1F2937; border: 1px solid #374151; }
+.chip.vip    { background: rgba(255,255,255,0.15); }
+.chip.doi    { background: rgba(236,72,153,0.25); }
+</style>

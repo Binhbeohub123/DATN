@@ -1,6 +1,11 @@
 /**
- * Dark mode overrides for scoped page classes (html[data-theme="dark"]).
- * Components keep light hex in scoped CSS; this layer maps them to tokens.
+ * dark-theme.css — Dark mode overrides for scoped page classes.
+ * Applies when html[data-theme="dark"] is set by themeStore.
+ *
+ * SCOPE: Non-admin pages ONLY.
+ * Admin panel (.admin-container) is intentionally excluded from every rule
+ * in this file. admin-theme.css owns the admin panel styling entirely.
+ * The !important token overrides in tokens.css enforce admin isolation.
  */
 
 [data-theme='dark'] .home,
@@ -13,8 +18,7 @@
 [data-theme='dark'] .checkout-page,
 [data-theme='dark'] .result-page,
 [data-theme='dark'] .not-found,
-[data-theme='dark'] .page,
-[data-theme='dark'] .admin-container {
+[data-theme='dark'] .page {
   color: var(--text-secondary);
   background: var(--page-bg);
 }
@@ -39,12 +43,10 @@
 [data-theme='dark'] .user-name,
 [data-theme='dark'] .hero-name,
 [data-theme='dark'] .top-bar__title,
-[data-theme='dark'] .section-title,
 [data-theme='dark'] .card-title,
 [data-theme='dark'] .group-title,
 [data-theme='dark'] .movie-info h3,
 [data-theme='dark'] .meta-value,
-[data-theme='dark'] .td-movie,
 [data-theme='dark'] .book-bar__label,
 [data-theme='dark'] .strip-value,
 [data-theme='dark'] .total-row--main {
@@ -84,7 +86,6 @@
 [data-theme='dark'] .movie-card,
 [data-theme='dark'] .movie-info,
 [data-theme='dark'] .hero-card,
-[data-theme='dark'] .card,
 [data-theme='dark'] .booking-card,
 [data-theme='dark'] .tx-card,
 [data-theme='dark'] .show-card,
@@ -238,154 +239,6 @@
   border-color: var(--border) !important;
 }
 
-/* Admin shell */
-[data-theme='dark'] .admin-container .sidebar {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-}
-
-[data-theme='dark'] .admin-container .topbar,
-[data-theme='dark'] .admin-container .search-box,
-[data-theme='dark'] .admin-container .date-tag,
-[data-theme='dark'] .admin-container .notif {
-  background: var(--surface-plain) !important;
-  border-color: var(--border) !important;
-  color: var(--text-secondary) !important;
-}
-
-[data-theme='dark'] .admin-container .logo-text span,
-[data-theme='dark'] .admin-container .admin-name,
-[data-theme='dark'] .admin-container .topbar h1 {
-  color: var(--text-primary) !important;
-}
-
-[data-theme='dark'] .admin-container .logo-admin {
-  background: var(--surface-plain) !important;
-}
-
-[data-theme='dark'] .admin-container .menu-item {
-  color: var(--text-secondary) !important;
-}
-
-[data-theme='dark'] .admin-container .menu-item:hover {
-  background: #1f2937 !important;
-  color: #e5e5e5 !important;
-}
-
-[data-theme='dark'] .admin-container .menu-item.active {
-  background: rgba(255, 215, 0, 0.1) !important;
-  color: #ffd700 !important;
-  border-left: 2px solid #ffd700 !important;
-}
-
-[data-theme='dark'] .admin-container .card,
-[data-theme='dark'] .admin-container .stat-card,
-[data-theme='dark'] .admin-container .table-card {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-}
-
-[data-theme='dark'] .admin-container .modal {
-  background: var(--surface-plain) !important;
-  color: var(--text-primary) !important;
-}
-
-[data-theme='dark'] .admin-container .kpi-card,
-[data-theme='dark'] .dashboard .card,
-[data-theme='dark'] .movies-page .card,
-[data-theme='dark'] .schedule-page .card,
-[data-theme='dark'] .customers-page .card,
-[data-theme='dark'] .cinemas-page .card,
-[data-theme='dark'] .promo-page .card,
-[data-theme='dark'] .reports-page .card,
-[data-theme='dark'] .settings-page .card {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-}
-
-[data-theme='dark'] .admin-container .modal-overlay {
-  background: var(--overlay) !important;
-}
-
-[data-theme='dark'] .admin-container input,
-[data-theme='dark'] .admin-container select,
-[data-theme='dark'] .admin-container textarea {
-  background: var(--surface-plain) !important;
-  border-color: var(--border) !important;
-  color: var(--text-primary) !important;
-}
-
-[data-theme='dark'] .admin-container th {
-  background: var(--surface) !important;
-  color: var(--text-tertiary) !important;
-  border-color: var(--border) !important;
-}
-
-[data-theme='dark'] .admin-container td {
-  border-color: var(--border) !important;
-  color: var(--text-secondary) !important;
-}
-
-[data-theme='dark'] .admin-container .banner-title,
-[data-theme='dark'] .admin-container .banner-meta,
-[data-theme='dark'] .admin-container .banner-url,
-[data-theme='dark'] .admin-container .section-title,
-[data-theme='dark'] .admin-container .tab,
-[data-theme='dark'] .admin-container .banner-row,
-[data-theme='dark'] .admin-container .page-toolbar h2,
-[data-theme='dark'] .settings-page .section-title,
-[data-theme='dark'] .settings-page .banner-title,
-[data-theme='dark'] .settings-page .banner-meta,
-[data-theme='dark'] .settings-page .banner-url {
-  color: var(--text-primary) !important;
-}
-
-[data-theme='dark'] .admin-container .banner-meta,
-[data-theme='dark'] .admin-container .banner-url,
-[data-theme='dark'] .settings-page .banner-meta,
-[data-theme='dark'] .settings-page .banner-url {
-  color: var(--text-tertiary) !important;
-}
-
-[data-theme='dark'] .admin-container .banner-row:hover,
-[data-theme='dark'] .settings-page .banner-row:hover {
-  background: var(--hover-row) !important;
-}
-
-[data-theme='dark'] .admin-container .tab--active,
-[data-theme='dark'] .settings-page .tab--active {
-  color: #ffd700 !important;
-  border-bottom-color: #ffd700 !important;
-}
-
-[data-theme='dark'] .admin-container .section-title,
-[data-theme='dark'] .admin-container .card-head h3,
-[data-theme='dark'] .admin-container .card > h3 {
-  color: #ffd700 !important;
-}
-
-[data-theme='dark'] .admin-container .admin-info {
-  background: var(--surface-plain) !important;
-}
-
-[data-theme='dark'] .admin-container .topbar-popover,
-[data-theme='dark'] .admin-container .popover-title,
-[data-theme='dark'] .admin-container .notif-item__title {
-  background: var(--surface-plain) !important;
-  color: var(--text-primary) !important;
-}
-
-[data-theme='dark'] .admin-container .notif-item__sub,
-[data-theme='dark'] .admin-container .popover-empty {
-  color: var(--text-tertiary) !important;
-}
-
-[data-theme='dark'] .admin-container .date-tag,
-[data-theme='dark'] .admin-container .date-tag__text,
-[data-theme='dark'] .admin-container .search-go {
-  color: var(--text-secondary) !important;
-}
-
 [data-theme='dark'] .hamburger {
   color: var(--text-primary) !important;
 }
@@ -462,7 +315,6 @@
 
 [data-theme='dark'] .topbar-popover,
 [data-theme='dark'] .topbar-search-wrap,
-[data-theme='dark'] .search-input,
 [data-theme='dark'] .search-go,
 [data-theme='dark'] .date-tag,
 [data-theme='dark'] .notif {

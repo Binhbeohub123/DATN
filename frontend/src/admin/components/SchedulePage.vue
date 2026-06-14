@@ -34,7 +34,7 @@
               <td class="td-movie">{{ lc.phim?.tenPhim || '—' }}</td>
               <td>
                 {{ lc.phongChieu?.tenPhong || '—' }}
-                <span :class="['sbadge', lc.phongChieu?.loaiPhong==='VIP'?'sbadge--amber':'sbadge--gray']" style="margin-left:6px">{{ lc.phongChieu?.loaiPhong }}</span>
+                <span :class="['sbadge', lc.phongChieu?.loaiPhong==='VIP'?'sbadge--gray':'sbadge--gray']" style="margin-left:6px">{{ lc.phongChieu?.loaiPhong }}</span>
               </td>
               <td class="td-date">{{ fmtDate(lc.thoiGianBatDau) }}</td>
               <td class="td-time">{{ fmtTime(lc.thoiGianBatDau) }}</td>
@@ -242,8 +242,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.toast-enter-active,
-.toast-leave-active { transition: opacity 0.3s; }
-.toast-enter-from,
-.toast-leave-to { opacity: 0; }
+.toast-enter-active, .toast-leave-active { transition: opacity 0.3s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; }
+
+/* ── Page root ── */
+.schedule-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #0D0D0D;
+  color: #E5E5E5;
+}
+
+/* ── Cell utilities ── */
+.td-movie  { font-weight: 600; font-size: 14px; color: #E5E5E5; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-date   { font-size: 12px; color: #9CA3AF; }
+.td-time   { font-size: 13px; color: #E5E5E5; font-variant-numeric: tabular-nums; }
+.td-price  { font-weight: 700; color: #FFFFFF; }
 </style>

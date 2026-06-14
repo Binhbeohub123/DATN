@@ -62,11 +62,25 @@
   /* ── Page / Border Aliases ── */
   --page-bg: var(--void);
   --border:  var(--glass-border);
+
+  /*
+   * ── Admin-specific tokens ──────────────────────────────────────────────
+   * These are ONLY for the admin panel (.admin-container scope).
+   * They are NOT overridden in [data-theme='light'] — they stay dark always.
+   */
+  --admin-accent:        #FFFFFF;
+  --admin-accent-muted:  rgba(255,255,255,0.08);
+  --admin-accent-border: rgba(255,255,255,0.20);
+  --admin-bg:            #0D0D0D;
+  --admin-surface:       #111827;
+  --admin-surface-hover: #1F2937;
+  --admin-border:        #374151;
+  --admin-text:          #E5E5E5;
+  --admin-text-muted:    #9CA3AF;
 }
 
 /* ── Light Theme Overrides ── */
 [data-theme='light'] {
-  /* Depth ladder — lighter surface variants */
   --void:      #f8f9fc;
   --deep:      #f0f2f7;
   --surface-1: #e8eaf0;
@@ -74,21 +88,17 @@
   --surface-3: #d4d8e6;
   --surface-4: #c8cedf;
 
-  /* Text tokens — inverted for light background */
   --text-primary:   #0f172a;
   --text-secondary: #475569;
   --text-ghost:     rgba(15,23,42,0.45);
 
-  /* Glass morphism — light-mode tint */
   --glass-bg:       rgba(255,255,255,0.60);
   --glass-bg-heavy: rgba(255,255,255,0.80);
   --glass-border:   rgba(15,23,42,0.10);
 
-  /* Page / border aliases update automatically via var() */
   --page-bg: var(--void);
   --border:  var(--glass-border);
 
-  /* Shadows — lighter on light surfaces */
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.12);
   --shadow-md:  0 4px 16px rgba(0,0,0,0.16);
   --shadow-lg:  0 12px 40px rgba(0,0,0,0.20);
@@ -118,4 +128,65 @@
 
   --page-bg: var(--void);
   --border:  var(--glass-border);
+}
+
+/*
+ * ── Admin panel: forced dark token scope ──────────────────────────────────
+ *
+ * Problem: themeStore sets data-theme on document.documentElement (<html>).
+ * dark-theme.css contains admin-specific rules with !important that fire
+ * under [data-theme='dark'] and inject gold/amber (#FFD700) into the admin
+ * panel (active nav item, section headings, tabs).
+ *
+ * Solution: Use the combined selector
+ *   .admin-container, .admin-container [data-theme='light'], .admin-container [data-theme='dark']
+ * to override tokens at the admin scope with !important so they beat any
+ * descendant or ancestor data-theme attribute selector.
+ *
+ * Additionally, key property overrides are applied directly (not via tokens)
+ * to defeat the !important rules in dark-theme.css that target:
+ *   [data-theme='dark'] .admin-container .menu-item.active  (gold #FFD700)
+ *   [data-theme='dark'] .admin-container .section-title     (gold #FFD700)
+ *   [data-theme='dark'] .admin-container .tab--active       (gold #FFD700)
+ *   [data-theme='dark'] .admin-container .sidebar           (var(--surface))
+ *   [data-theme='dark'] .admin-container .topbar            (var(--surface-plain))
+ *   [data-theme='dark'] .admin-container .card              (var(--surface))
+ *   [data-theme='dark'] .admin-container input/select/textarea
+ *
+ * These overrides are placed here (tokens.css) so they load before
+ * dark-theme.css, but the !important declarations win the cascade regardless
+ * of source order because the admin-container selectors have equal or higher
+ * specificity.
+ *
+ * Note: The property overrides for .menu-item.active, .section-title,
+ * .tab--active etc. live in admin-theme.css (see below) using
+ * .admin-container .menu-item.active with !important to beat dark-theme.css.
+ */
+.admin-container,
+.admin-container [data-theme='light'],
+.admin-container [data-theme='dark'] {
+  --void:           #0D0D0D !important;
+  --deep:           #0D0D0D !important;
+  --surface-1:      #111827 !important;
+  --surface-2:      #111827 !important;
+  --surface-3:      #1F2937 !important;
+  --surface-4:      #1F2937 !important;
+  --gold:           #FFFFFF !important;
+  --gold-bright:    #FFFFFF !important;
+  --gold-glow:      rgba(255,255,255,0.15) !important;
+  --gold-soft:      rgba(255,255,255,0.08) !important;
+  --electric:       #FFFFFF !important;
+  --electric-hover: #E5E5E5 !important;
+  --electric-glow:  rgba(255,255,255,0.15) !important;
+  --electric-soft:  rgba(255,255,255,0.08) !important;
+  --text-primary:   #E5E5E5 !important;
+  --text-secondary: #9CA3AF !important;
+  --text-ghost:     rgba(229,229,229,0.45) !important;
+  --glass-bg:       rgba(255,255,255,0.04) !important;
+  --glass-bg-heavy: rgba(255,255,255,0.08) !important;
+  --glass-border:   rgba(255,255,255,0.08) !important;
+  --page-bg:        #0D0D0D !important;
+  --border:         rgba(255,255,255,0.08) !important;
+  background:       #0D0D0D !important;
+  color-scheme:     dark !important;
 }

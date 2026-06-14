@@ -219,4 +219,39 @@ onMounted(() => {
 <style scoped>
 .toast-enter-active, .toast-leave-active { transition: opacity 0.3s; }
 .toast-enter-from, .toast-leave-to { opacity: 0; }
+
+/* ── Page root ── */
+.movies-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #0D0D0D;
+  color: #E5E5E5;
+}
+
+/* ── Poster cell ── */
+.poster-thumb {
+  width: 48px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #374151;
+}
+.poster-fallback {
+  width: 48px;
+  height: 68px;
+  background: #1F2937;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9CA3AF;
+}
+
+/* ── Movie name stacked ── */
+.movie-name { font-weight: 600; color: #E5E5E5; font-size: 14px; }
+.movie-en   { font-size: 12px; color: #9CA3AF; margin-top: 2px; }
+
+/* ── Inline cell utilities ── */
+.td-genre, .td-dur, .td-date { font-size: 12px; color: #9CA3AF; }
 </style>

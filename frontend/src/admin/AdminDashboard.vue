@@ -9,7 +9,7 @@
           <path d="M7 2v20M17 2v20M2 12h20M2 7h5M17 7h5M2 17h5M17 17h5"/>
         </svg>
         <span class="logo-text">PolyCinema</span>
-        <span class="logo-badge chip-glass chip-glass--gold">ADMIN</span>
+        <span class="logo-badge admin-role-badge">ADMIN</span>
       </div>
 
       <!-- Nav -->
@@ -109,11 +109,9 @@
                 class="search-input"
                 placeholder="Tìm phim, vé, khách..."
                 aria-label="Tìm kiếm"
+                @input="runSearch"
                 @keydown.enter.prevent="runSearch"
               />
-              <button type="button" class="search-go" title="Tìm" @click="runSearch">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
             </div>
           </div>
 
@@ -325,7 +323,21 @@ onUnmounted(() => {
 <style>
 @import '../assets/tokens.css';
 @import '../assets/cinema.css';
-@import '../assets/admin-gold.css';
+@import '../assets/admin-theme.css';
+
+/* ── Admin role badge (sidebar logo) ── */
+.admin-role-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.10);
+  color: #FFFFFF;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 
 /* ── Shell layout variables ── */
 :root { --admin-sidebar: 240px; }
@@ -337,7 +349,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: var(--admin-sidebar) minmax(0, 1fr);
   align-items: start;
-  background: var(--void);
+  background: #0D0D0D;
 }
 
 /* ── Sidebar ── */
@@ -350,7 +362,7 @@ onUnmounted(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--void);
+  background: #0D0D0D;
   border-right: 1px solid var(--glass-border);
   overflow: hidden;
 }
@@ -364,7 +376,7 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
-.logo-icon-svg { color: var(--gold); flex-shrink: 0; }
+.logo-icon-svg { color: #FFFFFF; flex-shrink: 0; }
 .logo-text {
   font-family: var(--font-display);
   font-size: 18px;
@@ -411,7 +423,7 @@ onUnmounted(() => {
   transition: all 300ms var(--ease-out);
 }
 .menu-item:hover { background: var(--glass-bg); color: var(--text-primary); }
-.menu-item.active { background: var(--gold-soft); color: var(--gold); font-weight: 600; }
+.menu-item.active { background: rgba(255,255,255,0.08); color: #FFFFFF; font-weight: 600; }
 .menu-item > svg { flex-shrink: 0; opacity: 0.75; }
 .menu-item.active > svg,
 .menu-item:hover > svg { opacity: 1; }
@@ -450,7 +462,7 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--gold);
+  background: #FFFFFF;
   color: #000;
   font-family: var(--font-display);
   font-size: 13px;
@@ -503,7 +515,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   padding: 16px 24px;
-  background: color-mix(in srgb, var(--void) 80%, transparent);
+  background: rgba(5,5,8,0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--glass-border);
@@ -548,50 +560,37 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .topbar-popover-wrap { position: relative; flex-shrink: 0; }
-.home-btn--topbar { white-space: nowrap; }
+.home-btn--topbar { white-space: nowrap; border: 1px solid #374151; border-radius: 8px; padding: 6px 12px; color: #E5E5E5; background: transparent; font-size: 12px; transition: border-color 150ms, color 150ms; }
+.home-btn--topbar:hover { border-color: #FFFFFF; color: #FFFFFF; }
 .home-btn__label { font-size: 12px; }
 
 /* Search bar */
 .topbar-search-wrap {
   display: flex;
   align-items: center;
-  flex: 1 1 180px;
+  flex: 1;
   min-width: 0;
-  width: min(300px, 100%);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-pill);
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
   overflow: hidden;
   transition: border-color 200ms var(--ease-out);
 }
-.topbar-search-wrap:focus-within { border-color: var(--gold); }
-.search-icon { margin-left: 12px; color: var(--text-secondary); flex-shrink: 0; }
+.topbar-search-wrap:focus-within { border-color: #FFFFFF; box-shadow: 0 0 0 1px rgba(255,255,255,0.15); }
+.search-icon { margin-left: 12px; color: #9CA3AF; flex-shrink: 0; }
 .search-input {
   flex: 1;
   min-width: 0;
   min-height: 38px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: none;
   background: transparent;
-  color: var(--text-primary);
+  color: #E5E5E5;
   font-family: var(--font-ui);
   font-size: 13px;
   outline: none;
 }
-.search-input::placeholder { color: var(--text-ghost); }
-.search-go {
-  min-width: 38px;
-  min-height: 38px;
-  border: none;
-  border-left: 1px solid var(--glass-border);
-  background: transparent;
-  color: var(--gold);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background 200ms var(--ease-out);
-}
-.search-go:hover { background: var(--gold-soft); }
+.search-input::placeholder { color: #9CA3AF; }
 
 /* Date tag */
 .date-tag {
@@ -618,7 +617,7 @@ onUnmounted(() => {
   color: var(--text-secondary);
   transition: border-color 200ms var(--ease-out), color 200ms var(--ease-out);
 }
-.notif:hover { border-color: var(--gold); color: var(--gold); }
+.notif:hover { border-color: #FFFFFF; color: #FFFFFF; }
 .notif-dot {
   position: absolute;
   top: 4px;
@@ -666,7 +665,7 @@ onUnmounted(() => {
 .popover-link {
   border: none;
   background: none;
-  color: var(--gold);
+  color: #FFFFFF;
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 600;
@@ -719,6 +718,9 @@ onUnmounted(() => {
 
 /* Content area */
 .content { flex: 1; padding: 24px; }
+
+/* Spacing: toolbar row → content below */
+.topbar-toolbar { margin-bottom: 4px; }
 
 /* ── Responsive ── */
 @media (max-width: 1100px) {
