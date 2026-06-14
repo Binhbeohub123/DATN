@@ -425,6 +425,20 @@ public class AdminController {
         return ResponseEntity.ok(gheNgoiRepository.findByPhongChieuId(phongChieuId));
     }
 
+    /**
+     * PUT /api/admin/ghe-ngoi/{id}
+     * Updates loaiGhe and/or heSoGia on a single seat.
+     * Body: { "loaiGhe": "vip" | "thuong" | "cap_doi", "heSoGia": 1.50 }
+     */
+    @PutMapping("/ghe-ngoi/{id}")
+    public ResponseEntity<?> updateGhe(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        GheNgoi ghe = gheNgoiRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ghế"));
+        if (body.containsKey("loaiGhe")) ghe.setLoaiGhe((String) body.get("loaiGhe"));
+        if (body.containsKey("heSoGia")) ghe.setHeSoGia(new java.math.BigDecimal(body.get("heSoGia").toString()));
+        return ResponseEntity.ok(gheNgoiRepository.save(ghe));
+    }
+
     // ─────────────────────────────────────────────────────────────
     // ROOM ADMIN CRUD
     // ─────────────────────────────────────────────────────────────

@@ -103,7 +103,7 @@
           <div v-for="row in groupedGhe" :key="row.hang" class="seat-row">
             <div class="row-label">{{ row.hang }}</div>
             <div class="seats">
-              <div v-for="seat in row.seats" :key="seat.id" :class="['seat-chip', seatTypeClass(seat.loaiGhe)]" :title="`${seat.hangGhe}${seat.soGhe} - ${seat.loaiGhe}`">
+              <div v-for="seat in row.seats" :key="seat.id" :class="['seat-chip', seatTypeClass(seat.loaiGhe)]" :title="`${seat.hangGhe?.trim()}${seat.soGhe} - ${seat.loaiGhe} (nhấn để sửa)`" @click="openEditSeat(seat)">
                 {{ seat.soGhe }}
               </div>
             </div>
@@ -160,6 +160,27 @@
         <div class="modal-actions">
           <button class="btn-ghost" @click="showPhongModal = false">Hủy</button>
           <button class="btn-primary" @click="savePhong" :disabled="savingPhong">{{ savingPhong ? 'Đang lưu...' : 'Lưu' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GHE EDIT MODAL -->
+    <div v-if="editingSeat" class="modal-overlay" @click.self="editingSeat = null">
+      <div class="modal modal--sm">
+        <h2>Ghế {{ editingSeat.hangGhe?.trim() }}{{ editingSeat.soGhe }}</h2>
+        <div class="form-group">
+          <label>Loại ghế</label>
+          <select v-model="editLoaiGhe">
+            <option value="thường">Thường</option>
+            <option value="vip">VIP</option>
+            <option value="cặp đôi">Cặp đôi</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-ghost" @click="editingSeat = null">Hủy</button>
+          <button class="btn-primary" @click="saveEditSeat" :disabled="savingGhe">
+            {{ savingGhe ? 'Đang lưu...' : 'Lưu' }}
+          </button>
         </div>
       </div>
     </div>
@@ -265,6 +286,30 @@ const gheList = ref([])
 const loadingGhe = ref(false)
 const selectedPhongId = ref('')
 
+// ── Seat edit modal ──────────────────────────
+const editingSeat = ref(null)       // the seat object being edited
+const editLoaiGhe = ref('thường')  // selected type in the edit modal
+const savingGhe = ref(false)
+
+function openEditSeat(seat) {
+  editingSeat.value = seat
+  editLoaiGhe.value = seat.loaiGhe || 'thường'
+}
+
+async function saveEditSeat() {
+  if (!editingSeat.value) return
+  savingGhe.value = true
+  try {
+    await api.put(`/admin/ghe-ngoi/${editingSeat.value.id}`, { loaiGhe: editLoaiGhe.value })
+    editingSeat.value.loaiGhe = editLoaiGhe.value   // update local state immediately
+    editingSeat.value = null
+  } catch (e) {
+    alert(e.response?.data?.message || 'Lỗi cập nhật ghế')
+  } finally {
+    savingGhe.value = false
+  }
+}
+
 const groupedGhe = computed(() => {
   const groups = {}
   gheList.value.forEach(g => {
@@ -277,8 +322,8 @@ const groupedGhe = computed(() => {
 function seatTypeClass(loai) {
   if (!loai) return 'thuong'
   const l = loai.toLowerCase()
-  if (l.includes('vip')) return 'vip'
-  if (l.includes('đôi') || l.includes('doi') || l.includes('couple')) return 'doi'
+  if (l === 'vip' || l.includes('vip')) return 'vip'
+  if (l === 'cap_doi' || l.includes('cap_doi') || l.includes('đôi') || l.includes('couple')) return 'doi'
   return 'thuong'
 }
 
@@ -498,6 +543,7 @@ td {
   box-shadow: 0 24px 48px rgba(0,0,0,0.5);
   color: #E5E5E5;
 }
+.modal--sm { width: min(320px, 100%); }
 .modal h2 {
   font-family: var(--font-display, 'Playfair Display', serif);
   font-size: 18px;
@@ -573,12 +619,14 @@ td {
   font-size: 10px; font-weight: 700;
 }
 .seat-chip.thuong { background: #1F2937; border: 1px solid #374151; color: #E5E5E5; }
-.seat-chip.vip    { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #FFFFFF; }
-.seat-chip.doi    { background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #ec4899; }
+.seat-chip.vip    { background: rgba(234,179,8,0.20); border: 1px solid rgba(234,179,8,0.55); color: #FDE047; cursor: pointer; }
+.seat-chip.doi    { background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #ec4899; cursor: pointer; }
+.seat-chip.thuong { cursor: pointer; }
+.seat-chip:hover  { filter: brightness(1.25); }
 .seat-legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #374151; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #9CA3AF; }
 .chip { width: 16px; height: 16px; border-radius: 3px; }
 .chip.thuong { background: #1F2937; border: 1px solid #374151; }
-.chip.vip    { background: rgba(255,255,255,0.15); }
+.chip.vip    { background: rgba(234,179,8,0.20); border: 1px solid rgba(234,179,8,0.55); }
 .chip.doi    { background: rgba(236,72,153,0.25); }
 </style>
