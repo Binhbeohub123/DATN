@@ -95,23 +95,63 @@
           </select>
         </div>
       </div>
+
       <div class="card">
         <div v-if="loadingGhe" class="loading-text">Đang tải...</div>
         <div v-else-if="gheList.length === 0" class="empty-text">Chọn phòng để xem sơ đồ ghế</div>
         <div v-else class="seat-map">
-          <div class="screen-label">— Màn hình —</div>
-          <div v-for="row in groupedGhe" :key="row.hang" class="seat-row">
-            <div class="row-label">{{ row.hang }}</div>
-            <div class="seats">
-              <div v-for="seat in row.seats" :key="seat.id" :class="['seat-chip', seatTypeClass(seat.loaiGhe)]" :title="`${seat.hangGhe?.trim()}${seat.soGhe} - ${seat.loaiGhe} (nhấn để sửa)`" @click="openEditSeat(seat)">
-                {{ seat.soGhe }}
-              </div>
+
+          <!-- STEP 5: Bulk action toolbar — only visible when seats are selected -->
+          <div v-if="selectedSeatIds.size > 0" class="bulk-toolbar">
+            <span class="bulk-count">✓ Đã chọn <strong>{{ selectedSeatIds.size }}</strong> ghế</span>
+            <div class="bulk-actions">
+              <span class="bulk-label">Đổi thành:</span>
+              <select v-model="bulkLoaiGhe" class="bulk-select">
+                <option value="thường">Thường</option>
+                <option value="vip">VIP</option>
+                <option value="cặp đôi">Cặp đôi</option>
+              </select>
+              <button class="btn-bulk-apply" @click="applyBulkEdit">Áp dụng</button>
+              <button class="btn-bulk-clear" @click="selectedSeatIds = new Set()">Bỏ chọn</button>
             </div>
           </div>
+
+          <div class="screen-label">— Màn hình —</div>
+
+          <!-- STEP 4: Row label is now a clickable button to select/deselect entire row -->
+          <div v-for="row in groupedGhe" :key="row.hang" class="seat-row">
+            <button
+              class="row-label-btn"
+              :class="isRowFullySelected(row.hang) ? 'row-label-btn--active' : ''"
+              :title="`Chọn/bỏ cả hàng ${row.hang.trim()}`"
+              @click="toggleRow(row.hang)"
+            >{{ row.hang.trim() }}</button>
+
+            <div class="seats">
+              <!-- STEP 2: :style for type colors, :class for selected ring indicator -->
+              <button
+                v-for="seat in row.seats"
+                :key="seat.id"
+                class="seat-chip"
+                :class="selectedSeatIds.has(seat.id) ? 'seat-chip--selected' : ''"
+                :style="seatStyle(seat.loaiGhe)"
+                :title="`${seat.hangGhe?.trim()}${seat.soGhe} — ${seat.loaiGhe}`"
+                @click="toggleSeat(seat)"
+              >{{ seat.soGhe }}</button>
+            </div>
+          </div>
+
+          <!-- STEP 2: Legend with inline style colors -->
           <div class="seat-legend">
-            <span class="legend-item"><span class="chip thuong"></span>Thường</span>
-            <span class="legend-item"><span class="chip vip"></span>VIP</span>
-            <span class="legend-item"><span class="chip doi"></span>Đôi</span>
+            <span class="legend-item">
+              <span class="chip chip--thuong"></span>Thường
+            </span>
+            <span class="legend-item">
+              <span class="chip chip--vip"></span>VIP
+            </span>
+            <span class="legend-item">
+              <span class="chip chip--doi"></span>Cặp đôi
+            </span>
           </div>
         </div>
       </div>
@@ -160,27 +200,6 @@
         <div class="modal-actions">
           <button class="btn-ghost" @click="showPhongModal = false">Hủy</button>
           <button class="btn-primary" @click="savePhong" :disabled="savingPhong">{{ savingPhong ? 'Đang lưu...' : 'Lưu' }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- GHE EDIT MODAL -->
-    <div v-if="editingSeat" class="modal-overlay" @click.self="editingSeat = null">
-      <div class="modal modal--sm">
-        <h2>Ghế {{ editingSeat.hangGhe?.trim() }}{{ editingSeat.soGhe }}</h2>
-        <div class="form-group">
-          <label>Loại ghế</label>
-          <select v-model="editLoaiGhe">
-            <option value="thường">Thường</option>
-            <option value="vip">VIP</option>
-            <option value="cặp đôi">Cặp đôi</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button class="btn-ghost" @click="editingSeat = null">Hủy</button>
-          <button class="btn-primary" @click="saveEditSeat" :disabled="savingGhe">
-            {{ savingGhe ? 'Đang lưu...' : 'Lưu' }}
-          </button>
         </div>
       </div>
     </div>
@@ -286,27 +305,70 @@ const gheList = ref([])
 const loadingGhe = ref(false)
 const selectedPhongId = ref('')
 
-// ── Seat edit modal ──────────────────────────
-const editingSeat = ref(null)       // the seat object being edited
-const editLoaiGhe = ref('thường')  // selected type in the edit modal
-const savingGhe = ref(false)
+// STEP 3: Multi-select state
+const selectedSeatIds = ref(new Set())
+const bulkLoaiGhe = ref('thường')
 
-function openEditSeat(seat) {
-  editingSeat.value = seat
-  editLoaiGhe.value = seat.loaiGhe || 'thường'
+// STEP 2: Inline style function — exact colors from SeatSelectionPage.vue
+function seatStyle(loaiGhe) {
+  if (loaiGhe === 'vip') return {
+    background: '#C9A84C',
+    borderColor: '#C9A84C',
+    color: '#ffffff'
+  }
+  if (loaiGhe === 'cặp đôi') return {
+    background: '#ec4899',
+    borderColor: '#db2777',
+    color: '#ffffff'
+  }
+  // 'thường' — default dark style, no inline override
+  return {}
 }
 
-async function saveEditSeat() {
-  if (!editingSeat.value) return
-  savingGhe.value = true
+// STEP 3: Toggle individual seat selection
+function toggleSeat(seat) {
+  if (selectedSeatIds.value.has(seat.id)) {
+    selectedSeatIds.value.delete(seat.id)
+  } else {
+    selectedSeatIds.value.add(seat.id)
+  }
+  selectedSeatIds.value = new Set(selectedSeatIds.value)
+}
+
+// STEP 4: Toggle entire row
+function toggleRow(hangGhe) {
+  const rowSeats = gheList.value.filter(g => g.hangGhe.trim() === hangGhe.trim())
+  const allSelected = rowSeats.every(g => selectedSeatIds.value.has(g.id))
+  if (allSelected) {
+    rowSeats.forEach(g => selectedSeatIds.value.delete(g.id))
+  } else {
+    rowSeats.forEach(g => selectedSeatIds.value.add(g.id))
+  }
+  selectedSeatIds.value = new Set(selectedSeatIds.value)
+}
+
+// Helper: is every seat in a row selected?
+function isRowFullySelected(hangGhe) {
+  const rowSeats = gheList.value.filter(g => g.hangGhe.trim() === hangGhe.trim())
+  return rowSeats.length > 0 && rowSeats.every(g => selectedSeatIds.value.has(g.id))
+}
+
+// STEP 6: Bulk apply
+async function applyBulkEdit() {
+  if (selectedSeatIds.value.size === 0) return
+  const ids = [...selectedSeatIds.value]
   try {
-    await api.put(`/admin/ghe-ngoi/${editingSeat.value.id}`, { loaiGhe: editLoaiGhe.value })
-    editingSeat.value.loaiGhe = editLoaiGhe.value   // update local state immediately
-    editingSeat.value = null
-  } catch (e) {
-    alert(e.response?.data?.message || 'Lỗi cập nhật ghế')
-  } finally {
-    savingGhe.value = false
+    await Promise.all(ids.map(id =>
+      api.put(`/admin/ghe-ngoi/${id}`, { loaiGhe: bulkLoaiGhe.value })
+    ))
+    // Update local state without re-fetching
+    gheList.value = gheList.value.map(g =>
+      selectedSeatIds.value.has(g.id) ? { ...g, loaiGhe: bulkLoaiGhe.value } : g
+    )
+    selectedSeatIds.value = new Set()
+  } catch (err) {
+    console.error('Bulk update failed', err)
+    alert('Lỗi khi cập nhật ghế. Vui lòng thử lại.')
   }
 }
 
@@ -316,19 +378,14 @@ const groupedGhe = computed(() => {
     if (!groups[g.hangGhe]) groups[g.hangGhe] = []
     groups[g.hangGhe].push(g)
   })
-  return Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0])).map(([hang, seats]) => ({ hang, seats: seats.sort((a,b) => a.soGhe - b.soGhe) }))
+  return Object.entries(groups)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([hang, seats]) => ({ hang, seats: seats.sort((a, b) => a.soGhe - b.soGhe) }))
 })
-
-function seatTypeClass(loai) {
-  if (!loai) return 'thuong'
-  const l = loai.trim()
-  if (l === 'vip') return 'vip'
-  if (l === 'cặp đôi') return 'doi'
-  return 'thuong'  // 'thường' and any unknown value → default gray
-}
 
 async function loadGhe() {
   if (!selectedPhongId.value) { gheList.value = []; return }
+  selectedSeatIds.value = new Set()   // clear selection when room changes
   loadingGhe.value = true
   try {
     const res = await api.get(`/admin/ghe-ngoi?phongChieuId=${selectedPhongId.value}`)
@@ -336,14 +393,9 @@ async function loadGhe() {
   } catch (e) { gheList.value = [] } finally { loadingGhe.value = false }
 }
 
-// When user switches to the Ghế ngồi tab, ensure rapList and phongList are populated.
-// phongList depends on selectedRapId, which is only populated if the user visited
-// the Phòng tab first. If they navigate directly to Ghế, we auto-load the first rap.
 watch(activeTab, async (tab) => {
   if (tab === 'ghe') {
-    if (rapList.value.length === 0) {
-      await loadRap()
-    }
+    if (rapList.value.length === 0) await loadRap()
     if (phongList.value.length === 0 && rapList.value.length > 0) {
       selectedRapId.value = rapList.value[0].id
       await loadPhong()
@@ -351,15 +403,12 @@ watch(activeTab, async (tab) => {
   }
 })
 
-// Auto-reload seat map whenever the selected room changes in the Ghế tab.
 watch(selectedPhongId, (newId) => {
   if (newId) loadGhe()
 })
 
 onMounted(loadRap)
 </script>
-
-
 
 <style scoped>
 /* ── Page root ── */
@@ -464,7 +513,7 @@ td {
 }
 .badge-green { background: rgba(16,185,129,0.15); color: #10B981; }
 .badge-gray  { background: rgba(156,163,175,0.15); color: #9CA3AF; }
-.badge-blue  { background: rgba(255,255,255,0.10);  color: #FFFFFF; }
+.badge-blue  { background: rgba(255,255,255,0.10); color: #FFFFFF; }
 
 /* ── Action buttons ── */
 .action-btns { display: flex; gap: 4px; align-items: center; }
@@ -543,7 +592,6 @@ td {
   box-shadow: 0 24px 48px rgba(0,0,0,0.5);
   color: #E5E5E5;
 }
-.modal--sm { width: min(320px, 100%); }
 .modal h2 {
   font-family: var(--font-display, 'Playfair Display', serif);
   font-size: 18px;
@@ -597,6 +645,80 @@ td {
   font-size: 14px;
 }
 
+/* ── Bulk action toolbar ── */
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: rgba(55,65,81,0.80);
+  border: 1px solid #4B5563;
+  border-radius: 10px;
+}
+.bulk-count {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  color: #FFFFFF;
+}
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.bulk-label {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  color: #9CA3AF;
+}
+.bulk-select {
+  min-height: 34px;
+  padding: 5px 30px 5px 10px;
+  border: 1px solid #4B5563;
+  border-radius: 8px;
+  background: #374151;
+  color: #E5E5E5;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.btn-bulk-apply {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.btn-bulk-apply:hover { background: #1D4ED8; }
+.btn-bulk-clear {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #4B5563;
+  color: #E5E5E5;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.btn-bulk-clear:hover { background: #6B7280; }
+
 /* ── Seat map ── */
 .seat-map { padding: 24px; }
 .screen-label {
@@ -610,23 +732,63 @@ td {
   color: #9CA3AF;
 }
 .seat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.row-label { width: 24px; text-align: center; font-size: 12px; font-weight: 700; color: #9CA3AF; }
-.seats { display: flex; flex-wrap: wrap; gap: 4px; }
-.seat-chip {
-  width: 28px; height: 28px;
+
+/* Row label is now a button — STEP 4 */
+.row-label-btn {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
   border-radius: 4px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700;
+  background: transparent;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  color: #9CA3AF;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+  flex-shrink: 0;
 }
-.seat-chip.thuong { background: #1F2937; border: 1px solid #374151; color: #E5E5E5; }
-.seat-chip.vip    { background: rgba(234,179,8,0.20); border: 1px solid rgba(234,179,8,0.55); color: #FDE047; cursor: pointer; }
-.seat-chip.doi    { background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #ec4899; cursor: pointer; }
-.seat-chip.thuong { cursor: pointer; }
-.seat-chip:hover  { filter: brightness(1.25); }
-.seat-legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #374151; }
-.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #9CA3AF; }
-.chip { width: 16px; height: 16px; border-radius: 3px; }
-.chip.thuong { background: #1F2937; border: 1px solid #374151; }
-.chip.vip    { background: rgba(234,179,8,0.20); border: 1px solid rgba(234,179,8,0.55); }
-.chip.doi    { background: rgba(236,72,153,0.25); }
+.row-label-btn:hover { color: #FFFFFF; background: rgba(255,255,255,0.06); }
+.row-label-btn--active { color: #60A5FA; }
+
+.seats { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* STEP 2: Base seat chip — type colors come from :style, not :class */
+.seat-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #374151;
+  background: #1F2937;
+  color: #E5E5E5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 150ms ease, outline 100ms ease;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+}
+.seat-chip:hover { filter: brightness(1.25); }
+
+/* STEP 3: Selected state — blue ring */
+.seat-chip--selected {
+  outline: 2px solid #60A5FA;
+  outline-offset: 2px;
+}
+
+/* ── Legend ── */
+.seat-legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #374151; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--font-ui, 'Inter', sans-serif); font-size: 12px; font-weight: 600; color: #9CA3AF; }
+.chip { width: 16px; height: 16px; border-radius: 3px; border: 1px solid transparent; }
+.chip--thuong { background: #1F2937; border-color: #374151; }
+.chip--vip    { background: #C9A84C; border-color: #C9A84C; }
+.chip--doi    { background: #ec4899; border-color: #db2777; }
 </style>
