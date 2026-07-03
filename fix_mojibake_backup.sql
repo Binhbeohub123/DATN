@@ -5,7 +5,7 @@
 -- Safe to run multiple times (drops and recreates backup tables).
 -- ============================================================
 
-USE rapphim3;   -- ← change to rapphim6 if needed
+USE rapphim6;   -- active database from application.properties JDBC URL default
 GO
 
 -- ── Drop old backups if they exist (re-runnable) ────────────

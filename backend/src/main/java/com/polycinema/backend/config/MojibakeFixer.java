@@ -82,6 +82,26 @@ public class MojibakeFixer {
     }
 
     // ──────────────────────────────────────────────────────────────────
+    // Exclusion rules (rows with confirmed data loss or false-positive risk)
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns true if this row/column combination should be SKIPPED by the
+     * automatic fixer.  Skipped rows are listed separately in the output.
+     *
+     * Current exclusions:
+     *   Phim.MoTa id=1 and id=2 — contain '?' replacement characters,
+     *     meaning the original bytes were already lost before they reached
+     *     the database.  The text cannot be recovered algorithmically.
+     *     These must be re-entered manually.
+     */
+    private static boolean isExcluded(Col c, long pk) {
+        return "Phim".equals(c.table())
+            && "MoTa".equals(c.col())
+            && (pk == 1L || pk == 2L);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
     // Core logic
     // ──────────────────────────────────────────────────────────────────
 
@@ -92,6 +112,7 @@ public class MojibakeFixer {
 
         int totalFixed = 0;
         List<String> report = new ArrayList<>();
+        List<String> excluded = new ArrayList<>();   // data-loss rows listed separately
 
         for (Col c : COLUMNS) {
             String sql = "SELECT " + c.pkCol() + ", " + c.col() +
@@ -108,8 +129,21 @@ public class MojibakeFixer {
 
                 if (value == null) continue;
 
+                // ── Exclusion check (confirmed data-loss rows) ────────
+                if (isExcluded(c, pk)) {
+                    if (looksLikeMojibake(value) || value.contains("?")) {
+                        String note = String.format(
+                            "[EXCLUDED — data loss] [%s.%s] PK=%d | VALUE: %s",
+                            c.table(), c.col(), pk, truncate(value, 120)
+                        );
+                        System.out.println(note);
+                        excluded.add(note);
+                    }
+                    continue;   // never auto-fix these rows
+                }
+
                 String fixed = tryFixMojibake(value);
-                if (fixed == null) continue;  // not corrupted
+                if (fixed == null) continue;  // not corrupted / false-positive
 
                 totalFixed++;
                 String line = String.format(
@@ -129,7 +163,12 @@ public class MojibakeFixer {
         }
 
         System.out.println("-------------------------------------------------------------");
-        System.out.println(" Total corrupted cells found: " + totalFixed);
+        System.out.println(" Total corrupted cells fixed/previewed: " + totalFixed);
+        System.out.println(" Excluded (data-loss, must re-enter manually): " + excluded.size());
+        if (!excluded.isEmpty()) {
+            System.out.println(" EXCLUDED ROWS:");
+            excluded.forEach(System.out::println);
+        }
         if (dryRun) {
             System.out.println(" DRY RUN — no rows were modified.");
             System.out.println(" To apply: restart with -Dpolycinema.fix-mojibake=apply");
@@ -158,6 +197,14 @@ public class MojibakeFixer {
         // Quick gate: does the string contain any of the signature characters?
         if (!looksLikeMojibake(s)) return null;
 
+        // ── False-positive guard ─────────────────────────────────────────
+        // If the string's UTF-16 code units, when re-encoded as Latin-1, then
+        // decoded as UTF-8, produce the SAME string, the input was already valid
+        // Unicode (it just happens to contain chars like Ã that are legitimate in
+        // the text).  Also: if the string contains U+FFFD replacement chars it was
+        // already decoded with loss — skip it.
+        if (s.contains("\uFFFD")) return null;
+
         try {
             // Step 1: encode as Latin-1 — each char is treated as a byte value
             byte[] latin1Bytes = s.getBytes(LATIN1);
@@ -166,11 +213,26 @@ public class MojibakeFixer {
             String candidate = new String(latin1Bytes, UTF8);
 
             // Step 3: validate
-            if (candidate.equals(s)) return null;                   // no change
-            if (candidate.contains("\uFFFD")) return null;           // invalid UTF-8 sequence
-            if (looksLikeMojibake(candidate)) return null;           // still corrupt
+            if (candidate.equals(s)) return null;                   // no change — already correct
+            if (candidate.contains("\uFFFD")) return null;           // invalid UTF-8 bytes — data loss
+            if (looksLikeMojibake(candidate)) return null;           // still corrupt after decode
             if (!containsVietnamese(candidate)
-                    && !candidate.matches(".*[\\p{L}].*")) return null; // sanity check
+                    && !candidate.matches(".*[\\p{L}].*")) return null; // sanity: must have letters
+
+            // ── Additional false-positive guard for RapChieu id=3 style ──
+            // If re-encoding candidate back via the same process yields the input,
+            // AND candidate is already valid readable text, the fix is safe.
+            // If candidate.getBytes(LATIN1) → new String(UTF8) != candidate,
+            // then we have a second round of encoding — skip.
+            try {
+                byte[] roundTrip = candidate.getBytes(LATIN1);
+                String roundTripped = new String(roundTrip, UTF8);
+                if (!roundTripped.equals(candidate) && !roundTripped.contains("\uFFFD")) {
+                    // The candidate would itself be corrupted by a second pass — not safe.
+                    // This means the input was already correct Unicode, not mojibake.
+                    return null;
+                }
+            } catch (Exception ignored) {}
 
             return candidate;
         } catch (Exception e) {

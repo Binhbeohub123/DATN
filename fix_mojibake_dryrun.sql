@@ -23,7 +23,7 @@
 --   We check for the most common broken sequences.
 -- ============================================================
 
-USE rapphim3;   -- ← change to rapphim6 if that is your active DB
+USE rapphim6;   -- active database from application.properties JDBC URL default
 GO
 
 -- ── Detection helper: does the string contain mojibake? ──────
