@@ -5,25 +5,31 @@ import api from '@/services/api'
 export const useMovieStore = defineStore('movie', () => {
   // ── State ──
   const phimDangChieu = ref([])
-  const phimSapChieu = ref([])
-  const currentMovie = ref(null)
-  const lichChieu = ref([])
-  const banners = ref([])
+  const phimSapChieu  = ref([])
+  const phimNoiBat    = ref([])   // top-10 by rating — Phase 3
+  const cinemas       = ref([])   // RapChieu list — Phase 3
+  const currentMovie  = ref(null)
+  const lichChieu     = ref([])
+  const banners       = ref([])
 
   const loading = ref({
     dangChieu: false,
-    sapChieu: false,
-    detail: false,
+    sapChieu:  false,
+    noiBat:    false,
+    cinemas:   false,
+    detail:    false,
     lichChieu: false,
-    banner: false,
+    banner:    false,
   })
 
   const error = ref({
     dangChieu: '',
-    sapChieu: '',
-    detail: '',
+    sapChieu:  '',
+    noiBat:    '',
+    cinemas:   '',
+    detail:    '',
     lichChieu: '',
-    banner: '',
+    banner:    '',
   })
 
   // ── Getters ──
@@ -57,6 +63,43 @@ export const useMovieStore = defineStore('movie', () => {
       error.value.sapChieu = 'Không tải được phim sắp chiếu'
     } finally {
       loading.value.sapChieu = false
+    }
+  }
+
+  /** GET /api/phim/noi-bat — top 10 now-showing sorted by rating DESC */
+  async function fetchNoiBat() {
+    loading.value.noiBat = true
+    error.value.noiBat = ''
+    try {
+      const res = await api.get('/phim/noi-bat')
+      phimNoiBat.value = normalizeMovies(res.data)
+    } catch {
+      error.value.noiBat = 'Không tải được phim nổi bật'
+    } finally {
+      loading.value.noiBat = false
+    }
+  }
+
+  /** GET /api/rap-chieu — active cinemas with lat/lng/city */
+  async function fetchCinemas() {
+    loading.value.cinemas = true
+    error.value.cinemas = ''
+    try {
+      const res = await api.get('/rap-chieu')
+      cinemas.value = (res.data || []).map(r => ({
+        id:        r.id,
+        tenRap:    r.tenRap    || '',
+        diaChi:    r.diaChi    || '',
+        thanhPho:  r.thanhPho  || '',
+        hinhAnh:   r.hinhAnh   || '',
+        banDoUrl:  r.banDoUrl  || '',
+        latitude:  r.latitude  != null ? Number(r.latitude)  : null,
+        longitude: r.longitude != null ? Number(r.longitude) : null,
+      }))
+    } catch {
+      error.value.cinemas = 'Không tải được danh sách rạp'
+    } finally {
+      loading.value.cinemas = false
     }
   }
 
@@ -116,12 +159,12 @@ export const useMovieStore = defineStore('movie', () => {
       const data = res.data
       const raw = Array.isArray(data) ? data : data ? [data] : []
       banners.value = raw.map(b => ({
-        id: b.id,
-        tieuDe: b.tieuDe || b.title || '',
-        hinhAnh: b.hinhAnh || b.image || '',
-        linkUrl: b.linkUrl || b.link || '',
-        thuTu: b.thuTu || 0,
-        moTa: b.moTa || b.description || ''
+        id:      b.id,
+        tieuDe:  b.tieuDe  || b.title       || '',
+        hinhAnh: b.hinhAnh || b.image       || '',
+        linkUrl: b.linkUrl || b.link        || '',
+        thuTu:   b.thuTu   || 0,
+        moTa:    b.moTa    || b.description || '',
       }))
     } catch {
       error.value.banner = 'Không tải được banner'
@@ -148,28 +191,33 @@ export const useMovieStore = defineStore('movie', () => {
   function normalizeMovie(m) {
     if (!m) return null
     return {
-      id: m.id,
-      title: m.tenPhim || m.title || '',
-      titleEn: m.tenPhimTiengAnh || m.titleEn || '',
-      genre: m.theLoai || m.genre || '',
-      director: m.daoDien || m.director || '',
-      cast: m.dienVienChinh || m.cast || '',
-      duration: m.thoiLuong || m.duration || 0,
-      language: m.ngonNgu || m.language || '',
-      ageRating: m.phanLoaiDoTuoi || m.ageRating || 'P',
-      poster: m.posterUrl || m.poster || '',
-      trailer: m.trailerUrl || m.trailer || '',
-      description: m.moTa || m.description || '',
-      rating: m.diemDanhGia || m.rating || 0,
-      ratingCount: m.soLuongDanhGia || m.ratingCount || 0,
-      status: m.trangThai || m.status || '',
-      releaseDate: m.ngayCongChieu || m.releaseDate || '',
+      id:          m.id,
+      title:       m.tenPhim          || m.title       || '',
+      titleEn:     m.tenPhimTiengAnh  || m.titleEn     || '',
+      theLoais:    Array.isArray(m.theLoais) ? m.theLoais : [],
+      genre:       Array.isArray(m.theLoais) && m.theLoais.length > 0
+                     ? m.theLoais.map(t => t.tenTheLoai).join(', ')
+                     : (m.genre || ''),
+      director:    m.daoDien          || m.director    || '',
+      cast:        m.dienVienChinh    || m.cast        || '',
+      duration:    m.thoiLuong        || m.duration    || 0,
+      language:    m.ngonNgu          || m.language    || '',
+      ageRating:   m.phanLoaiDoTuoi   || m.ageRating   || 'P',
+      poster:      m.posterUrl        || m.poster      || '',
+      trailer:     m.trailerUrl       || m.trailer     || '',
+      description: m.moTa             || m.description || '',
+      rating:      m.diemDanhGia      || m.rating      || 0,
+      ratingCount: m.soLuongDanhGia   || m.ratingCount || 0,
+      status:      m.trangThai        || m.status      || '',
+      releaseDate: m.ngayCongChieu    || m.releaseDate || '',
     }
   }
 
   return {
     phimDangChieu,
     phimSapChieu,
+    phimNoiBat,
+    cinemas,
     currentMovie,
     lichChieu,
     banners,
@@ -178,6 +226,8 @@ export const useMovieStore = defineStore('movie', () => {
     activeBanner,
     fetchDangChieu,
     fetchSapChieu,
+    fetchNoiBat,
+    fetchCinemas,
     fetchMovieById,
     fetchLichChieu,
     fetchBanners,

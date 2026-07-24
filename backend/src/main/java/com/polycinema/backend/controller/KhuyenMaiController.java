@@ -1,24 +1,28 @@
 package com.polycinema.backend.controller;
 
 import com.polycinema.backend.entity.KhuyenMai;
+import com.polycinema.backend.entity.Phim;
 import com.polycinema.backend.repository.KhuyenMaiRepository;
+import com.polycinema.backend.repository.PhimRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/khuyen-mai")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class KhuyenMaiController {
 
     private final KhuyenMaiRepository khuyenMaiRepository;
+    private final PhimRepository phimRepository;
 
     /**
      * POST /api/khuyen-mai/validate — authenticated
@@ -121,24 +125,49 @@ public class KhuyenMaiController {
 
     /**
      * GET /api/khuyen-mai — public
-     * List all active promotions.
+     * List all active promotions (customer-facing).
      */
     @GetMapping
     public ResponseEntity<List<KhuyenMai>> getAll() {
         return ResponseEntity.ok(khuyenMaiRepository.findByDangHoatDongTrue());
     }
 
+    /**
+     * GET /api/khuyen-mai/all — ADMIN
+     * Returns ALL promotions (active and inactive) with their linked phims.
+     * Used by the admin PromoPage to show the full list and pre-populate the edit form.
+     */
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<KhuyenMai>> getAllAdmin() {
+        return ResponseEntity.ok(khuyenMaiRepository.findAllWithPhims());
+    }
+
+    /**
+     * GET /api/khuyen-mai/active — public
+     * Active promotions whose date range includes today, enriched with their phims list.
+     * Returns: [ { id, maKhuyenMai, tenKhuyenMai, loaiGiamGia, giaTriGiam,
+     *              ngayBatDau, ngayKetThuc, phims: [...] }, … ]
+     */
+    @GetMapping("/active")
+    public ResponseEntity<List<KhuyenMai>> getActive() {
+        return ResponseEntity.ok(khuyenMaiRepository.findActiveWithPhims(java.time.LocalDate.now()));
+    }
+
     // ── ADMIN CRUD ──────────────────────────────────────────────
 
     /**
      * POST /api/khuyen-mai — ADMIN
+     * Body: KhuyenMai fields + optional phimIds: [Long]
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> create(@RequestBody KhuyenMai km) {
-        if (km.getMaKhuyenMai() != null) {
-            km.setMaKhuyenMai(km.getMaKhuyenMai().trim().toUpperCase());
-        }
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> create(@RequestBody Map<String, Object> body) {
+        KhuyenMai km = new KhuyenMai();
+        if (body.get("maKhuyenMai") != null)
+            km.setMaKhuyenMai(((String) body.get("maKhuyenMai")).trim().toUpperCase());
+        applyKhuyenMaiFields(km, body);
         if (km.getDaSuDung() == null) km.setDaSuDung(0);
         if (km.getDangHoatDong() == null) km.setDangHoatDong(true);
         return ResponseEntity.status(HttpStatus.CREATED).body(khuyenMaiRepository.save(km));
@@ -146,23 +175,49 @@ public class KhuyenMaiController {
 
     /**
      * PUT /api/khuyen-mai/{id} — ADMIN
+     * Body: any subset of KhuyenMai fields + optional phimIds: [Long]
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody KhuyenMai body) {
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         KhuyenMai km = khuyenMaiRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khuyến mãi"));
-        if (body.getTenKhuyenMai() != null) km.setTenKhuyenMai(body.getTenKhuyenMai());
-        if (body.getMoTa() != null) km.setMoTa(body.getMoTa());
-        if (body.getLoaiGiamGia() != null) km.setLoaiGiamGia(body.getLoaiGiamGia());
-        if (body.getGiaTriGiam() != null) km.setGiaTriGiam(body.getGiaTriGiam());
-        if (body.getGiaTriGiamToiDa() != null) km.setGiaTriGiamToiDa(body.getGiaTriGiamToiDa());
-        if (body.getDonHangToiThieu() != null) km.setDonHangToiThieu(body.getDonHangToiThieu());
-        if (body.getNgayBatDau() != null) km.setNgayBatDau(body.getNgayBatDau());
-        if (body.getNgayKetThuc() != null) km.setNgayKetThuc(body.getNgayKetThuc());
-        if (body.getGioiHanSuDung() != null) km.setGioiHanSuDung(body.getGioiHanSuDung());
-        if (body.getDangHoatDong() != null) km.setDangHoatDong(body.getDangHoatDong());
+        applyKhuyenMaiFields(km, body);
         return ResponseEntity.ok(khuyenMaiRepository.save(km));
+    }
+
+    /** Shared helper — applies fields from request body to a KhuyenMai entity. */
+    @SuppressWarnings("unchecked")
+    private void applyKhuyenMaiFields(KhuyenMai km, Map<String, Object> body) {
+        if (body.containsKey("tenKhuyenMai")    && body.get("tenKhuyenMai")    != null) km.setTenKhuyenMai((String) body.get("tenKhuyenMai"));
+        if (body.containsKey("moTa")            && body.get("moTa")            != null) km.setMoTa((String) body.get("moTa"));
+        if (body.containsKey("loaiGiamGia")     && body.get("loaiGiamGia")     != null) km.setLoaiGiamGia((String) body.get("loaiGiamGia"));
+        if (body.containsKey("giaTriGiam")      && body.get("giaTriGiam")      != null) km.setGiaTriGiam(new BigDecimal(body.get("giaTriGiam").toString()));
+        if (body.containsKey("giaTriGiamToiDa") && body.get("giaTriGiamToiDa") != null) km.setGiaTriGiamToiDa(new BigDecimal(body.get("giaTriGiamToiDa").toString()));
+        if (body.containsKey("donHangToiThieu") && body.get("donHangToiThieu") != null) km.setDonHangToiThieu(new BigDecimal(body.get("donHangToiThieu").toString()));
+        if (body.containsKey("gioiHanSuDung")   && body.get("gioiHanSuDung")   != null) km.setGioiHanSuDung(((Number) body.get("gioiHanSuDung")).intValue());
+        if (body.containsKey("ngayBatDau")      && body.get("ngayBatDau")      != null) km.setNgayBatDau(LocalDate.parse((String) body.get("ngayBatDau")));
+        if (body.containsKey("ngayKetThuc")     && body.get("ngayKetThuc")     != null) km.setNgayKetThuc(LocalDate.parse((String) body.get("ngayKetThuc")));
+        if (body.containsKey("dangHoatDong")    && body.get("dangHoatDong")    != null) km.setDangHoatDong((Boolean) body.get("dangHoatDong"));
+
+        // Replace linked movies when phimIds is present (empty list = clear all / system-wide)
+        if (body.containsKey("phimIds")) {
+            List<?> rawIds = (List<?>) body.get("phimIds");
+            List<Phim> phims;
+            if (rawIds == null || rawIds.isEmpty()) {
+                phims = new java.util.ArrayList<>();
+            } else {
+                phims = rawIds.stream()
+                        .map(raw -> {
+                            Long pid = ((Number) raw).longValue();
+                            return phimRepository.findById(pid)
+                                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim id=" + pid));
+                        })
+                        .collect(Collectors.toList());
+            }
+            km.getPhims().clear();
+            km.getPhims().addAll(phims);
+        }
     }
 
     /**

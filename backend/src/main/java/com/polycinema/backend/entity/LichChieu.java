@@ -8,8 +8,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "LichChieu",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"PhongChieuId", "ThoiGianBatDau"}))
+// NOTE: The old @UniqueConstraint(PhongChieuId, ThoiGianBatDau) has been replaced
+// by a SQL Server FILTERED unique index (WHERE IsDeleted = 0) via
+// migration_filtered_unique.sql — so soft-deleted rows no longer block re-use
+// of the same room+time slot. Do not re-add @UniqueConstraint here.
+@Table(name = "LichChieu")
 @Data
 public class LichChieu {
 

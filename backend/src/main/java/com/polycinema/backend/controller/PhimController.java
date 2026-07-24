@@ -1,12 +1,14 @@
 package com.polycinema.backend.controller;
 
-import com.polycinema.backend.entity.Phim;
 import com.polycinema.backend.entity.LichChieu;
+import com.polycinema.backend.entity.Phim;
 import com.polycinema.backend.dto.LichChieuResponse;
-import com.polycinema.backend.repository.NguoiDungRepository;
-import com.polycinema.backend.service.PhimService;
 import com.polycinema.backend.repository.LichChieuRepository;
+import com.polycinema.backend.repository.NguoiDungRepository;
+import com.polycinema.backend.repository.PhimRepository;
+import com.polycinema.backend.service.PhimService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,42 +25,62 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/phim")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class PhimController {
 
     private final PhimService phimService;
     private final LichChieuRepository lichChieuRepository;
     private final NguoiDungRepository nguoiDungRepository;
+    private final PhimRepository phimRepository;
 
     // GET /api/phim/banner
     @GetMapping("/banner")
     public ResponseEntity<List<Phim>> getBanner() {
-        List<Phim> banners = phimService.getBanner();
-        return ResponseEntity.ok(banners);
+        return ResponseEntity.ok(phimService.getBanner());
+    }
+
+    /**
+     * GET /api/phim/noi-bat
+     * Top 10 now-showing movies ordered by rating (diemDanhGia) DESC.
+     */
+    @GetMapping("/noi-bat")
+    public ResponseEntity<List<Phim>> getNoiBat() {
+        return ResponseEntity.ok(
+                phimRepository.findTop10NowShowing(PageRequest.of(0, 10)).getContent()
+        );
     }
 
     // GET /api/phim/dang-chieu
     @GetMapping("/dang-chieu")
     public ResponseEntity<List<Phim>> getDangChieu() {
-        List<Phim> phimDangChieu = phimService.getDangChieu();
-        return ResponseEntity.ok(phimDangChieu);
+        return ResponseEntity.ok(phimService.getDangChieu());
     }
 
     // GET /api/phim/sap-chieu
     @GetMapping("/sap-chieu")
     public ResponseEntity<List<Phim>> getSapChieu() {
-        List<Phim> phimSapChieu = phimService.getSapChieu();
-        return ResponseEntity.ok(phimSapChieu);
+        return ResponseEntity.ok(phimService.getSapChieu());
     }
 
     // GET /api/phim/search?q=tên phim
     @GetMapping("/search")
     public ResponseEntity<List<Phim>> timKiem(@RequestParam String q) {
-        List<Phim> ketQua = phimService.timKiem(q);
-        return ResponseEntity.ok(ketQua);
+        return ResponseEntity.ok(phimService.timKiem(q));
     }
 
-    // GET /api/phim/{phimId}/lich-chieu — Lấy lịch chiếu của phim
+    /**
+     * GET /api/phim?theLoaiId=X — filter by genre (optional).
+     * Without theLoaiId returns all non-deleted movies.
+     */
+    @GetMapping
+    public ResponseEntity<List<Phim>> getPhim(
+            @RequestParam(required = false) Long theLoaiId) {
+        if (theLoaiId != null) {
+            return ResponseEntity.ok(phimRepository.findByTheLoaiId(theLoaiId));
+        }
+        return ResponseEntity.ok(phimRepository.findByIsDeletedFalse());
+    }
+
+    // GET /api/phim/{phimId}/lich-chieu
     @GetMapping("/{phimId}/lich-chieu")
     public ResponseEntity<List<LichChieuResponse>> getLichChieuByPhim(
             @PathVariable Long phimId,
@@ -83,13 +105,11 @@ public class PhimController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getPhimById(@PathVariable Long id) {
         Phim phim = phimService.getPhimById(id);
-        if (phim == null) {
-            return ResponseEntity.notFound().build();
-        }
+        if (phim == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(phim);
     }
 
-    // POST /api/phim/{id}/danh-gia — Add/Update movie rating
+    // POST /api/phim/{id}/danh-gia
     @PostMapping("/{id}/danh-gia")
     public ResponseEntity<?> addRating(
             @PathVariable Long id,
@@ -100,27 +120,21 @@ public class PhimController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body("Vui lòng đăng nhập để đánh giá");
             }
-
             Integer diem = req.get("diem") != null
-                    ? ((Number) req.get("diem")).intValue()
-                    : null;
+                    ? ((Number) req.get("diem")).intValue() : null;
             String binhLuan = (String) req.get("binhLuan");
-
             String result = phimService.addRating(id, userId, diem, binhLuan);
-
             if (!result.equals("Đánh giá thành công")) {
                 return ResponseEntity.badRequest().body(result);
             }
-
             return ResponseEntity.ok(result);
-
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Lỗi đánh giá: " + e.getMessage());
         }
     }
 
-    // GET /api/phim/{id}/danh-gia — Get all ratings for a movie
+    // GET /api/phim/{id}/danh-gia
     @GetMapping("/{id}/danh-gia")
     public ResponseEntity<?> getRatings(@PathVariable Long id) {
         try {
@@ -131,7 +145,6 @@ public class PhimController {
         }
     }
 
-    // Helper: Get userId from JWT token (principal is email)
     private Long getUserIdFromToken() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -140,8 +153,7 @@ public class PhimController {
                 String email = principal instanceof String ? (String) principal : null;
                 if (email != null && !email.equals("anonymousUser")) {
                     return nguoiDungRepository.findByEmail(email)
-                            .map(u -> u.getId())
-                            .orElse(null);
+                            .map(u -> u.getId()).orElse(null);
                 }
             }
             return null;

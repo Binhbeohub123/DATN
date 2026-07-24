@@ -40,7 +40,12 @@
                 </div>
               </td>
               <td><div class="movie-name">{{ m.tenPhim }}</div><div class="movie-en">{{ m.tenPhimTiengAnh }}</div></td>
-              <td class="td-genre">{{ m.theLoai }}</td>
+              <td class="td-genre">
+                <span v-if="m.theLoais && m.theLoais.length > 0" class="genre-chips">
+                  <span v-for="t in m.theLoais" :key="t.id" class="genre-chip">{{ t.tenTheLoai }}</span>
+                </span>
+                <span v-else class="td-no-genre">—</span>
+              </td>
               <td class="td-dur">{{ m.thoiLuong }}p</td>
               <td>
                 <span :class="['sbadge', statusClass(m.trangThai)]">{{ statusLabel(m.trangThai) }}</span>
@@ -73,15 +78,39 @@
         <div class="form-grid">
           <div class="field"><label>Tên phim *</label><input v-model="form.tenPhim" placeholder="Tên tiếng Việt"/></div>
           <div class="field"><label>Tên tiếng Anh</label><input v-model="form.tenPhimTiengAnh" placeholder="English title"/></div>
-          <div class="field"><label>Thể loại</label><input v-model="form.theLoai" placeholder="Hành động, Tình cảm..."/></div>
+          <div class="field field-full">
+            <label>Thể loại</label>
+            <div v-if="loadingGenres" class="genre-loading">Đang tải thể loại...</div>
+            <div v-else class="genre-grid">
+              <div
+                v-for="g in allGenres"
+                :key="g.id"
+                class="genre-item"
+                :class="{ 'genre-selected': selectedGenreIds.includes(Number(g.id)) }"
+                @click="toggleGenre(Number(g.id))"
+              >
+                <input
+                  type="checkbox"
+                  :value="Number(g.id)"
+                  :checked="selectedGenreIds.includes(Number(g.id))"
+                  class="genre-checkbox"
+                  @click.stop
+                  @change="toggleGenre(Number(g.id))"
+                />
+                <span>{{ g.tenTheLoai }}</span>
+              </div>
+              <span v-if="allGenres.length === 0" class="genre-empty">Chưa có thể loại nào</span>
+            </div>
+          </div>
           <div class="field"><label>Thời lượng (phút)</label><input v-model.number="form.thoiLuong" type="number" min="1"/></div>
           <div class="field"><label>Ngôn ngữ</label><input v-model="form.ngonNgu" placeholder="Tiếng Việt"/></div>
           <div class="field"><label>Giới hạn tuổi</label>
             <select v-model="form.phanLoaiDoTuoi">
               <option value="P">P — Mọi lứa tuổi</option>
-              <option value="C13">C13 — Từ 13 tuổi</option>
-              <option value="C16">C16 — Từ 16 tuổi</option>
-              <option value="C18">C18 — Từ 18 tuổi</option>
+              <option value="K">K — Có phụ huynh hướng dẫn</option>
+              <option value="T13">T13 — Từ 13 tuổi</option>
+              <option value="T16">T16 — Từ 16 tuổi</option>
+              <option value="T18">T18 — Từ 18 tuổi</option>
             </select>
           </div>
           <div class="field"><label>Đạo diễn</label><input v-model="form.daoDien"/></div>
@@ -97,6 +126,30 @@
           <div class="field field-full"><label>URL Poster</label><input v-model="form.posterUrl" placeholder="https://..."/></div>
           <div class="field field-full"><label>URL Trailer (YouTube)</label><input v-model="form.trailerUrl" placeholder="https://youtube.com/..."/></div>
           <div class="field field-full"><label>Mô tả</label><textarea v-model="form.moTa" rows="4" placeholder="Nội dung phim..."></textarea></div>
+          <div class="field field-full">
+            <label>Định dạng chiếu</label>
+            <div v-if="loadingFormats" class="genre-loading">Đang tải định dạng...</div>
+            <div v-else class="genre-grid">
+              <div
+                v-for="f in allFormats"
+                :key="f.id"
+                class="genre-item"
+                :class="{ 'genre-selected': selectedFormatIds.includes(Number(f.id)) }"
+                @click="toggleFormat(Number(f.id))"
+              >
+                <input
+                  type="checkbox"
+                  :value="Number(f.id)"
+                  :checked="selectedFormatIds.includes(Number(f.id))"
+                  class="genre-checkbox"
+                  @click.stop
+                  @change="toggleFormat(Number(f.id))"
+                />
+                <span>{{ f.tenDinhDang }}</span>
+              </div>
+              <span v-if="allFormats.length === 0" class="genre-empty">Chưa có định dạng nào</span>
+            </div>
+          </div>
         </div>
         <p v-if="formErr" class="form-err">{{ formErr }}</p>
         <div class="modal-footer">
@@ -131,8 +184,60 @@ const editing = ref(null)
 const saving = ref(false)
 const formErr = ref('')
 
+// ── Genre multi-select ──────────────────────────────────────
+const allGenres       = ref([])   // [{ id, tenTheLoai }] from GET /api/the-loai
+const loadingGenres   = ref(false)
+const selectedGenreIds = ref([])  // array of selected IDs (Numbers)
+
+async function loadGenres() {
+  loadingGenres.value = true
+  try {
+    const r = await api.get('/the-loai')
+    allGenres.value = r.data || []
+  } catch {
+    allGenres.value = []
+  } finally {
+    loadingGenres.value = false
+  }
+}
+
+function toggleGenre(id) {
+  const idx = selectedGenreIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedGenreIds.value = [...selectedGenreIds.value, id]
+  } else {
+    selectedGenreIds.value = selectedGenreIds.value.filter(x => x !== id)
+  }
+}
+
+// ── Format (DinhDang) multi-select ──────────────────────────
+const allFormats        = ref([])   // [{ id, tenDinhDang }] from GET /api/dinh-dang
+const loadingFormats    = ref(false)
+const selectedFormatIds = ref([])   // array of selected IDs (Numbers)
+
+async function loadFormats() {
+  loadingFormats.value = true
+  try {
+    const r = await api.get('/dinh-dang')
+    allFormats.value = r.data || []
+  } catch {
+    allFormats.value = []
+  } finally {
+    loadingFormats.value = false
+  }
+}
+
+function toggleFormat(id) {
+  const idx = selectedFormatIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedFormatIds.value = [...selectedFormatIds.value, id]
+  } else {
+    selectedFormatIds.value = selectedFormatIds.value.filter(x => x !== id)
+  }
+}
+
 const blankForm = () => ({
-  tenPhim:'', tenPhimTiengAnh:'', theLoai:'', thoiLuong:90, ngonNgu:'Tiếng Việt',
+  tenPhim:'', tenPhimTiengAnh:'', thoiLuong:90, ngonNgu:'Tiếng Việt',
   phanLoaiDoTuoi:'P', daoDien:'', dienVienChinh:'', moTa:'', posterUrl:'',
   trailerUrl:'', ngayCongChieu:'', trangThai:'sap_chieu'
 })
@@ -160,30 +265,46 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('vi-VN')
 }
 
-function openCreate() { editing.value=null; form.value=blankForm(); formErr.value=''; showModal.value=true }
+function openCreate() {
+  editing.value = null
+  form.value = blankForm()
+  selectedGenreIds.value = []
+  selectedFormatIds.value = []
+  formErr.value = ''
+  showModal.value = true
+}
 function openEdit(m) {
-  editing.value=m
+  editing.value = m
   form.value = {
-    tenPhim: m.tenPhim||'', tenPhimTiengAnh: m.tenPhimTiengAnh||'', theLoai: m.theLoai||'',
+    tenPhim: m.tenPhim||'', tenPhimTiengAnh: m.tenPhimTiengAnh||'',
     thoiLuong: m.thoiLuong||90, ngonNgu: m.ngonNgu||'', phanLoaiDoTuoi: m.phanLoaiDoTuoi||'P',
     daoDien: m.daoDien||'', dienVienChinh: m.dienVienChinh||'', moTa: m.moTa||'',
     posterUrl: m.posterUrl||'', trailerUrl: m.trailerUrl||'', ngayCongChieu: m.ngayCongChieu||'',
     trangThai: m.trangThai||'sap_chieu'
   }
-  formErr.value=''; showModal.value=true
+  selectedGenreIds.value = Array.isArray(m.theLoais)
+    ? m.theLoais.map(t => Number(t.id))
+    : []
+  selectedFormatIds.value = Array.isArray(m.dinhDangs)
+    ? m.dinhDangs.map(d => Number(d.id))
+    : []
+  formErr.value = ''
+  showModal.value = true
 }
 
 async function save() {
   if (!form.value.tenPhim.trim()) { formErr.value='Tên phim không được để trống'; return }
-  saving.value=true; formErr.value=''
+  saving.value = true; formErr.value = ''
   try {
-    if (editing.value) { await api.put(`/admin/phim/${editing.value.id}`, form.value) }
-    else               { await api.post('/admin/phim', form.value) }
+    // Send theLoaiIds alongside the standard form fields
+    const payload = { ...form.value, theLoaiIds: selectedGenreIds.value, dinhDangIds: selectedFormatIds.value }
+    if (editing.value) { await api.put(`/admin/phim/${editing.value.id}`, payload) }
+    else               { await api.post('/admin/phim', payload) }
     showToast(editing.value?'Đã cập nhật phim':'Đã thêm phim mới', 'success')
-    showModal.value=false
+    showModal.value = false
     await load()
   } catch(e) { formErr.value = e.response?.data?.message || 'Lỗi lưu phim' }
-  finally { saving.value=false }
+  finally { saving.value = false }
 }
 
 async function del(m) {
@@ -213,6 +334,8 @@ watch(() => shell.searchTick, syncFromShell)
 onMounted(() => {
   syncFromShell()
   load()
+  loadGenres()
+  loadFormats()
 })
 </script>
 
@@ -254,4 +377,63 @@ onMounted(() => {
 
 /* ── Inline cell utilities ── */
 .td-genre, .td-dur, .td-date { font-size: 12px; color: #9CA3AF; }
+
+/* ── Genre chips in table cell ── */
+.genre-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.genre-chip {
+  padding: 2px 8px;
+  background: rgba(41,188,234,0.1);
+  border: 1px solid rgba(41,188,234,0.25);
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #29bcea;
+  white-space: nowrap;
+}
+.td-no-genre { font-size: 12px; color: #6B7280; }
+
+/* ── Genre multi-select in modal ── */
+.genre-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.genre-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: #E5E5E5;
+  background: #111827;
+  transition: all 0.15s;
+}
+.genre-item:hover {
+  border-color: #FFFFFF;
+  color: #FFFFFF;
+}
+.genre-selected {
+  border-color: #FFFFFF !important;
+  background: rgba(255,255,255,0.08) !important;
+  color: #FFFFFF !important;
+}
+.genre-checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: #FFFFFF;
+  cursor: pointer;
+  pointer-events: none; /* click is handled by the parent div */
+}
+.genre-loading { font-size: 13px; color: #9CA3AF; padding: 8px 0; }
+.genre-empty   { font-size: 13px; color: #6B7280; }
 </style>

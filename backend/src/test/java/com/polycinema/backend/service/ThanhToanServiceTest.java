@@ -85,7 +85,7 @@ class ThanhToanServiceTest {
         testDatVe.setMaDatVe("BK_TEST_001");
         testDatVe.setNguoiDung(testUser);
         testDatVe.setLichChieu(lichChieu);
-        testDatVe.setChiTietDatGhe(List.of(ctdg));
+        testDatVe.setChiTietDatGhe(new java.util.LinkedHashSet<>(java.util.List.of(ctdg)));
         testDatVe.setTongTienThanhToan(new BigDecimal("80000"));
         testDatVe.setTongTienGoc(new BigDecimal("80000"));
         testDatVe.setTienGiamKhuyenMai(BigDecimal.ZERO);

@@ -1,10 +1,13 @@
 package com.polycinema.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "KhuyenMai")
@@ -55,9 +58,22 @@ public class KhuyenMai {
     @Column(name = "DangHoatDong")
     private Boolean dangHoatDong;
 
+    // ── N-N relationship to Phim via KhuyenMai_Phim join table ──
+    // A promotion can apply to multiple movies; EAGER so the list is
+    // always present in API responses.
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "KhuyenMai_Phim",
+            joinColumns        = @JoinColumn(name = "KhuyenMaiId"),
+            inverseJoinColumns = @JoinColumn(name = "PhimId")
+    )
+    @JsonIgnoreProperties({"theLoais", "dinhDangs", "hibernateLazyInitializer", "handler"})
+    private List<Phim> phims = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         if (daSuDung == null) daSuDung = 0;
         if (dangHoatDong == null) dangHoatDong = true;
+        if (phims == null) phims = new ArrayList<>();
     }
 }

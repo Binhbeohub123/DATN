@@ -467,6 +467,21 @@
   -webkit-appearance: none;
   appearance: none;
 }
+/* ── Restore native appearance for checkbox/radio — the broad .field input selector
+     above sets appearance:none which hides the native checkmark. These inputs need
+     the browser's native rendering to show the tick/check state visually. ── */
+.admin-container .field input[type='checkbox'],
+.admin-container .field input[type='radio'],
+.admin-container input[type='checkbox'],
+.admin-container input[type='radio'] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  min-height: unset;
+  padding: unset;
+  background: unset !important;
+  border: unset !important;
+}
+
 .admin-container select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239CA3AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;

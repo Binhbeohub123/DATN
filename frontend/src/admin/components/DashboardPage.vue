@@ -196,8 +196,12 @@ async function loadStats() {
 async function loadRevenue() {
   loadingRev.value = true
   try {
-    const to = new Date().toISOString().slice(0,10)
-    const from = new Date(Date.now()-period.value*86400000).toISOString().slice(0,10)
+    // Use local-date arithmetic — toISOString() converts to UTC and gives wrong
+    // date string in timezones ahead of UTC (e.g. UTC+7 between 00:00–07:00 local).
+    const now  = new Date()
+    const to   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+    const past = new Date(now.getFullYear(), now.getMonth(), now.getDate() - period.value)
+    const from = `${past.getFullYear()}-${String(past.getMonth()+1).padStart(2,'0')}-${String(past.getDate()).padStart(2,'0')}`
     const r = await api.get('/admin/doanh-thu', { params:{from,to} })
     revData.value = Array.isArray(r.data) ? r.data : []
   } catch { showToast('Không tải được dữ liệu doanh thu') }

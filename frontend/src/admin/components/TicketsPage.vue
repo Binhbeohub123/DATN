@@ -20,8 +20,10 @@
             <th>Khách hàng</th>
             <th>Phim</th>
             <th>Suất chiếu</th>
+            <th>Ghế</th>
             <th>Tổng tiền</th>
             <th>Trạng thái</th>
+            <th>Thao tác</th>
           </tr>
         </thead>
         <tbody>
@@ -30,8 +32,26 @@
             <td>{{ t.email || t.hoTen || '—' }}</td>
             <td>{{ t.tenPhim }}</td>
             <td>{{ fmtShowtime(t) }}</td>
+            <td>
+              <div v-if="t.seats && t.seats.length > 0" class="seat-chips">
+                <span
+                  v-for="s in t.seats"
+                  :key="(s.hangGhe || '') + s.soGhe"
+                  :class="['seat-chip', seatChipClass(s.loaiGhe)]"
+                  :title="s.loaiGhe"
+                >{{ s.hangGhe }}{{ s.soGhe }}</span>
+              </div>
+              <span v-else class="no-seats">—</span>
+            </td>
             <td class="price">{{ fmtPrice(t.tongTien) }}</td>
             <td><span :class="['badge', badgeClass(t.trangThai)]">{{ statusLabel(t.trangThai) }}</span></td>
+            <td>
+              <button
+                v-if="t.trangThai !== 'cancelled' && t.trangThai !== 'refunded'"
+                class="btn-cancel-ticket"
+                @click="cancelTicket(t)"
+              >Hủy vé</button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -42,11 +62,86 @@
         <button :disabled="page >= totalPages - 1" @click="page++; load()">Sau →</button>
       </div>
     </div>
+
+    <!-- ── Seat Lock Management ── -->
+    <div class="card lock-section">
+      <div class="lock-header">
+        <h3 class="lock-title">Quản lý ghế đang khóa</h3>
+        <div class="lock-config-row">
+          <label class="lock-config-label">Thời gian khóa ghế (phút):</label>
+          <input v-model.number="lockMinutes" type="number" min="1" max="60" class="lock-min-input" />
+          <button class="btn-save-lock" @click="saveLockMinutes">Lưu</button>
+          <span v-if="lockSaveMsg" class="lock-save-msg">{{ lockSaveMsg }}</span>
+        </div>
+      </div>
+
+      <div class="lock-filter-row">
+        <select v-model="lockLichChieuId" class="filter-select" style="min-width:200px" @change="onLichChieuChange">
+          <option value="">-- Chọn suất chiếu --</option>
+          <option v-for="lc in lichChieuList" :key="lc.id" :value="lc.id">
+            {{ fmtLichChieu(lc) }}
+          </option>
+        </select>
+      </div>
+
+      <!-- ── Seat map (replaces old table) ── -->
+      <div v-if="loadingLocks" class="loading-text">Đang tải sơ đồ ghế...</div>
+      <template v-else-if="seatMapData.length > 0">
+        <!-- Stats -->
+        <div class="seat-stats">
+          <span>Tổng: <strong>{{ seatMapData.length }}</strong> ghế</span>
+          <span class="stat-avail">Trống: <strong>{{ seatMapData.filter(s => s.status === 'available').length }}</strong></span>
+          <span class="stat-booked">Đã đặt: <strong>{{ seatMapData.filter(s => s.status === 'booked').length }}</strong></span>
+          <span class="stat-locked">Đang khóa: <strong>{{ seatMapData.filter(s => s.status === 'locked').length }}</strong></span>
+        </div>
+
+        <!-- Legend -->
+        <div class="map-legend">
+          <span class="legend-item"><div class="legend-dot" style="background:#374151"></div> Trống</span>
+          <span class="legend-item"><div class="legend-dot" style="background:#EF4444"></div> Đã đặt</span>
+          <span class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div> Đang giữ</span>
+          <span class="legend-item"><div class="legend-dot" style="background:#C9A84C"></div> VIP</span>
+          <span class="legend-item"><div class="legend-dot" style="background:#EC4899"></div> Cặp đôi</span>
+        </div>
+
+        <!-- Screen bar -->
+        <div class="sm-screen-wrap">
+          <div class="sm-screen-label">MÀN HÌNH</div>
+          <div class="sm-screen-bar"></div>
+
+          <div class="sm-grid-scroll">
+            <div class="sm-rows-wrap">
+              <div v-for="row in seatMapRows" :key="row.label" class="sm-seat-row">
+                <span class="sm-row-label">{{ row.label }}</span>
+                <div class="sm-row-seats">
+                  <div
+                    v-for="seat in row.seats"
+                    :key="seat.gheNgoiId"
+                    :class="['sm-seat', seatMapClass(seat)]"
+                    :title="seatMapTitle(seat)"
+                  >
+                    <span class="sm-seat-label">{{ seat.soGhe }}</span>
+                    <!-- Force-release ✕ button only for locked seats -->
+                    <button
+                      v-if="seat.status === 'locked' && seat.lockId"
+                      class="sm-release-btn"
+                      :title="`Mở khóa ghế ${seat.hangGhe}${seat.soGhe}`"
+                      @click.stop="forceReleaseSeat(seat)"
+                    >✕</button>
+                  </div>
+                </div>
+                <span class="sm-row-label">{{ row.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 
@@ -59,6 +154,99 @@ const statusFilter = ref('')
 const page = ref(0)
 const totalPages = ref(1)
 let debounceTimer = null
+
+// ── Seat lock management state ──────────────────────────────
+const lockMinutes     = ref(10)
+const lockSaveMsg     = ref('')
+const lockLichChieuId = ref('')
+const lichChieuList   = ref([])
+const activeLocks     = ref([])
+const loadingLocks    = ref(false)
+
+// ── Seat map state ──────────────────────────────────────────
+const seatMapData  = ref([])   // [{ gheNgoiId, hangGhe, soGhe, loaiGhe, status, lockId?, expiresAt? }]
+let   seatMapTimer = null      // auto-refresh interval
+
+const seatMapRows = computed(() => {
+  const map = {}
+  seatMapData.value.forEach(s => {
+    const key = (s.hangGhe || '?').trim()
+    if (!map[key]) map[key] = { label: key, seats: [] }
+    map[key].seats.push(s)
+  })
+  return Object.values(map)
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map(r => ({ ...r, seats: r.seats.sort((a, b) => a.soGhe - b.soGhe) }))
+})
+
+function seatMapClass(seat) {
+  if (seat.status === 'locked')  return 'sm-seat--locked'
+  if (seat.status === 'booked')  return 'sm-seat--booked'
+  const t = (seat.loaiGhe || '').toLowerCase()
+  if (t === 'vip') return 'sm-seat--vip'
+  if (t.includes('cặp') || t.includes('couple')) return 'sm-seat--couple'
+  return 'sm-seat--avail'
+}
+
+function seatMapTitle(seat) {
+  const label = `${(seat.hangGhe || '').trim()}${seat.soGhe}`
+  if (seat.status === 'locked' && seat.expiresAt) {
+    const exp = new Date(seat.expiresAt)
+    const hhmm = exp.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    return `Ghế ${label} — Hết khóa lúc ${hhmm}`
+  }
+  if (seat.status === 'booked') return `Ghế ${label} — Đã đặt`
+  const loai = seat.loaiGhe ? ` (${seat.loaiGhe})` : ''
+  return `Ghế ${label}${loai} — Trống`
+}
+
+async function loadSeatMap() {
+  if (!lockLichChieuId.value) return
+  loadingLocks.value = true
+  try {
+    const res = await api.get('/admin/seat-map', { params: { lichChieuId: lockLichChieuId.value } })
+    seatMapData.value = Array.isArray(res.data) ? res.data : []
+    // Also keep activeLocks in sync for the old force-release helper
+    activeLocks.value = seatMapData.value.filter(s => s.status === 'locked')
+    // Start auto-refresh now that map is loaded
+    startSeatMapAutoRefresh()
+  } catch { seatMapData.value = [] }
+  finally { loadingLocks.value = false }
+}
+
+/** Called by @change on the showtime dropdown — loads map immediately or resets. */
+function onLichChieuChange() {
+  stopSeatMapAutoRefresh()
+  if (!lockLichChieuId.value) {
+    seatMapData.value = []
+    activeLocks.value = []
+    return
+  }
+  loadSeatMap()
+}
+
+function startSeatMapAutoRefresh() {
+  stopSeatMapAutoRefresh()
+  seatMapTimer = setInterval(() => {
+    if (seatMapData.value.length > 0) loadSeatMap()
+  }, 30_000)
+}
+
+function stopSeatMapAutoRefresh() {
+  if (seatMapTimer) { clearInterval(seatMapTimer); seatMapTimer = null }
+}
+
+async function forceReleaseSeat(seat) {
+  if (!seat.lockId) return
+  const label = `${(seat.hangGhe || '').trim()}${seat.soGhe}`
+  if (!confirm(`Mở khóa ghế ${label}?`)) return
+  try {
+    await api.delete(`/admin/seat-locks/${seat.lockId}`)
+    await loadSeatMap()
+  } catch (e) {
+    alert(e.response?.data?.message || 'Lỗi mở khóa ghế')
+  }
+}
 
 function fmtPrice(n) {
   if (n == null) return '—'
@@ -83,8 +271,29 @@ function badgeClass(s) {
   return 'badge-gray'
 }
 
+/**
+ * Seat chip color matches SeatSelectionPage seat colors.
+ * VIP → gold, cặp đôi → pink, thường/default → gray
+ */
+function seatChipClass(loaiGhe) {
+  if (!loaiGhe) return 'chip-thuong'
+  const l = loaiGhe.toLowerCase()
+  if (l === 'vip') return 'chip-vip'
+  if (l.includes('cặp') || l.includes('couple')) return 'chip-couple'
+  return 'chip-thuong'
+}
+
 function mapBooking(b) {
   const start = b.lichChieu?.thoiGianBatDau
+  // Map seat details from chiTietDatGhe if available in the response
+  const seats = Array.isArray(b.chiTietDatGhe)
+    ? b.chiTietDatGhe.map(ct => ({
+        id:      ct.gheNgoi?.id,
+        hangGhe: (ct.gheNgoi?.hangGhe || '').trim(),
+        soGhe:   ct.gheNgoi?.soGhe,
+        loaiGhe: ct.gheNgoi?.loaiGhe || 'thường',
+      })).filter(s => s.hangGhe || s.soGhe)
+    : []
   return {
     id: b.id,
     maDatVe: b.maDatVe,
@@ -97,6 +306,7 @@ function mapBooking(b) {
       : '',
     tongTien: b.tongTienThanhToan,
     trangThai: b.trangThai,
+    seats,
   }
 }
 
@@ -132,9 +342,92 @@ function debouncedLoad() {
   debounceTimer = setTimeout(() => { page.value = 0; load() }, 400)
 }
 
+// ── Cancel ticket (admin) ───────────────────────────────────
+async function cancelTicket(ticket) {
+  if (!confirm(`Xác nhận hủy vé ${ticket.maDatVe}?`)) return
+  try {
+    await api.put(`/admin/dat-ve/${ticket.maDatVe}/cancel`)
+    await load()
+  } catch (e) {
+    alert(e.response?.data?.message || 'Lỗi hủy vé')
+  }
+}
+
+// ── Seat lock config ────────────────────────────────────────
+async function loadLockConfig() {
+  try {
+    const res = await api.get('/admin/config/seat-lock-minutes')
+    lockMinutes.value = res.data?.minutes ?? 10
+  } catch { /* use default */ }
+}
+
+async function saveLockMinutes() {
+  try {
+    await api.put('/admin/config/seat-lock-minutes', { minutes: lockMinutes.value })
+    lockSaveMsg.value = '✓ Đã lưu'
+    setTimeout(() => { lockSaveMsg.value = '' }, 2000)
+  } catch (e) {
+    lockSaveMsg.value = e.response?.data?.message || 'Lỗi lưu cấu hình'
+  }
+}
+
+// ── Seat lock list for a showtime ───────────────────────────
+async function loadLichChieuList() {
+  try {
+    const res = await api.get('/admin/lich-chieu', { params: { page: 0, size: 100 } })
+    lichChieuList.value = res.data?.content ?? res.data ?? []
+  } catch { lichChieuList.value = [] }
+}
+
+async function loadLocks() {
+  if (!lockLichChieuId.value) return
+  loadingLocks.value = true
+  try {
+    const res = await api.get('/admin/seat-locks', { params: { lichChieuId: lockLichChieuId.value } })
+    activeLocks.value = Array.isArray(res.data) ? res.data : []
+  } catch { activeLocks.value = [] }
+  finally { loadingLocks.value = false }
+}
+
+async function forceRelease(lockId) {
+  try {
+    await api.delete(`/admin/seat-locks/${lockId}`)
+    await loadLocks()
+  } catch (e) {
+    alert(e.response?.data?.message || 'Lỗi mở khóa ghế')
+  }
+}
+
+function fmtLichChieu(lc) {
+  if (!lc) return ''
+  const phim  = lc.phim?.tenPhim || ''
+  const start = lc.thoiGianBatDau ? new Date(lc.thoiGianBatDau).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''
+  return `${phim} — ${start}`
+}
+
+function fmtDt(dt) {
+  if (!dt) return '—'
+  return new Date(dt).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+}
+
+function timeLeft(expiresAt) {
+  if (!expiresAt) return '—'
+  const diffMs = new Date(expiresAt) - Date.now()
+  if (diffMs <= 0) return 'Hết hạn'
+  const m = Math.floor(diffMs / 60000)
+  const s = Math.floor((diffMs % 60000) / 1000)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 onMounted(() => {
   syncFromShell()
   load()
+  loadLockConfig()
+  loadLichChieuList()
+})
+
+onUnmounted(() => {
+  stopSeatMapAutoRefresh()
 })
 </script>
 
@@ -268,4 +561,183 @@ td {
 .pagination button:hover:not(:disabled) { border-color: #FFFFFF; color: #FFFFFF; }
 .pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
 .pagination span { font-size: 13px; color: #9CA3AF; font-weight: 600; }
+
+/* ── Seat lock section ── */
+.lock-section { margin-top: 20px; }
+.lock-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid #1F2937; }
+.lock-title { font-size: 14px; font-weight: 700; color: #E5E5E5; margin: 0; }
+.lock-config-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lock-config-label { font-size: 13px; color: #9CA3AF; }
+.lock-min-input { width: 72px; min-height: 36px; padding: 6px 10px; border: 1px solid #374151; border-radius: 6px; background: #0D0D0D; color: #E5E5E5; font-size: 14px; text-align: center; }
+.btn-save-lock { padding: 7px 14px; background: #C9A84C; color: #0D0D0D; border: none; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.btn-save-lock:hover { background: #F5D17E; }
+.lock-save-msg { font-size: 12px; color: #34d399; }
+.lock-filter-row { display: flex; gap: 10px; align-items: center; padding: 12px 20px; flex-wrap: wrap; }
+
+/* ── Cancel / unlock ticket button ── */
+.btn-cancel-ticket {
+  padding: 5px 12px;
+  background: transparent;
+  color: #f87171;
+  border: 1px solid rgba(248,113,113,0.35);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-cancel-ticket:hover { background: rgba(248,113,113,0.1); }
+
+/* ── Seat chips in booking rows ── */
+.seat-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.no-seats { font-size: 12px; color: #6B7280; }
+
+.seat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid;
+}
+/* Matches SeatSelectionPage seat colors */
+.chip-thuong {
+  background: #1F2937;
+  border-color: #374151;
+  color: #E5E5E5;
+}
+.chip-vip {
+  background: rgba(201,168,76,0.18);
+  border-color: rgba(201,168,76,0.4);
+  color: #C9A84C;
+}
+.chip-couple {
+  background: rgba(236,72,153,0.18);
+  border-color: rgba(236,72,153,0.4);
+  color: #ec4899;
+}
+
+/* ── Seat map (admin seat status view) ── */
+.seat-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  font-size: 13px;
+  color: #9CA3AF;
+  border-bottom: 1px solid #1F2937;
+}
+.seat-stats strong { color: #E5E5E5; }
+.stat-avail  strong { color: #9CA3AF; }
+.stat-booked strong { color: #EF4444; }
+.stat-locked strong { color: #F59E0B; }
+
+.map-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid #1F2937;
+  font-size: 12px;
+  color: #9CA3AF;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.sm-screen-wrap {
+  padding: 20px 20px 28px;
+  overflow-x: auto;
+}
+.sm-screen-label {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #6B7280;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.sm-screen-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, #374151 50%, transparent 100%);
+  margin-bottom: 24px;
+}
+.sm-grid-scroll { overflow-x: auto; padding-bottom: 12px; }
+.sm-rows-wrap { display: flex; flex-direction: column; gap: 8px; min-width: fit-content; }
+.sm-seat-row { display: flex; align-items: center; gap: 8px; }
+.sm-row-label {
+  width: 22px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #6B7280;
+  flex-shrink: 0;
+}
+.sm-row-seats { display: flex; gap: 5px; }
+
+/* Seat button — admin view (no cursor:pointer, but locked seats have ✕ button) */
+.sm-seat {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: default;
+  background: #1F2937;
+  color: #9CA3AF;
+}
+.sm-seat-label { line-height: 1; }
+
+/* Status colors matching SeatSelectionPage exactly */
+.sm-seat--avail   { background: #1F2937; border-color: #374151; color: #9CA3AF; }
+.sm-seat--booked  { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.5); color: #EF4444; }
+.sm-seat--locked  { background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.5); color: #F59E0B; cursor: pointer; }
+.sm-seat--locked:hover { background: rgba(245,158,11,0.4); }
+.sm-seat--vip     { background: rgba(201,168,76,0.25); border-color: rgba(201,168,76,0.5); color: #C9A84C; }
+.sm-seat--couple  { background: rgba(236,72,153,0.25); border-color: rgba(236,72,153,0.5); color: #EC4899; }
+
+/* Force-release ✕ button overlay on locked seats */
+.sm-release-btn {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #EF4444;
+  color: #ffffff;
+  border: none;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  z-index: 5;
+}
+.sm-release-btn:hover { background: #DC2626; }
 </style>

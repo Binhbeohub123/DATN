@@ -19,7 +19,7 @@ public class ThanhToan {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "DatVeId")
-    @JsonIgnoreProperties({"chiTietDatGhe", "nguoiDung", "lichChieu", "khuyenMai", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"chiTietDatGhe", "chiTietDatSanPham", "nguoiDung", "lichChieu", "khuyenMai", "hibernateLazyInitializer", "handler"})
     private DatVe datVe;
 
     @Column(name = "SoTien", nullable = false, precision = 15, scale = 2)

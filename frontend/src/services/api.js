@@ -37,7 +37,8 @@ api.interceptors.response.use(
         if (!isProfileFetch && !window.location.pathname.startsWith('/auth')) {
           // Lazy-import to avoid circular dep at module load time
           const { default: router } = await import('@/router/index.js')
-          router.push('/auth').catch(() => {})
+          // Pass ?expired=true so AuthPage can show the session-expired message
+          router.push({ path: '/auth', query: { expired: 'true' } }).catch(() => {})
         }
       }
 

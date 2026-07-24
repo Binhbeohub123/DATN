@@ -3,6 +3,7 @@ package com.polycinema.backend.config;
 import com.polycinema.backend.entity.*;
 import com.polycinema.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -16,10 +17,18 @@ import java.util.Optional;
 /**
  * Seeds essential data on every startup.
  * All operations are idempotent — safe to run multiple times.
+ *
+ * PRODUCTION SAFETY: sample schedules and test users are only created when
+ * app.seed-sample-data=true (default: false).  Set this flag via the
+ * APP_SEED_SAMPLE_DATA environment variable on dev/local only — never on
+ * Railway, Azure, or any deployed instance.
  */
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
+
+    @Value("${app.seed-sample-data:false}")
+    private boolean seedSampleData;
 
     private final NguoiDungRepository nguoiDungRepository;
     private final BCryptPasswordEncoder encoder;
@@ -31,12 +40,20 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        // ── Always runs (essential for all environments) ──────────────────────
         ensureAdminUser("admin@cinema.com", "123456", "Admin PolyCinema");
-        ensureTestUser("user@cinema.com", "123456", "Nguyen Van A", "0901234567");
-        // Task 4: ensure demo accounts with known passwords for end-to-end testing
-        ensureTestUser("user1@gmail.com", "User@123", "Nguyen Van User", "0901111111");
         ensureAdminPasswordAlias("admin@cinema.com", "Admin@123");
-        ensureSampleSchedules();
+
+        // ── Dev/demo only — skipped unless APP_SEED_SAMPLE_DATA=true ─────────
+        // Never run on Railway, Azure, or any deployed instance.
+        if (seedSampleData) {
+            System.out.println("[DataInitializer] app.seed-sample-data=true — seeding test users and sample schedules");
+            ensureTestUser("user@cinema.com", "123456", "Nguyen Van A", "0901234567");
+            ensureTestUser("user1@gmail.com", "User@123", "Nguyen Van User", "0901111111");
+            ensureSampleSchedules();
+        } else {
+            System.out.println("[DataInitializer] app.seed-sample-data=false — skipping test users and sample schedules");
+        }
     }
 
     private void ensureAdminUser(String email, String password, String name) {

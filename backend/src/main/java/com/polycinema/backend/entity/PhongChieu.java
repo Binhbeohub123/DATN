@@ -22,8 +22,18 @@ public class PhongChieu {
     @Column(name = "TenPhong", nullable = false, length = 50)
     private String tenPhong;
 
+    /** Legacy free-text format — kept until all code switches to dinhDang. */
     @Column(name = "LoaiPhong", nullable = false, length = 30)
     private String loaiPhong;
+
+    /**
+     * FK to DinhDang lookup — added in Phase 1 migration.
+     * Nullable during transition; populated by the data-migration UPDATE.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "DinhDangId")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private DinhDang dinhDang;
 
     @Column(name = "SucChua", nullable = false)
     private Integer sucChua;

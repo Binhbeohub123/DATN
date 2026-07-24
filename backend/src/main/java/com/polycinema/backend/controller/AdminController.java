@@ -2,6 +2,7 @@ package com.polycinema.backend.controller;
 
 import com.polycinema.backend.entity.*;
 import com.polycinema.backend.repository.*;
+import com.polycinema.backend.service.DatVeService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -29,7 +30,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@CrossOrigin(origins = "http://localhost:5173")
 public class AdminController {
 
     private final DatVeRepository datVeRepository;
@@ -42,11 +42,15 @@ public class AdminController {
     private final SanPhamRepository sanPhamRepository;
     private final BannerRepository bannerRepository;
     private final ThanhToanRepository thanhToanRepository;
+    private final SeatLockRepository seatLockRepository;
+    private final SystemConfigRepository systemConfigRepository;
+    private final DatVeService datVeService;
+    private final TheLoaiRepository theLoaiRepository;
+    private final ChiTietDatGheRepository chiTietDatGheRepository;
+    private final DinhDangRepository dinhDangRepository;
 
     // ─────────────────────────────────────────────────────────────
     // STATS
-    // ─────────────────────────────────────────────────────────────
-
     /**
      * GET /api/admin/stats
      * Returns today's KPIs.
@@ -132,6 +136,7 @@ public class AdminController {
 
     /**
      * GET /api/admin/users?page=0&size=20&search=
+     * Uses DB-level search and pagination — no findAll().
      */
     @GetMapping("/users")
     public ResponseEntity<?> getUsers(
@@ -139,33 +144,21 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search) {
 
-        List<NguoiDung> all = nguoiDungRepository.findAll();
+        String q = (search != null && !search.isBlank()) ? search.trim() : null;
+        PageRequest pr = PageRequest.of(page, size);
+        Page<NguoiDung> result = nguoiDungRepository.searchAdmin(q, pr);
 
-        if (search != null && !search.isBlank()) {
-            String q = search.toLowerCase();
-            all = all.stream()
-                    .filter(u -> (u.getEmail() != null && u.getEmail().toLowerCase().contains(q))
-                            || (u.getHoTen() != null && u.getHoTen().toLowerCase().contains(q))
-                            || (u.getSoDienThoai() != null && u.getSoDienThoai().contains(q)))
-                    .collect(Collectors.toList());
-        }
+        // Mask password hashes before sending to client
+        result.getContent().forEach(u -> u.setMatKhauHash(null));
 
-        // Mask password
-        all.forEach(u -> u.setMatKhauHash(null));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("content",       result.getContent());
+        body.put("totalElements", result.getTotalElements());
+        body.put("totalPages",    result.getTotalPages());
+        body.put("page",          result.getNumber());
+        body.put("size",          result.getSize());
 
-        int total = all.size();
-        int start = page * size;
-        int end = Math.min(start + size, total);
-        List<NguoiDung> paged = start < total ? all.subList(start, end) : Collections.emptyList();
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("content", paged);
-        result.put("totalElements", total);
-        result.put("totalPages", (int) Math.ceil((double) total / size));
-        result.put("page", page);
-        result.put("size", size);
-
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(body);
     }
 
     /**
@@ -209,35 +202,83 @@ public class AdminController {
 
     /**
      * POST /api/admin/phim
+     * Body: standard Phim fields + optional theLoaiIds: [1, 2, 3]
      */
     @PostMapping("/phim")
-    public ResponseEntity<?> createPhim(@RequestBody Phim phim) {
-        phim.setId(null);
+    public ResponseEntity<?> createPhim(@RequestBody Map<String, Object> body) {
+        Phim phim = new Phim();
         phim.setIsDeleted(false);
+        applyPhimFields(phim, body);
         return ResponseEntity.status(HttpStatus.CREATED).body(phimRepository.save(phim));
     }
 
     /**
      * PUT /api/admin/phim/{id}
+     * Body: any subset of Phim fields + optional theLoaiIds: [1, 2, 3]
+     * If theLoaiIds is present it replaces the entire genre list.
      */
     @PutMapping("/phim/{id}")
-    public ResponseEntity<?> updatePhim(@PathVariable Long id, @RequestBody Phim body) {
+    public ResponseEntity<?> updatePhim(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Phim phim = phimRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
-        if (body.getTenPhim() != null) phim.setTenPhim(body.getTenPhim());
-        if (body.getTenPhimTiengAnh() != null) phim.setTenPhimTiengAnh(body.getTenPhimTiengAnh());
-        if (body.getTheLoai() != null) phim.setTheLoai(body.getTheLoai());
-        if (body.getDaoDien() != null) phim.setDaoDien(body.getDaoDien());
-        if (body.getDienVienChinh() != null) phim.setDienVienChinh(body.getDienVienChinh());
-        if (body.getThoiLuong() != null) phim.setThoiLuong(body.getThoiLuong());
-        if (body.getNgonNgu() != null) phim.setNgonNgu(body.getNgonNgu());
-        if (body.getPhanLoaiDoTuoi() != null) phim.setPhanLoaiDoTuoi(body.getPhanLoaiDoTuoi());
-        if (body.getPosterUrl() != null) phim.setPosterUrl(body.getPosterUrl());
-        if (body.getTrailerUrl() != null) phim.setTrailerUrl(body.getTrailerUrl());
-        if (body.getMoTa() != null) phim.setMoTa(body.getMoTa());
-        if (body.getTrangThai() != null) phim.setTrangThai(body.getTrangThai());
-        if (body.getNgayCongChieu() != null) phim.setNgayCongChieu(body.getNgayCongChieu());
+        applyPhimFields(phim, body);
         return ResponseEntity.ok(phimRepository.save(phim));
+    }
+
+    /** Helper — applies fields from request body to a Phim entity, including theLoaiIds. */
+    @SuppressWarnings("unchecked")
+    private void applyPhimFields(Phim phim, Map<String, Object> body) {
+        if (body.containsKey("tenPhim"))         phim.setTenPhim((String) body.get("tenPhim"));
+        if (body.containsKey("tenPhimTiengAnh")) phim.setTenPhimTiengAnh((String) body.get("tenPhimTiengAnh"));
+        if (body.containsKey("daoDien"))         phim.setDaoDien((String) body.get("daoDien"));
+        if (body.containsKey("dienVienChinh"))   phim.setDienVienChinh((String) body.get("dienVienChinh"));
+        if (body.containsKey("thoiLuong"))       phim.setThoiLuong(((Number) body.get("thoiLuong")).intValue());
+        if (body.containsKey("ngonNgu"))         phim.setNgonNgu((String) body.get("ngonNgu"));
+        if (body.containsKey("phanLoaiDoTuoi"))  phim.setPhanLoaiDoTuoi((String) body.get("phanLoaiDoTuoi"));
+        if (body.containsKey("posterUrl"))       phim.setPosterUrl((String) body.get("posterUrl"));
+        if (body.containsKey("trailerUrl"))      phim.setTrailerUrl((String) body.get("trailerUrl"));
+        if (body.containsKey("moTa"))            phim.setMoTa((String) body.get("moTa"));
+        if (body.containsKey("trangThai"))       phim.setTrangThai((String) body.get("trangThai"));
+        if (body.containsKey("ngayCongChieu") && body.get("ngayCongChieu") != null) {
+            phim.setNgayCongChieu(java.time.LocalDate.parse((String) body.get("ngayCongChieu")));
+        }
+        // Replace entire genre list when theLoaiIds is supplied
+        if (body.containsKey("theLoaiIds")) {
+            List<?> rawIds = (List<?>) body.get("theLoaiIds");
+            List<TheLoai> genres;
+            if (rawIds == null || rawIds.isEmpty()) {
+                genres = new java.util.ArrayList<>();
+            } else {
+                genres = rawIds.stream()
+                        .map(raw -> {
+                            Long gid = ((Number) raw).longValue();
+                            return theLoaiRepository.findById(gid)
+                                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thể loại id=" + gid));
+                        })
+                        .collect(Collectors.toList());
+            }
+            // Clear first to avoid duplicates with EAGER-loaded collection
+            phim.getTheLoais().clear();
+            phim.getTheLoais().addAll(genres);
+        }
+        // Replace entire format list when dinhDangIds is supplied
+        if (body.containsKey("dinhDangIds")) {
+            List<?> rawIds = (List<?>) body.get("dinhDangIds");
+            List<DinhDang> formats;
+            if (rawIds == null || rawIds.isEmpty()) {
+                formats = new java.util.ArrayList<>();
+            } else {
+                formats = rawIds.stream()
+                        .map(raw -> {
+                            Long fid = ((Number) raw).longValue();
+                            return dinhDangRepository.findById(fid)
+                                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy định dạng id=" + fid));
+                        })
+                        .collect(Collectors.toList());
+            }
+            phim.getDinhDangs().clear();
+            phim.getDinhDangs().addAll(formats);
+        }
     }
 
     /**
@@ -257,13 +298,32 @@ public class AdminController {
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * GET /api/admin/lich-chieu
+     * GET /api/admin/lich-chieu?page=0&size=20&dateFrom=yyyy-MM-dd&dateTo=yyyy-MM-dd
+     * Uses DB-level pagination and date-range filter — no findAll().
      */
     @GetMapping("/lich-chieu")
-    public ResponseEntity<?> getAllLichChieu() {
-        return ResponseEntity.ok(lichChieuRepository.findAll().stream()
-                .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
-                .collect(Collectors.toList()));
+    public ResponseEntity<?> getAllLichChieu(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        LocalDateTime from = (dateFrom != null && !dateFrom.isBlank())
+                ? LocalDate.parse(dateFrom).atStartOfDay() : null;
+        LocalDateTime to = (dateTo != null && !dateTo.isBlank())
+                ? LocalDate.parse(dateTo).plusDays(1).atStartOfDay() : null;
+
+        PageRequest pr = PageRequest.of(page, size);
+        Page<LichChieu> result = lichChieuRepository.findAdminPage(from, to, pr);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("content",       result.getContent());
+        body.put("totalElements", result.getTotalElements());
+        body.put("totalPages",    result.getTotalPages());
+        body.put("page",          result.getNumber());
+        body.put("size",          result.getSize());
+
+        return ResponseEntity.ok(body);
     }
 
     /**
@@ -302,20 +362,324 @@ public class AdminController {
             LocalDateTime start = lichChieu.getThoiGianBatDau();
             LocalDateTime end = lichChieu.getThoiGianKetThuc();
 
-            boolean conflict = lichChieuRepository.findAll().stream()
+            java.util.Optional<LichChieu> conflicting = lichChieuRepository.findAll().stream()
                     .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
                     .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
-                    .anyMatch(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
+                    .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
                             && start.isBefore(lc.getThoiGianKetThuc())
-                            && end.isAfter(lc.getThoiGianBatDau()));
+                            && end.isAfter(lc.getThoiGianBatDau()))
+                    .findFirst();
 
-            if (conflict) {
+            if (conflicting.isPresent()) {
+                LichChieu cx = conflicting.get();
+                String roomName = phongChieu.getTenPhong() != null ? phongChieu.getTenPhong() : "phòng này";
+                String cxStart  = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
+                String cxEnd    = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
                 return ResponseEntity.badRequest()
-                        .body(Map.of("message", "Phòng chiếu đã có lịch chiếu trong khung giờ này"));
+                        .body(Map.of("message", roomName + " đã có suất chiếu từ " + cxStart + "–" + cxEnd
+                                + " vào ngày này, không thể tạo suất chiếu trùng giờ"));
             }
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(lichChieuRepository.save(lichChieu));
+    }
+
+    /**
+     * POST /api/admin/lich-chieu/batch
+     * Creates the same showtime (film/room/time-of-day/price) across multiple dates in one call.
+     * Each date is checked independently for room conflicts.
+     * Returns a summary: which dates succeeded and which failed (with reason).
+     * Body:
+     * {
+     *   "phimId": 1,
+     *   "phongChieuId": 1,
+     *   "startTime": "09:00",   // HH:mm
+     *   "endTime":   "11:15",   // HH:mm — if end < start, end is on the NEXT calendar day
+     *   "giaCoBan": 80000,
+     *   "dates": ["2026-07-23","2026-07-24","2026-07-25"]
+     * }
+     * Response: { succeeded: [...], failed: [{date, reason}] }
+     */
+    @PostMapping("/lich-chieu/batch")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> batchCreateLichChieu(@RequestBody Map<String, Object> body) {
+        Long phimId    = body.get("phimId")    != null ? ((Number) body.get("phimId")).longValue()    : null;
+        Long phongId   = body.get("phongChieuId") != null ? ((Number) body.get("phongChieuId")).longValue() : null;
+        String startTime = (String) body.get("startTime");  // "HH:mm"
+        String endTime   = (String) body.get("endTime");    // "HH:mm"
+        java.math.BigDecimal giaCoBan = body.get("giaCoBan") != null
+                ? new java.math.BigDecimal(body.get("giaCoBan").toString()) : java.math.BigDecimal.ZERO;
+        java.util.List<String> dates = body.get("dates") instanceof java.util.List
+                ? (java.util.List<String>) body.get("dates") : java.util.List.of();
+
+        if (phimId == null || phongId == null || startTime == null || endTime == null || dates.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Thiếu phimId, phongChieuId, startTime, endTime hoặc dates"));
+        }
+
+        Phim phim = phimRepository.findById(phimId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim id=" + phimId));
+        PhongChieu phong = phongChieuRepository.findById(phongId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu id=" + phongId));
+
+        // Parse HH:mm into hours+minutes
+        String[] sParts = startTime.split(":");
+        String[] eParts = endTime.split(":");
+        int startH = Integer.parseInt(sParts[0]), startM = Integer.parseInt(sParts[1]);
+        int endH   = Integer.parseInt(eParts[0]),  endM   = Integer.parseInt(eParts[1]);
+
+        // Pre-load all active schedules in this room once — reused per date to avoid N+1
+        java.util.List<LichChieu> roomSchedules = lichChieuRepository.findAll().stream()
+                .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
+                .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.List<Map<String, Object>> succeeded = new java.util.ArrayList<>();
+        java.util.List<Map<String, Object>> failed    = new java.util.ArrayList<>();
+
+        for (String dateStr : dates) {
+            try {
+                java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
+                java.time.LocalDateTime start = date.atTime(startH, startM);
+
+                // If end time <= start time, the showtime ends the NEXT calendar day
+                java.time.LocalDateTime end;
+                if (endH < startH || (endH == startH && endM <= startM)) {
+                    end = date.plusDays(1).atTime(endH, endM);
+                } else {
+                    end = date.atTime(endH, endM);
+                }
+
+                // Overlap check against pre-loaded room schedules
+                java.util.Optional<LichChieu> conflict = roomSchedules.stream()
+                        .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
+                                && start.isBefore(lc.getThoiGianKetThuc())
+                                && end.isAfter(lc.getThoiGianBatDau()))
+                        .findFirst();
+
+                if (conflict.isPresent()) {
+                    LichChieu cx = conflict.get();
+                    String cxS = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
+                    String cxE = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
+                    Map<String, Object> f = new java.util.LinkedHashMap<>();
+                    f.put("date", dateStr);
+                    f.put("reason", phong.getTenPhong() + " đã có suất chiếu từ " + cxS + "–" + cxE + " vào ngày này");
+                    failed.add(f);
+                    continue;
+                }
+
+                // Save
+                LichChieu lc = new LichChieu();
+                lc.setPhim(phim);
+                lc.setPhongChieu(phong);
+                lc.setThoiGianBatDau(start);
+                lc.setThoiGianKetThuc(end);
+                lc.setGiaCoBan(giaCoBan);
+                lc.setTrangThai("active");
+                lc.setIsDeleted(false);
+                LichChieu saved = lichChieuRepository.save(lc);
+
+                // Add to in-memory list so subsequent dates in this batch also see it
+                roomSchedules.add(saved);
+
+                Map<String, Object> s = new java.util.LinkedHashMap<>();
+                s.put("date", dateStr);
+                s.put("id",   saved.getId());
+                s.put("thoiGianBatDau",  saved.getThoiGianBatDau().toString());
+                s.put("thoiGianKetThuc", saved.getThoiGianKetThuc().toString());
+                succeeded.add(s);
+
+            } catch (Exception e) {
+                Map<String, Object> f = new java.util.LinkedHashMap<>();
+                f.put("date", dateStr);
+                f.put("reason", e.getMessage());
+                failed.add(f);
+            }
+        }
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("succeeded", succeeded);
+        result.put("failed",    failed);
+        result.put("totalRequested",  dates.size());
+        result.put("totalSucceeded",  succeeded.size());
+        result.put("totalFailed",     failed.size());
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * POST /api/admin/lich-chieu/auto-generate
+     * Auto-computes N non-overlapping showtimes for a single day across one or more rooms.
+     * ALL-OR-NOTHING: if N doesn't fit, nothing is saved; returns how many could fit.
+     *
+     * Body:
+     * {
+     *   "phimId":        1,
+     *   "phongChieuIds": [1, 2],      // rooms to fill (in order, round-robin)
+     *   "date":          "2026-08-01",
+     *   "soSuat":        6,            // desired showtime count
+     *   "openTime":      "09:00",      // window start HH:mm
+     *   "closeTime":     "23:00",      // window end HH:mm
+     *   "bufferMinutes": 15,           // buffer between end of one and start of next (default 15)
+     *   "giaCoBan":      80000
+     * }
+     * Success response: { succeeded: [...], totalCreated: N }
+     * Shortfall response (HTTP 422):
+     *   { message: "Chỉ có thể xếp được X/N suất trong khung giờ này", canFit: X, requested: N, preview: [...] }
+     */
+    @PostMapping("/lich-chieu/auto-generate")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> autoGenerateLichChieu(@RequestBody Map<String, Object> body) {
+        Long phimId       = body.get("phimId")  != null ? ((Number) body.get("phimId")).longValue()  : null;
+        String dateStr    = (String) body.get("date");
+        String openTime   = (String) body.get("openTime");
+        String closeTime  = (String) body.get("closeTime");
+        int soSuat        = body.get("soSuat")  != null ? ((Number) body.get("soSuat")).intValue()    : 0;
+        int bufferMin     = body.get("bufferMinutes") != null ? ((Number) body.get("bufferMinutes")).intValue() : 15;
+        java.math.BigDecimal giaCoBan = body.get("giaCoBan") != null
+                ? new java.math.BigDecimal(body.get("giaCoBan").toString()) : java.math.BigDecimal.valueOf(80000);
+        java.util.List<?> rawRoomIds  = body.get("phongChieuIds") instanceof java.util.List
+                ? (java.util.List<?>) body.get("phongChieuIds") : java.util.List.of();
+
+        if (phimId == null || dateStr == null || openTime == null || closeTime == null
+                || soSuat <= 0 || rawRoomIds.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Thiếu phimId, phongChieuIds, date, openTime, closeTime hoặc soSuat"));
+        }
+
+        Phim phim = phimRepository.findById(phimId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim id=" + phimId));
+        if (phim.getThoiLuong() == null || phim.getThoiLuong() <= 0) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Phim chưa có thời lượng (thoiLuong)"));
+        }
+
+        // Resolve rooms in order
+        java.util.List<PhongChieu> rooms = new java.util.ArrayList<>();
+        for (Object raw : rawRoomIds) {
+            Long rid = ((Number) raw).longValue();
+            rooms.add(phongChieuRepository.findById(rid)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu id=" + rid)));
+        }
+
+        // Parse window
+        java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
+        String[] op = openTime.split(":");
+        String[] cp = closeTime.split(":");
+        int openH = Integer.parseInt(op[0]), openM = Integer.parseInt(op[1]);
+        int closeH = Integer.parseInt(cp[0]), closeM = Integer.parseInt(cp[1]);
+        java.time.LocalDateTime windowStart = date.atTime(openH, openM);
+        // If closeTime is at or before openTime in minutes-of-day, the window crosses midnight
+        // (e.g. openTime=16:00, closeTime=00:00 → close is next-day midnight)
+        java.time.LocalDateTime windowEnd;
+        if (closeH * 60 + closeM <= openH * 60 + openM) {
+            windowEnd = date.plusDays(1).atTime(closeH, closeM);
+        } else {
+            windowEnd = date.atTime(closeH, closeM);
+        }
+        int showDurationMin = phim.getThoiLuong();
+        int slotMin = showDurationMin + bufferMin; // total slot per showing
+
+        // Pre-load existing schedules for all rooms on this date
+        java.util.Map<Long, java.util.List<LichChieu>> existingByRoom = new java.util.LinkedHashMap<>();
+        for (PhongChieu room : rooms) {
+            existingByRoom.put(room.getId(), lichChieuRepository.findAll().stream()
+                    .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
+                    .filter(lc -> lc.getPhongChieu() != null && room.getId().equals(lc.getPhongChieu().getId()))
+                    .collect(java.util.stream.Collectors.toList()));
+        }
+
+        // ── Greedy placement algorithm ────────────────────────────────────────
+        // Iterate rooms round-robin, advance cursor within a room past any existing
+        // showtime that would conflict, and place a slot when free.
+        java.util.List<Map<String, Object>> preview   = new java.util.ArrayList<>();
+        java.util.List<Map<String, Object>> succeeded = new java.util.ArrayList<>();
+
+        // Pointer: next-available start time per room
+        java.util.Map<Long, java.time.LocalDateTime> cursors = new java.util.LinkedHashMap<>();
+        for (PhongChieu room : rooms) cursors.put(room.getId(), windowStart);
+
+        int placed = 0;
+        int maxIterations = soSuat * rooms.size() * 5; // safety cap
+        int iter = 0;
+
+        while (placed < soSuat && iter++ < maxIterations) {
+            // Try each room in round-robin order for the next slot
+            boolean anyRoomAdvanced = false;
+            for (PhongChieu room : rooms) {
+                if (placed >= soSuat) break;
+                java.time.LocalDateTime cursor = cursors.get(room.getId());
+                java.time.LocalDateTime slotEnd = cursor.plusMinutes(showDurationMin);
+
+                // Must fit within window
+                if (!slotEnd.isBefore(windowEnd) && !slotEnd.equals(windowEnd)) break;
+
+                // Check conflict with existing schedules in this room
+                java.time.LocalDateTime fCursor = cursor;
+                java.util.Optional<LichChieu> conflict = existingByRoom.get(room.getId()).stream()
+                        .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
+                                && fCursor.isBefore(lc.getThoiGianKetThuc())
+                                && slotEnd.isAfter(lc.getThoiGianBatDau()))
+                        .findFirst();
+
+                if (conflict.isPresent()) {
+                    // Advance cursor past the conflicting slot + buffer
+                    java.time.LocalDateTime newCursor = conflict.get().getThoiGianKetThuc().plusMinutes(bufferMin);
+                    cursors.put(room.getId(), newCursor);
+                    anyRoomAdvanced = true;
+                    continue; // retry this room on next iteration
+                }
+
+                // Slot fits — record it
+                Map<String, Object> slot = new java.util.LinkedHashMap<>();
+                slot.put("roomId",           room.getId());
+                slot.put("tenPhong",         room.getTenPhong());
+                slot.put("thoiGianBatDau",   cursor.toString());
+                slot.put("thoiGianKetThuc",  slotEnd.toString());
+                preview.add(slot);
+
+                // Advance cursor for this room
+                cursors.put(room.getId(), cursor.plusMinutes(slotMin));
+                placed++;
+                anyRoomAdvanced = true;
+            }
+            if (!anyRoomAdvanced) break; // all rooms exhausted
+        }
+
+        // Shortfall check — fail entirely if N doesn't fit
+        if (placed < soSuat) {
+            return ResponseEntity.status(422)
+                    .body(Map.of(
+                            "message",   "Chỉ có thể xếp được " + placed + "/" + soSuat + " suất trong khung giờ này",
+                            "canFit",    placed,
+                            "requested", soSuat,
+                            "preview",   preview));
+        }
+
+        // All N fit — save atomically (inside the same request thread, same Hibernate session)
+        for (int i = 0; i < preview.size(); i++) {
+            Map<String, Object> slot = preview.get(i);
+            Long roomId = ((Number) slot.get("roomId")).longValue();
+            PhongChieu room = rooms.stream().filter(r -> r.getId().equals(roomId)).findFirst().orElseThrow();
+
+            LichChieu lc = new LichChieu();
+            lc.setPhim(phim);
+            lc.setPhongChieu(room);
+            lc.setThoiGianBatDau(java.time.LocalDateTime.parse((String) slot.get("thoiGianBatDau")));
+            lc.setThoiGianKetThuc(java.time.LocalDateTime.parse((String) slot.get("thoiGianKetThuc")));
+            lc.setGiaCoBan(giaCoBan);
+            lc.setTrangThai("active");
+            lc.setIsDeleted(false);
+            LichChieu saved = lichChieuRepository.save(lc);
+
+            Map<String, Object> s = new java.util.LinkedHashMap<>(slot);
+            s.put("id", saved.getId());
+            succeeded.add(s);
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "succeeded",    succeeded,
+                "totalCreated", succeeded.size(),
+                "date",         dateStr,
+                "phim",         phim.getTenPhim()));
     }
 
     /**
@@ -346,17 +710,24 @@ public class AdminController {
 
         if (phong != null && start != null && end != null) {
             Long phongId = phong.getId();
-            boolean conflict = lichChieuRepository.findAll().stream()
+            final PhongChieu finalPhong = phong;
+            java.util.Optional<LichChieu> conflicting = lichChieuRepository.findAll().stream()
                     .filter(other -> !Boolean.TRUE.equals(other.getIsDeleted()))
                     .filter(other -> !other.getId().equals(id))
                     .filter(other -> other.getPhongChieu() != null && phongId.equals(other.getPhongChieu().getId()))
-                    .anyMatch(other -> other.getThoiGianBatDau() != null && other.getThoiGianKetThuc() != null
+                    .filter(other -> other.getThoiGianBatDau() != null && other.getThoiGianKetThuc() != null
                             && start.isBefore(other.getThoiGianKetThuc())
-                            && end.isAfter(other.getThoiGianBatDau()));
+                            && end.isAfter(other.getThoiGianBatDau()))
+                    .findFirst();
 
-            if (conflict) {
+            if (conflicting.isPresent()) {
+                LichChieu cx = conflicting.get();
+                String roomName = finalPhong.getTenPhong() != null ? finalPhong.getTenPhong() : "phòng này";
+                String cxStart  = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
+                String cxEnd    = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
                 return ResponseEntity.badRequest()
-                        .body(Map.of("message", "Phòng chiếu đã có lịch chiếu khác trong khung giờ này"));
+                        .body(Map.of("message", roomName + " đã có suất chiếu từ " + cxStart + "–" + cxEnd
+                                + " vào ngày này, không thể tạo suất chiếu trùng giờ"));
             }
         }
 
@@ -396,9 +767,13 @@ public class AdminController {
     public ResponseEntity<?> updateRap(@PathVariable Long id, @RequestBody RapChieu body) {
         RapChieu rap = rapChieuRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy rạp chiếu"));
-        if (body.getTenRap() != null) rap.setTenRap(body.getTenRap());
-        if (body.getDiaChi() != null) rap.setDiaChi(body.getDiaChi());
-        if (body.getTrangThai() != null) rap.setTrangThai(body.getTrangThai());
+        if (body.getTenRap()   != null) rap.setTenRap(body.getTenRap());
+        if (body.getDiaChi()   != null) rap.setDiaChi(body.getDiaChi());
+        if (body.getTrangThai()!= null) rap.setTrangThai(body.getTrangThai());
+        if (body.getThanhPho() != null) rap.setThanhPho(body.getThanhPho());
+        if (body.getLatitude() != null) rap.setLatitude(body.getLatitude());
+        if (body.getLongitude()!= null) rap.setLongitude(body.getLongitude());
+        if (body.getHinhAnh()  != null) rap.setHinhAnh(body.getHinhAnh());
         return ResponseEntity.ok(rapChieuRepository.save(rap));
     }
 
@@ -545,41 +920,26 @@ public class AdminController {
     @GetMapping("/dat-ve")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getAllBookings(
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String trangThai) {
-        String query = q != null ? q.trim().toLowerCase() : "";
-        List<DatVe> all = datVeRepository.findAll().stream()
-                .filter(dv -> trangThai == null || trangThai.isBlank()
-                        || trangThai.equalsIgnoreCase(dv.getTrangThai()))
-                .filter(dv -> {
-                    if (query.isEmpty()) return true;
-                    if (dv.getMaDatVe() != null && dv.getMaDatVe().toLowerCase().contains(query)) return true;
-                    if (dv.getNguoiDung() != null) {
-                        if (dv.getNguoiDung().getEmail() != null
-                                && dv.getNguoiDung().getEmail().toLowerCase().contains(query)) return true;
-                        if (dv.getNguoiDung().getHoTen() != null
-                                && dv.getNguoiDung().getHoTen().toLowerCase().contains(query)) return true;
-                    }
-                    if (dv.getLichChieu() != null && dv.getLichChieu().getPhim() != null
-                            && dv.getLichChieu().getPhim().getTenPhim() != null
-                            && dv.getLichChieu().getPhim().getTenPhim().toLowerCase().contains(query)) return true;
-                    return false;
-                })
-                .sorted(Comparator.comparing(DatVe::getNgayTao, Comparator.nullsLast(Comparator.reverseOrder())))
-                .collect(Collectors.toList());
 
-        int total = all.size();
-        int start = page * size;
-        int end = Math.min(start + size, total);
-        List<DatVe> paged = start < total ? all.subList(start, end) : Collections.emptyList();
+        // Normalise: empty string → null so JPQL IS NULL check matches
+        String query    = (q         != null && !q.isBlank())         ? q.trim()         : null;
+        String status   = (trangThai != null && !trangThai.isBlank()) ? trangThai.trim() : null;
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("content", paged);
-        result.put("totalElements", total);
-        result.put("totalPages", Math.max(1, (int) Math.ceil((double) total / size)));
-        return ResponseEntity.ok(result);
+        PageRequest pr = PageRequest.of(page, size);
+        Page<DatVe> result = datVeRepository.searchAdmin(query, status, pr);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("content",       result.getContent());
+        body.put("totalElements", result.getTotalElements());
+        body.put("totalPages",    Math.max(1, result.getTotalPages()));
+        body.put("page",          result.getNumber());
+        body.put("size",          result.getSize());
+
+        return ResponseEntity.ok(body);
     }
 
     /**
@@ -734,5 +1094,186 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN BOOKING CANCEL
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * PUT /api/admin/dat-ve/{maDatVe}/cancel
+     * Admin force-cancels any booking regardless of owner.
+     * Releases seat locks and decrements promo usage counter.
+     */
+    @PutMapping("/dat-ve/{maDatVe}/cancel")
+    public ResponseEntity<?> adminCancelBooking(@PathVariable String maDatVe) {
+        try {
+            datVeService.cancelBookingByAdmin(maDatVe);
+            return ResponseEntity.ok(Map.of("message", "Đã hủy đơn đặt vé " + maDatVe));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi hủy vé: " + e.getMessage()));
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SEAT LOCK ADMIN MANAGEMENT
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/admin/seat-locks?lichChieuId=X
+     * Returns all active seat locks for a showtime with user info.
+     */
+    @GetMapping("/seat-locks")
+    public ResponseEntity<?> getSeatLocks(@RequestParam Long lichChieuId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<SeatLock> locks = seatLockRepository.findActiveByLichChieu(lichChieuId, now);
+        // Enrich with seat label and user info
+        List<Map<String, Object>> result = locks.stream().map(lock -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id",          lock.getId());
+            m.put("gheNgoiId",   lock.getGheNgoiId());
+            m.put("lichChieuId", lock.getLichChieuId());
+            m.put("nguoiDungId", lock.getNguoiDungId());
+            m.put("lockedAt",    lock.getLockedAt());
+            m.put("expiresAt",   lock.getExpiresAt());
+            m.put("maDatVe",     lock.getMaDatVe());
+            // Attach seat label (e.g. "B6") from GheNgoi
+            gheNgoiRepository.findById(lock.getGheNgoiId()).ifPresent(ghe -> {
+                m.put("hangGhe",  (ghe.getHangGhe() != null ? ghe.getHangGhe().trim() : ""));
+                m.put("soGhe",    ghe.getSoGhe());
+                m.put("loaiGhe",  ghe.getLoaiGhe());
+                m.put("seatLabel", (ghe.getHangGhe() != null ? ghe.getHangGhe().trim() : "") + ghe.getSoGhe());
+            });
+            // Attach user email/name if available
+            if (lock.getNguoiDungId() != null) {
+                nguoiDungRepository.findById(lock.getNguoiDungId()).ifPresent(u -> {
+                    m.put("email", u.getEmail());
+                    m.put("hoTen", u.getHoTen());
+                });
+            }
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * DELETE /api/admin/seat-locks/{lockId}
+     * Force-releases a specific seat lock.
+     */
+    @DeleteMapping("/seat-locks/{lockId}")
+    public ResponseEntity<?> releaseSeatLock(@PathVariable Long lockId) {
+        if (!seatLockRepository.existsById(lockId)) {
+            return ResponseEntity.notFound().build();
+        }
+        seatLockRepository.deleteById(lockId);
+        return ResponseEntity.ok(Map.of("message", "Đã giải phóng ghế"));
+    }
+
+    /**
+     * GET /api/admin/config/seat-lock-minutes
+     * Returns current lock duration in minutes.
+     */
+    @GetMapping("/config/seat-lock-minutes")
+    public ResponseEntity<?> getSeatLockMinutes() {
+        int minutes = systemConfigRepository.findById("SEAT_LOCK_MINUTES")
+                .map(c -> {
+                    try { return Integer.parseInt(c.getConfigValue()); }
+                    catch (NumberFormatException e) { return 10; }
+                })
+                .orElse(10);
+        return ResponseEntity.ok(Map.of("minutes", minutes));
+    }
+
+    /**
+     * PUT /api/admin/config/seat-lock-minutes
+     * Body: { "minutes": 15 }
+     * Updates the SEAT_LOCK_MINUTES system config.
+     */
+    @PutMapping("/config/seat-lock-minutes")
+    public ResponseEntity<?> setSeatLockMinutes(@RequestBody Map<String, Object> body) {
+        Object raw = body.get("minutes");
+        if (raw == null) return ResponseEntity.badRequest().body("Thiếu trường 'minutes'");
+        int minutes;
+        try { minutes = ((Number) raw).intValue(); }
+        catch (ClassCastException e) { return ResponseEntity.badRequest().body("minutes phải là số nguyên"); }
+        if (minutes < 1 || minutes > 60) {
+            return ResponseEntity.badRequest().body("minutes phải trong khoảng 1–60");
+        }
+        SystemConfig config = systemConfigRepository.findById("SEAT_LOCK_MINUTES")
+                .orElseGet(() -> { SystemConfig c = new SystemConfig(); c.setConfigKey("SEAT_LOCK_MINUTES"); return c; });
+        config.setConfigValue(String.valueOf(minutes));
+        systemConfigRepository.save(config);
+        return ResponseEntity.ok(Map.of("minutes", minutes));
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SEAT MAP — combined seat status for a showtime (admin view)
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/admin/seat-map?lichChieuId={id}
+     * Returns all seats for the showtime with their current status.
+     * Status priority: locked > booked > available
+     * Each locked seat includes lockId so the admin can force-release it.
+     */
+    @GetMapping("/seat-map")
+    public ResponseEntity<?> getSeatMap(@RequestParam Long lichChieuId) {
+        // 1. Resolve showtime → room
+        LichChieu lc = lichChieuRepository.findById(lichChieuId).orElse(null);
+        if (lc == null) return ResponseEntity.notFound().build();
+        Long phongChieuId = lc.getPhongChieu().getId();
+
+        // 2. All seats in the room
+        List<GheNgoi> allSeats = gheNgoiRepository.findByPhongChieuId(phongChieuId);
+
+        // 3. Active seat locks for this showtime
+        LocalDateTime now = LocalDateTime.now();
+        List<SeatLock> activeLocks = seatLockRepository.findActiveByLichChieu(lichChieuId, now);
+        // Map: gheNgoiId → SeatLock (for O(1) lookup)
+        Map<Long, SeatLock> lockMap = activeLocks.stream()
+                .collect(Collectors.toMap(SeatLock::getGheNgoiId, s -> s, (a, b) -> a));
+
+        // 4. Booked seats from ChiTietDatGhe linked to confirmed/paid bookings
+        //    (only non-cancelled bookings count as holding the seat)
+        Set<Long> bookedSeatIds = chiTietDatGheRepository.findByLichChieuId(lichChieuId)
+                .stream()
+                .filter(ct -> {
+                    DatVe dv = ct.getDatVe();
+                    return dv != null
+                        && !"cancelled".equals(dv.getTrangThai())
+                        && ("confirmed".equals(dv.getTrangThai())
+                            || "pending".equals(dv.getTrangThai())
+                            || "paid".equals(dv.getTrangThaiThanhToan()));
+                })
+                .map(ct -> ct.getGheNgoi().getId())
+                .collect(Collectors.toSet());
+
+        // 5. Build response
+        List<Map<String, Object>> result = allSeats.stream().map(seat -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("gheNgoiId", seat.getId());
+            m.put("hangGhe",   (seat.getHangGhe() != null ? seat.getHangGhe().trim() : ""));
+            m.put("soGhe",     seat.getSoGhe());
+            m.put("loaiGhe",   seat.getLoaiGhe() != null ? seat.getLoaiGhe() : "thường");
+
+            if (lockMap.containsKey(seat.getId())) {
+                SeatLock lock = lockMap.get(seat.getId());
+                m.put("status",         "locked");
+                m.put("lockId",         lock.getId());
+                m.put("expiresAt",      lock.getExpiresAt().toString());
+                m.put("lockedByUserId", lock.getNguoiDungId());
+                m.put("maDatVe",        lock.getMaDatVe());
+            } else if (bookedSeatIds.contains(seat.getId())) {
+                m.put("status", "booked");
+            } else {
+                m.put("status", "available");
+            }
+            return m;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
     }
 }

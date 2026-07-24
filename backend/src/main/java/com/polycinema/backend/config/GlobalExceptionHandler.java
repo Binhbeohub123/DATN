@@ -1,5 +1,6 @@
 package com.polycinema.backend.config;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,6 +37,29 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleAccessDenied(
             org.springframework.security.access.AccessDeniedException ex, WebRequest request) {
         return build(HttpStatus.FORBIDDEN, "Bạn không có quyền thực hiện thao tác này");
+    }
+
+    // ── 409 Conflict — DB unique-constraint violation ─────────────
+    // Catches DataIntegrityViolationException thrown when a UNIQUE KEY is violated.
+    // The UC_NoOverlap constraint on (PhongChieuId, ThoiGianBatDau) is the primary
+    // source: this happens when a soft-deleted row occupies the same slot (the DB
+    // constraint is not filtered on IsDeleted). The filtered unique index migration
+    // (migration_filtered_unique.sql) is the permanent fix; this handler is the
+    // safety net for any constraint violation that slips past application checks.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(
+            DataIntegrityViolationException ex, WebRequest request) {
+        String raw = ex.getMostSpecificCause().getMessage();
+        String msg;
+        if (raw != null && raw.contains("UC_NoOverlap")) {
+            msg = "Phòng chiếu đã có suất chiếu trong khung giờ này (trùng lịch). Vui lòng chọn giờ khác.";
+        } else if (raw != null && raw.contains("UNIQUE") || (raw != null && raw.contains("duplicate"))) {
+            msg = "Dữ liệu bị trùng lặp. Vui lòng kiểm tra lại thông tin đã nhập.";
+        } else {
+            msg = "Vi phạm ràng buộc dữ liệu. Vui lòng kiểm tra lại.";
+        }
+        System.err.println("[GlobalExceptionHandler] DataIntegrityViolation: " + raw);
+        return build(HttpStatus.CONFLICT, msg);
     }
 
     // ── 500 Internal Server Error ─────────────────────────────────

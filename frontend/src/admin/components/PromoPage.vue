@@ -14,7 +14,7 @@
         <table class="data-table">
           <thead><tr>
             <th>Mã</th><th>Tên</th><th>Loại</th><th>Giá trị</th>
-            <th>Đơn tối thiểu</th><th>Đã dùng / Max</th><th>Hết hạn</th><th>Trạng thái</th><th>Thao tác</th>
+            <th>Đơn tối thiểu</th><th>Đã dùng / Max</th><th>Hết hạn</th><th>Phim áp dụng</th><th>Trạng thái</th><th>Thao tác</th>
           </tr></thead>
           <tbody>
             <tr v-for="km in promos" :key="km.id">
@@ -25,6 +25,10 @@
               <td>{{ fmtPrice(km.donHangToiThieu) }}</td>
               <td>{{ km.daSuDung }} / {{ km.gioiHanSuDung||'∞' }}</td>
               <td class="td-date">{{ km.ngayKetThuc || '—' }}</td>
+              <td class="td-phim">
+                <span v-if="!km.phims || km.phims.length===0" class="phim-all">Tất cả phim</span>
+                <span v-else class="phim-list">{{ km.phims.map(p=>p.tenPhim).join(', ') }}</span>
+              </td>
               <td>
                 <button :class="['toggle-btn', km.dangHoatDong?'toggle-btn--on':'toggle-btn--off']" @click="toggleActive(km)">
                   {{ km.dangHoatDong ? '✓ Bật' : '✗ Tắt' }}
@@ -69,6 +73,21 @@
           <div class="field"><label>Ngày bắt đầu</label><input v-model="form.ngayBatDau" type="date"/></div>
           <div class="field"><label>Ngày kết thúc</label><input v-model="form.ngayKetThuc" type="date"/></div>
           <div class="field"><label>Mô tả</label><input v-model="form.moTa" placeholder="Mô tả ngắn (không bắt buộc)"/></div>
+          <div class="field field--full"><label>Áp dụng cho phim (bỏ trống = áp dụng tất cả)</label>
+            <div style="background:#1a1a2e;color:#0ff;font-size:11px;padding:6px 8px;border-radius:4px;margin-bottom:4px;font-family:monospace;">
+              [DEBUG] form.phimIds = {{ JSON.stringify(form.phimIds) }}<br>
+              [DEBUG] types = {{ form.phimIds.map(id => typeof id) }}<br>
+              [DEBUG] allMovies IDs = {{ allMovies.map(m => m.id) }}<br>
+              [DEBUG] allMovies ID types = {{ allMovies.slice(0,3).map(m => typeof m.id) }}
+            </div>
+            <div class="movie-select-box">
+              <label v-for="m in allMovies" :key="m.id" class="movie-select-row">
+                <input type="checkbox" :value="m.id" v-model="form.phimIds" />
+                <span>{{ m.tenPhim }} <small style="color:#888">(id={{ m.id }}, inArray={{ form.phimIds.includes(m.id) }})</small></span>
+              </label>
+              <div v-if="allMovies.length === 0" class="movie-select-empty">Đang tải phim...</div>
+            </div>
+          </div>
         </div>
         <p v-if="formErr" class="form-err">{{ formErr }}</p>
         <div class="modal-footer">
@@ -81,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, watch } from 'vue'
 import api from '@/services/api'
 
 const toast = reactive({ show:false, msg:'', type:'success' })
@@ -98,10 +117,13 @@ const editing   = ref(null)
 const saving    = ref(false)
 const formErr   = ref('')
 
+const allMovies = ref([])
+
 const blankForm = () => ({
   maKhuyenMai:'', tenKhuyenMai:'', moTa:'', loaiGiamGia:'percent',
   giaTriGiam:10, giaTriGiamToiDa:null, donHangToiThieu:100000,
-  gioiHanSuDung:100, ngayBatDau:'', ngayKetThuc:'', dangHoatDong:true
+  gioiHanSuDung:100, ngayBatDau:'', ngayKetThuc:'', dangHoatDong:true,
+  phimIds: []
 })
 const form = ref(blankForm())
 
@@ -110,24 +132,33 @@ function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(v)
 }
 
-function openCreate() { editing.value=null; form.value=blankForm(); formErr.value=''; showModal.value=true }
-function openEdit(km) {
+async function openCreate() { editing.value=null; form.value=blankForm(); formErr.value=''; await loadMovies(); showModal.value=true }
+async function openEdit(km) {
+  console.log('[DEBUG openEdit] km.maKhuyenMai:', km.maKhuyenMai)
+  console.log('[DEBUG openEdit] km.phims raw:', JSON.stringify(km.phims))
+  console.log('[DEBUG openEdit] km.phims?.map(p => p.id):', km.phims?.map(p => p.id))
   editing.value=km
   form.value = {
     maKhuyenMai: km.maKhuyenMai, tenKhuyenMai: km.tenKhuyenMai||'', moTa: km.moTa||'',
     loaiGiamGia: km.loaiGiamGia||'percent', giaTriGiam: km.giaTriGiam||0,
     giaTriGiamToiDa: km.giaTriGiamToiDa||null, donHangToiThieu: km.donHangToiThieu||0,
     gioiHanSuDung: km.gioiHanSuDung||null, ngayBatDau: km.ngayBatDau||'',
-    ngayKetThuc: km.ngayKetThuc||'', dangHoatDong: km.dangHoatDong!==false
+    ngayKetThuc: km.ngayKetThuc||'', dangHoatDong: km.dangHoatDong!==false,
+    phimIds: km.phims?.map(p => p.id) || []
   }
-  formErr.value=''; showModal.value=true
+  console.log('[DEBUG openEdit] form.phimIds after assignment:', JSON.stringify(form.value.phimIds))
+  console.log('[DEBUG openEdit] form.phimIds types:', form.value.phimIds.map(id => typeof id))
+  formErr.value=''; await loadMovies();
+  console.log('[DEBUG openEdit] form.phimIds BEFORE showModal:', JSON.stringify(form.value.phimIds))
+  console.log('[DEBUG openEdit] allMovies IDs:', allMovies.value.map(m => ({ id: m.id, type: typeof m.id })))
+  showModal.value=true
 }
 
 async function save() {
   if (!form.value.maKhuyenMai.trim() || !form.value.tenKhuyenMai.trim()) { formErr.value='Vui lòng điền mã và tên'; return }
   saving.value=true; formErr.value=''
   try {
-    const payload = { ...form.value }
+    const payload = { ...form.value, phimIds: form.value.phimIds }
     if (!payload.giaTriGiamToiDa) delete payload.giaTriGiamToiDa
     if (editing.value) { await api.put(`/khuyen-mai/${editing.value.id}`, payload) }
     else               { await api.post('/khuyen-mai', payload) }
@@ -155,9 +186,26 @@ async function del(km) {
   } catch(e) { showToast(e.response?.data?.message || 'Lỗi xóa mã') }
 }
 
+async function loadMovies() {
+  try {
+    const r = await api.get('/phim');
+    allMovies.value = r.data||[]
+    console.log('[DEBUG loadMovies] movie count:', allMovies.value.length)
+    console.log('[DEBUG loadMovies] first 3 movie IDs + types:', allMovies.value.slice(0,3).map(m => ({ id: m.id, type: typeof m.id })))
+  }
+  catch(e) { allMovies.value = [] }
+}
+
 async function load() {
   loading.value=true
-  try { const r = await api.get('/khuyen-mai'); promos.value = r.data||[] }
+  try {
+    const r = await api.get('/khuyen-mai/all');
+    promos.value = r.data||[]
+    console.log('[DEBUG load] promos count:', promos.value.length)
+    promos.value.forEach(km => {
+      console.log(`[DEBUG load] promo "${km.maKhuyenMai}" (id=${km.id}): phims=`, JSON.stringify(km.phims?.map(p => ({ id: p.id, type: typeof p.id, tenPhim: p.tenPhim }))))
+    })
+  }
   catch(e) { showToast('Không tải được mã khuyến mãi') }
   finally { loading.value=false }
 }
@@ -213,4 +261,37 @@ onMounted(load)
 }
 .tbadge--blue   { background: rgba(255,255,255,0.10); color: #FFFFFF; }
 .tbadge--purple { background: rgba(255,255,255,0.10); color: #FFFFFF; }
+
+/* ── Movie multi-select ── */
+.field--full { grid-column: 1 / -1; }
+.movie-select-box {
+  max-height: 160px;
+  overflow-y: auto;
+  background: #0D0D0D;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.movie-select-box::-webkit-scrollbar { width: 6px; }
+.movie-select-box::-webkit-scrollbar-track { background: transparent; }
+.movie-select-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+.movie-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  cursor: pointer;
+  color: #E5E5E5;
+  font-size: 13px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.movie-select-row:hover { background: rgba(255,255,255,0.06); }
+.movie-select-row input[type="checkbox"] { accent-color: #E5E5E5; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+.movie-select-empty { color: #9CA3AF; font-size: 13px; padding: 4px 2px; }
+
+/* ── Phim column ── */
+.td-phim { font-size: 12px; max-width: 200px; }
+.phim-all  { color: #6B7280; font-style: italic; }
+.phim-list { color: #29bcea; line-height: 1.5; }
 </style>

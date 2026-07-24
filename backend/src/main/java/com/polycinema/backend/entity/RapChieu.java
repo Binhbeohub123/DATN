@@ -28,6 +28,22 @@ public class RapChieu {
     @Column(name = "TrangThai")
     private Boolean trangThai;
 
+    /** City name — added in Phase 1 migration. */
+    @Column(name = "ThanhPho", length = 100)
+    private String thanhPho;
+
+    /** GPS latitude — DECIMAL(10,7). */
+    @Column(name = "Latitude", precision = 10, scale = 7)
+    private java.math.BigDecimal latitude;
+
+    /** GPS longitude — DECIMAL(10,7). */
+    @Column(name = "Longitude", precision = 10, scale = 7)
+    private java.math.BigDecimal longitude;
+
+    /** Cinema image URL — added in Phase 1 migration. */
+    @Column(name = "HinhAnh", columnDefinition = "NVARCHAR(MAX)")
+    private String hinhAnh;
+
     @PrePersist
     protected void onCreate() {
         if (trangThai == null) trangThai = true;

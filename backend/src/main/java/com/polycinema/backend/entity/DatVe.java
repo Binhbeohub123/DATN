@@ -37,9 +37,14 @@ public class DatVe {
     private KhuyenMai khuyenMai;
 
     // One-to-many to ChiTietDatGhe for seat details in response
-    @OneToMany(mappedBy = "datVe", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "datVe", fetch = FetchType.EAGER)
     @JsonIgnoreProperties({"datVe", "hibernateLazyInitializer", "handler"})
-    private List<ChiTietDatGhe> chiTietDatGhe;
+    private java.util.Set<ChiTietDatGhe> chiTietDatGhe = new java.util.LinkedHashSet<>();
+
+    // One-to-many to ChiTietDatSanPham for combo details in response
+    @OneToMany(mappedBy = "datVe", fetch = FetchType.EAGER)
+    @JsonIgnoreProperties({"datVe", "hibernateLazyInitializer", "handler"})
+    private java.util.Set<ChiTietDatSanPham> chiTietDatSanPham = new java.util.LinkedHashSet<>();
 
     @Column(name = "TongTienGoc", nullable = false, precision = 15, scale = 2)
     private BigDecimal tongTienGoc;

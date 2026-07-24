@@ -16,7 +16,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/thanh-toan")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class ThanhToanController {
 
     private final ThanhToanService thanhToanService;
@@ -51,30 +50,6 @@ public class ThanhToanController {
     }
 
     /**
-     * POST /api/thanh-toan/momo
-     * Body: { "datVeId": 123 }
-     * Returns: { "paymentUrl": "...", "orderId": "..." }
-     */
-    @PostMapping("/momo")
-    public ResponseEntity<?> createMomo(@RequestBody Map<String, Object> req) {
-        try {
-            Long userId = getUserIdFromToken();
-            if (userId == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
-            }
-
-            Long datVeId = ((Number) req.get("datVeId")).longValue();
-            Map<String, Object> result = thanhToanService.createMomoPayment(datVeId);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Lỗi tạo thanh toán Momo: " + e.getMessage());
-        }
-    }
-
-    /**
      * GET /api/thanh-toan/vnpay/callback
      * VNPay redirects here after payment.
      */
@@ -95,25 +70,116 @@ public class ThanhToanController {
     }
 
     /**
+     * POST /api/thanh-toan/payos/create
+     * Body: { "datVeId": 123 }
+     * Returns: { "checkoutUrl": "https://pay.payos.vn/..." }
+     */
+    @PostMapping("/payos/create")
+    public ResponseEntity<?> createPayOS(@RequestBody Map<String, Object> req) {
+        try {
+            Long userId = getUserIdFromToken();
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
+            }
+            Long datVeId = ((Number) req.get("datVeId")).longValue();
+            Map<String, Object> result = thanhToanService.createPayOSPayment(datVeId);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi tạo thanh toán PayOS: " + e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/thanh-toan/payos/cancel
+     * Called from /payment-cancel frontend page when PayOS redirects user back.
+     * PUBLIC — no auth required (user may not have a valid session after redirect).
+     * Cancels the booking so seats are released and orderCode can be reused.
+     */
+    @PostMapping("/payos/cancel")
+    public ResponseEntity<?> payosCancel(@RequestBody Map<String, Object> body) {
+        String maDatVe = body.get("maDatVe") != null ? String.valueOf(body.get("maDatVe")) : null;
+        if (maDatVe == null || maDatVe.isBlank() || "null".equals(maDatVe)) {
+            return ResponseEntity.ok(Map.of("message", "no maDatVe provided"));
+        }
+        try {
+            thanhToanService.cancelByPayOSCancel(maDatVe);
+            return ResponseEntity.ok(Map.of("message", "cancelled"));
+        } catch (Exception e) {
+            // Always return 200 — the frontend redirect should succeed regardless
+            return ResponseEntity.ok(Map.of("message", "error: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * POST /api/thanh-toan/payos/webhook
+     * PayOS IPN (Instant Payment Notification) — PUBLIC endpoint.
+     * Parameter type is Object so the PayOS SDK can deserialize the body correctly.
+     * PayOS requires HTTP 200 even on failure, otherwise it retries.
+     */
+    @PostMapping("/payos/webhook")
+    public ResponseEntity<?> payosWebhook(@RequestBody Object body) {
+        try {
+            thanhToanService.handlePayOSWebhook(body);
+        } catch (Exception e) {
+            System.err.println("[ThanhToanController] PayOS webhook error: " + e.getMessage());
+        }
+        return ResponseEntity.ok(Map.of("message", "OK"));
+    }
+
+    /**
+     * POST /api/thanh-toan/zalopay/create
+     * Body: { "datVeId": 123 }
+     * Returns: { "orderUrl": "https://...", "appTransId": "...", "datVeId": ... }
+     */
+    @PostMapping("/zalopay/create")
+    public ResponseEntity<?> createZaloPay(@RequestBody Map<String, Object> req) {
+        try {
+            Long userId = getUserIdFromToken();
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
+            }
+            Long datVeId = ((Number) req.get("datVeId")).longValue();
+            Map<String, Object> result = thanhToanService.createZaloPayOrder(datVeId);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi tạo thanh toán ZaloPay: " + e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/thanh-toan/zalopay/callback
+     * ZaloPay IPN — PUBLIC endpoint.
+     * ZaloPay requires a JSON response: { return_code: 1, return_message: "success" }
+     */
+    @PostMapping("/zalopay/callback")
+    public ResponseEntity<?> zaloPayCallback(@RequestBody Map<String, Object> body) {
+        boolean ok = thanhToanService.handleZaloPayCallback(body);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("return_code",    ok ? 1 : -1);
+        result.put("return_message", ok ? "success" : "failed");
+        return ResponseEntity.ok(result); // always HTTP 200
+    }
+
+    /**
      * POST /api/thanh-toan/momo/callback
-     * Momo IPN (Instant Payment Notification).
+     * MoMo IPN — PUBLIC, always returns HTTP 200.
      */
     @PostMapping("/momo/callback")
     public ResponseEntity<?> momoCallback(@RequestBody Map<String, Object> body) {
         try {
-            String resultCode = String.valueOf(body.get("resultCode"));
-            String orderId = (String) body.get("orderId");
-
-            if ("0".equals(resultCode) && orderId != null) {
-                // Extract maDatVe from orderId (format: maDatVe_timestamp)
-                String maDatVe = orderId.contains("_") ? orderId.split("_")[0] : orderId;
-                // Mark as paid via service
-                return ResponseEntity.ok(Map.of("message", "OK"));
-            }
-            return ResponseEntity.ok(Map.of("message", "Received"));
+            thanhToanService.handleMomoCallback(body);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error");
+            // Log but always return 200 — MoMo retries on non-200
+            System.err.println("[ThanhToanController] MoMo callback error: " + e.getMessage());
         }
+        // MoMo spec: always respond HTTP 200 with { message: "OK" }
+        return ResponseEntity.ok(Map.of("message", "OK"));
     }
 
     // ── Helpers ──────────────────────────────────────────────────

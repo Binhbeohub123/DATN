@@ -6,6 +6,7 @@
     <div class="tab-bar">
       <button :class="['tab', tab==='banners'?'tab--active':'']" @click="tab='banners'">Banners</button>
       <button :class="['tab', tab==='products'?'tab--active':'']" @click="tab='products'">Sản phẩm</button>
+      <button :class="['tab', tab==='gioi_thieu'?'tab--active':'']" @click="tab='gioi_thieu'; loadGioiThieu()">Giới Thiệu</button>
     </div>
 
     <!-- ═══════════════ BANNERS TAB ═══════════════ -->
@@ -155,6 +156,37 @@
         </div>
       </div>
     </div>
+
+    <!-- ═══════════════ GIỚI THIỆU TAB ═══════════════ -->
+    <div v-if="tab==='gioi_thieu'">
+      <div class="toolbar">
+        <h3 class="section-title">Nội dung trang Giới Thiệu</h3>
+      </div>
+      <div class="card" style="padding:24px">
+        <div v-if="gtLoading" class="state-center"><div class="spinner"></div></div>
+        <div v-else>
+          <div class="field">
+            <label>Hình nền (URL)</label>
+            <input v-model="gtForm.hinhAnhUrl" placeholder="https://... (để trống = nền tối mặc định)" />
+            <div v-if="gtForm.hinhAnhUrl" style="margin-top:8px">
+              <img :src="gtForm.hinhAnhUrl" style="max-height:120px;border-radius:8px;object-fit:cover;width:100%;" @error="e=>e.target.style.display='none'" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Tiêu đề</label>
+            <input v-model="gtForm.tieuDe" placeholder="VD: HỆ THỐNG CỤM RẠP POLYCINEMA" />
+          </div>
+          <div class="field">
+            <label>Nội dung (phân đoạn bằng dòng trống)</label>
+            <textarea v-model="gtForm.noiDung" rows="8" placeholder="Nhập nội dung giới thiệu..."></textarea>
+          </div>
+          <p v-if="gtErr" class="form-err">{{ gtErr }}</p>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+            <button class="btn-primary" :disabled="gtSaving" @click="saveGioiThieu">{{ gtSaving ? 'Đang lưu...' : 'Lưu nội dung' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -275,8 +307,36 @@ async function loadProducts() {
 }
 
 // load data when switching tabs
-watch(tab, t => { if (t==='banners') loadBanners(); else loadProducts() })
+watch(tab, t => { if (t==='banners') loadBanners(); else if (t==='products') loadProducts() })
 onMounted(() => { loadBanners() })
+
+// ── GIỚI THIỆU ──────────────────────────────────────────────────
+const gtForm    = ref({ tieuDe: '', noiDung: '', hinhAnhUrl: '' })
+const gtLoading = ref(false)
+const gtSaving  = ref(false)
+const gtErr     = ref('')
+
+async function loadGioiThieu() {
+  gtLoading.value = true
+  try {
+    const r = await api.get('/gioi-thieu')
+    gtForm.value = {
+      tieuDe:    r.data?.tieuDe    || '',
+      noiDung:   r.data?.noiDung   || '',
+      hinhAnhUrl: r.data?.hinhAnhUrl || '',
+    }
+  } catch { /* use empty defaults */ }
+  finally { gtLoading.value = false }
+}
+
+async function saveGioiThieu() {
+  gtSaving.value = true; gtErr.value = ''
+  try {
+    await api.put('/gioi-thieu', gtForm.value)
+    showToast('Đã lưu nội dung Giới Thiệu', 'success')
+  } catch(e) { gtErr.value = e.response?.data?.message || 'Lỗi lưu nội dung' }
+  finally { gtSaving.value = false }
+}
 </script>
 
 <style scoped>
@@ -498,6 +558,16 @@ onMounted(() => { loadBanners() })
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .banner-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.banner-phim {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #29bcea; margin: 2px 0 0;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+}
+.field-hint {
+  font-size: 11px; color: #6B7280; margin: 4px 0 0;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+}
 
 /* ── Product name wrap ── */
 .prod-name-wrap { display: flex; align-items: center; gap: 8px; }

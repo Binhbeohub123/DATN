@@ -17,13 +17,14 @@
         <div v-if="loadingRap" class="loading-text">Đang tải...</div>
         <table v-else>
           <thead>
-            <tr><th>ID</th><th>Tên rạp</th><th>Địa chỉ</th><th>Trạng thái</th><th>Thao tác</th></tr>
+            <tr><th>ID</th><th>Tên rạp</th><th>Địa chỉ</th><th>Thành phố</th><th>Trạng thái</th><th>Thao tác</th></tr>
           </thead>
           <tbody>
             <tr v-for="rap in rapList" :key="rap.id">
               <td>#{{ rap.id }}</td>
               <td class="font-bold">{{ rap.tenRap }}</td>
               <td>{{ rap.diaChi }}</td>
+              <td class="td-city">{{ rap.thanhPho || '—' }}</td>
               <td><span :class="['badge', rap.trangThai ? 'badge-green' : 'badge-gray']">{{ rap.trangThai ? 'Hoạt động' : 'Dừng' }}</span></td>
               <td>
                 <div class="action-btns">
@@ -36,7 +37,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="rapList.length === 0"><td colspan="5" class="empty-text">Chưa có rạp nào</td></tr>
+            <tr v-if="rapList.length === 0"><td colspan="6" class="empty-text">Chưa có rạp nào</td></tr>
           </tbody>
         </table>
       </div>
@@ -163,6 +164,12 @@
         <h2>{{ editingRap ? 'Sửa rạp' : 'Thêm rạp mới' }}</h2>
         <div class="form-group"><label>Tên rạp *</label><input v-model="rapForm.tenRap" placeholder="Tên rạp chiếu" /></div>
         <div class="form-group"><label>Địa chỉ</label><input v-model="rapForm.diaChi" placeholder="Địa chỉ rạp" /></div>
+        <div class="form-group"><label>Thành phố</label><input v-model="rapForm.thanhPho" placeholder="TP.HCM / Hà Nội / ..." /></div>
+        <div class="form-group"><label>Hình ảnh (URL)</label><input v-model="rapForm.hinhAnh" placeholder="https://..." /></div>
+        <div class="form-row">
+          <div class="form-group form-group--half"><label>Latitude</label><input v-model="rapForm.latitude" type="text" inputmode="decimal" placeholder="10.7769" /></div>
+          <div class="form-group form-group--half"><label>Longitude</label><input v-model="rapForm.longitude" type="text" inputmode="decimal" placeholder="106.7009" /></div>
+        </div>
         <div class="form-group">
           <label>Trạng thái</label>
           <select v-model="rapForm.trangThai">
@@ -232,8 +239,16 @@ async function loadRap() {
 function openRapModal(rap = null) {
   editingRap.value = rap
   modalError.value = ''
-  if (rap) rapForm.value = { tenRap: rap.tenRap || '', diaChi: rap.diaChi || '', trangThai: rap.trangThai ?? true }
-  else rapForm.value = { tenRap: '', diaChi: '', trangThai: true }
+  if (rap) rapForm.value = {
+    tenRap:    rap.tenRap    || '',
+    diaChi:    rap.diaChi    || '',
+    trangThai: rap.trangThai ?? true,
+    thanhPho:  rap.thanhPho  || '',
+    latitude:  rap.latitude  != null ? Number(rap.latitude).toFixed(7).replace(/\.?0+$/, '') : '',
+    longitude: rap.longitude != null ? Number(rap.longitude).toFixed(7).replace(/\.?0+$/, '') : '',
+    hinhAnh:   rap.hinhAnh   || '',
+  }
+  else rapForm.value = { tenRap: '', diaChi: '', trangThai: true, thanhPho: '', latitude: '', longitude: '', hinhAnh: '' }
   showRapModal.value = true
 }
 
@@ -241,8 +256,16 @@ async function saveRap() {
   if (!rapForm.value.tenRap.trim()) { modalError.value = 'Tên rạp không được để trống'; return }
   savingRap.value = true; modalError.value = ''
   try {
-    if (editingRap.value) await api.put(`/admin/rap-chieu/${editingRap.value.id}`, rapForm.value)
-    else await api.post('/admin/rap-chieu', rapForm.value)
+    // Parse lat/lng strings → numbers (null if blank or not a valid number)
+    const latRaw = rapForm.value.latitude !== '' ? parseFloat(rapForm.value.latitude) : null
+    const lngRaw = rapForm.value.longitude !== '' ? parseFloat(rapForm.value.longitude) : null
+    const payload = {
+      ...rapForm.value,
+      latitude:  latRaw != null && !isNaN(latRaw)  ? latRaw  : null,
+      longitude: lngRaw != null && !isNaN(lngRaw) ? lngRaw : null,
+    }
+    if (editingRap.value) await api.put(`/admin/rap-chieu/${editingRap.value.id}`, payload)
+    else await api.post('/admin/rap-chieu', payload)
     await loadRap(); showRapModal.value = false
   } catch (e) { modalError.value = e.response?.data?.message || 'Lỗi lưu rạp' }
   finally { savingRap.value = false }
@@ -500,6 +523,8 @@ td {
 }
 .font-bold { font-weight: 600; }
 
+.td-city { font-size: 13px; color: #29bcea; font-weight: 600; }
+
 /* ── Badges ── */
 .badge {
   display: inline-flex;
@@ -606,6 +631,15 @@ td {
   flex-direction: column;
   gap: 6px;
   margin-bottom: 14px;
+}
+.form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 0;
+}
+.form-group--half {
+  flex: 1;
+  min-width: 0;
 }
 .form-group label {
   font-family: var(--font-ui, 'Inter', sans-serif);

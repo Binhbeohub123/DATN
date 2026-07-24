@@ -45,7 +45,10 @@
             <div class="meta-chips">
               <span class="chip">⏱ {{ movie.duration }} phút</span>
               <span class="chip">🌐 {{ movie.language || '—' }}</span>
-              <span class="chip chip--genre">{{ movie.genre || '—' }}</span>
+              <template v-if="movie.theLoais && movie.theLoais.length > 0">
+                <span v-for="t in movie.theLoais" :key="t.id" class="chip chip--genre">{{ t.tenTheLoai }}</span>
+              </template>
+              <span v-else-if="movie.genre" class="chip chip--genre">{{ movie.genre }}</span>
             </div>
           </div>
         </div>
@@ -93,13 +96,52 @@
       <div class="section schedule-section" id="schedule">
         <h2 class="section-title">Chọn suất chiếu</h2>
 
+        <!-- City + Format filters -->
+        <div class="filter-row">
+          <div class="filter-group">
+            <label class="filter-label" for="city-select">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Thành phố
+            </label>
+            <select
+              id="city-select"
+              class="filter-select"
+              v-model="selectedCity"
+              @change="onFilterChange"
+              :aria-label="'Chọn thành phố'"
+            >
+              <option value="">Tất cả thành phố</option>
+              <option v-for="c in cities" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="format-select">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+              Định dạng
+            </label>
+            <select
+              id="format-select"
+              class="filter-select"
+              v-model="selectedDinhDang"
+              @change="onFilterChange"
+              :aria-label="'Chọn định dạng'"
+            >
+              <option value="">Tất cả định dạng</option>
+              <option v-for="dd in dinhDangs" :key="dd.id" :value="String(dd.id)">{{ dd.tenDinhDang }}</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Date tabs -->
-        <div class="date-scroll">
+        <div class="date-scroll" role="tablist" aria-label="Chọn ngày">
           <button
             v-for="d in days"
             :key="d.iso"
             :class="['date-btn', { 'date-btn--active': selectedDate === d.iso }]"
             @click="selectDate(d.iso)"
+            role="tab"
+            :aria-selected="selectedDate === d.iso"
           >
             <span class="date-btn__num">{{ d.num }}</span>
             <span class="date-btn__dow">{{ d.dow }}</span>
@@ -113,23 +155,41 @@
         </div>
 
         <!-- No showtimes -->
-        <div v-else-if="schedulesOnDate.length === 0" class="no-show">
+        <div v-else-if="cinemaGroups.length === 0" class="no-show">
           <p>Không có suất chiếu ngày này</p>
         </div>
 
-        <!-- Showtime cards -->
-        <div v-else class="show-grid">
-          <button
-            v-for="s in schedulesOnDate"
-            :key="s.id"
-            :class="['show-card', { 'show-card--selected': selectedShowtime?.id === s.id }]"
-            @click="pickShowtime(s)"
+        <!-- Cinema-grouped showtime display -->
+        <div v-else class="cinema-groups">
+          <div
+            v-for="group in cinemaGroups"
+            :key="group.rapChieuId"
+            class="cinema-group"
           >
-            <span class="show-time">{{ fmtTime(s.thoiGianBatDau) }}</span>
-            <span class="show-room">{{ s.tenPhong }}</span>
-            <span class="show-type" :class="typeClass(s.loaiPhong)">{{ s.loaiPhong }}</span>
-            <span class="show-price">{{ fmtPrice(s.giaCoBan) }}</span>
-          </button>
+            <!-- Cinema header -->
+            <div class="cinema-group__header">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span class="cinema-group__name">{{ group.tenRap }}</span>
+              <span v-if="group.thanhPho" class="cinema-group__city">{{ group.thanhPho }}</span>
+            </div>
+
+            <!-- Showtime buttons for this cinema -->
+            <div class="show-grid">
+              <button
+                v-for="s in group.showtimes"
+                :key="s.id"
+                :class="['show-card', { 'show-card--selected': selectedShowtime?.id === s.id }]"
+                @click="pickShowtime(s)"
+              >
+                <span class="show-time">{{ fmtTime(s.thoiGianBatDau) }}</span>
+                <span class="show-room">{{ s.tenPhong }}</span>
+                <span class="show-type" :class="typeClass(s.tenDinhDang || s.loaiPhong)">
+                  {{ s.tenDinhDang || s.loaiPhong }}
+                </span>
+                <span class="show-price">{{ fmtPrice(s.giaCoBan) }}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -137,7 +197,9 @@
       <div class="book-bar">
         <div class="book-bar__info">
           <template v-if="selectedShowtime">
-            <span class="book-bar__label">{{ fmtTime(selectedShowtime.thoiGianBatDau) }} · {{ selectedShowtime.tenPhong }}</span>
+            <span class="book-bar__label">
+              {{ selectedShowtime.tenRap ? selectedShowtime.tenRap + ' · ' : '' }}{{ fmtTime(selectedShowtime.thoiGianBatDau) }} · {{ selectedShowtime.tenPhong }}
+            </span>
             <span class="book-bar__price">{{ fmtPrice(selectedShowtime.giaCoBan) }}/ghế</span>
           </template>
           <span v-else class="book-bar__hint">Vui lòng chọn suất chiếu</span>
@@ -180,15 +242,31 @@ const schedulesError  = ref('')
 const selectedDate    = ref('')
 const selectedShowtime = ref(null)
 
-// ── 7-day tab list ──────────────────────────────────────────
+// ── Phase 4: city / format filter state ────────────────────
+const cities         = ref([])   // ['TP.HCM', 'Hà Nội', ...]
+const dinhDangs      = ref([])   // [{ id, tenDinhDang }, ...]
+const selectedCity   = ref('')   // '' = all
+const selectedDinhDang = ref('') // '' = all (stored as string id)
+
+// ── 30-day tab list ─────────────────────────────────────────
+// Use local-date arithmetic only — never toISOString() which converts to UTC
+// and produces the wrong date string in timezones ahead of UTC (e.g. UTC+7).
 const days = computed(() => {
   const out = []
   const DOW = ['CN','T2','T3','T4','T5','T6','T7']
-  for (let i = 0; i < 7; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
+  // Anchor to today's local midnight to avoid any intra-day UTC drift
+  const todayLocal = new Date()
+  const baseY = todayLocal.getFullYear()
+  const baseM = todayLocal.getMonth()
+  const baseD = todayLocal.getDate()
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(baseY, baseM, baseD + i) // local midnight, no UTC shift
+    const y  = d.getFullYear()
+    const mo = String(d.getMonth() + 1).padStart(2, '0')
+    const dy = String(d.getDate()).padStart(2, '0')
     out.push({
-      iso: d.toISOString().slice(0, 10),
+      iso: `${y}-${mo}-${dy}`,   // "YYYY-MM-DD" in local time
       num: d.getDate(),
       dow: DOW[d.getDay()],
     })
@@ -203,6 +281,30 @@ const schedulesOnDate = computed(() => {
     if (!s.thoiGianBatDau) return false
     return s.thoiGianBatDau.slice(0, 10) === selectedDate.value
   })
+})
+
+// ── showtimes grouped by cinema for the new Phase 4 UI ─────
+const cinemaGroups = computed(() => {
+  const on = schedulesOnDate.value
+  if (!on.length) return []
+  const map = new Map()
+  for (const s of on) {
+    const key = s.rapChieuId ?? 0
+    if (!map.has(key)) {
+      map.set(key, {
+        rapChieuId: s.rapChieuId,
+        tenRap:     s.tenRap     || 'Rạp không rõ',
+        thanhPho:   s.thanhPho   || '',
+        showtimes:  [],
+      })
+    }
+    map.get(key).showtimes.push(s)
+  }
+  // sort each cinema's showtimes by start time
+  for (const g of map.values()) {
+    g.showtimes.sort((a, b) => a.thoiGianBatDau.localeCompare(b.thoiGianBatDau))
+  }
+  return [...map.values()].sort((a, b) => a.tenRap.localeCompare(b.tenRap))
 })
 
 // ── age badge class ─────────────────────────────────────────
@@ -226,7 +328,11 @@ async function loadMovie() {
       id: m.id,
       title: m.tenPhim || '',
       titleEn: m.tenPhimTiengAnh || '',
-      genre: m.theLoai || '',
+      // new N-N genre list
+      theLoais: Array.isArray(m.theLoais) ? m.theLoais : [],
+      genre: Array.isArray(m.theLoais) && m.theLoais.length > 0
+        ? m.theLoais.map(t => t.tenTheLoai).join(', ')
+        : '',
       director: m.daoDien || '',
       cast: m.dienVienChinh || '',
       duration: m.thoiLuong || 0,
@@ -249,14 +355,20 @@ async function loadMovie() {
   }
 }
 
-// ── load all schedules for this movie (no date filter — we filter client-side) ──
+// ── load schedules — uses /search when filters active, otherwise /phim/{id}/lich-chieu ──
 async function loadSchedules() {
   const id = route.params.id
   if (!id) return
   loadingSchedules.value = true
   schedulesError.value = ''
   try {
-    const res = await api.get(`/phim/${id}/lich-chieu`)
+    const params = { phimId: id }
+    if (selectedCity.value)   params.thanhPho   = selectedCity.value
+    if (selectedDinhDang.value) params.dinhDangId = selectedDinhDang.value
+
+    const useSearch = selectedCity.value || selectedDinhDang.value
+    const endpoint  = useSearch ? '/lich-chieu/search' : `/phim/${id}/lich-chieu`
+    const res = await api.get(endpoint, { params: useSearch ? params : {} })
     schedules.value = Array.isArray(res.data) ? res.data : []
   } catch (e) {
     schedulesError.value = 'Không tải được lịch chiếu'
@@ -264,6 +376,24 @@ async function loadSchedules() {
   } finally {
     loadingSchedules.value = false
   }
+}
+
+// ── load filter options (cities + formats) ──────────────────
+async function loadFilterOptions() {
+  try {
+    const [citiesRes, formatsRes] = await Promise.all([
+      api.get('/rap-chieu/cities'),
+      api.get('/dinh-dang'),
+    ])
+    cities.value   = citiesRes.data  || []
+    dinhDangs.value = formatsRes.data || []
+  } catch { /* non-fatal — selectors just stay empty */ }
+}
+
+// ── react to filter changes ─────────────────────────────────
+async function onFilterChange() {
+  selectedShowtime.value = null
+  await loadSchedules()
 }
 
 function selectDate(iso) {
@@ -278,11 +408,14 @@ function pickShowtime(s) {
     phimId: s.phimId,
     phongChieuId: s.phongChieuId,
     tenPhong: s.tenPhong,
-    loaiPhong: s.loaiPhong,
+    loaiPhong: s.loaiPhong || s.tenDinhDang || '',
+    rapChieuId: s.rapChieuId,
+    tenRap: s.tenRap,
+    thanhPho: s.thanhPho,
+    tenDinhDang: s.tenDinhDang,
     thoiGianBatDau: s.thoiGianBatDau,
     thoiGianKetThuc: s.thoiGianKetThuc,
     giaCoBan: s.giaCoBan,
-    // Provide phongChieu sub-object for downstream pages
     phongChieu: { id: s.phongChieuId, tenPhong: s.tenPhong, loaiPhong: s.loaiPhong },
   })
 }
@@ -333,15 +466,17 @@ function typeClass(t) {
 onMounted(async () => {
   selectedDate.value = days.value[0].iso
   await loadMovie()
-  await loadSchedules()
+  await Promise.all([loadSchedules(), loadFilterOptions()])
 })
 
 watch(() => route.params.id, async (id) => {
   if (id) {
     selectedShowtime.value = null
+    selectedCity.value = ''
+    selectedDinhDang.value = ''
     selectedDate.value = days.value[0].iso
     await loadMovie()
-    await loadSchedules()
+    await Promise.all([loadSchedules(), loadFilterOptions()])
   }
 })
 </script>
@@ -521,6 +656,87 @@ watch(() => route.params.id, async (id) => {
 
 /* ── schedule ─────────────────────────────────────────────── */
 .schedule-section { padding-bottom: 40px; }
+
+/* Filter row: city + format selectors */
+.filter-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 160px;
+  min-width: 140px;
+  max-width: 260px;
+}
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-ghost, rgba(241,245,249,0.45));
+}
+.filter-select {
+  padding: 9px 14px;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-sm, 6px);
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  color: var(--text-primary, #f1f5f9);
+  font-size: 14px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  cursor: pointer;
+  outline: none;
+  min-height: 40px;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239CA3AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.filter-select:focus { border-color: var(--electric, #29bcea); }
+.filter-select option { background: var(--surface-1, #0f0f17); color: var(--text-primary, #f1f5f9); }
+
+/* Cinema groups */
+.cinema-groups { display: flex; flex-direction: column; gap: 20px; }
+
+.cinema-group {
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-md, 12px);
+  overflow: hidden;
+  background: var(--glass-bg, rgba(255,255,255,0.02));
+}
+
+.cinema-group__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  color: var(--text-primary, #f1f5f9);
+}
+.cinema-group__header svg { color: var(--electric, #29bcea); flex-shrink: 0; }
+.cinema-group__name { font-size: 14px; font-weight: 700; }
+.cinema-group__city {
+  font-size: 11px;
+  color: var(--electric, #29bcea);
+  font-weight: 600;
+  margin-left: auto;
+  background: rgba(41,188,234,0.08);
+  border: 1px solid rgba(41,188,234,0.2);
+  border-radius: var(--radius-pill, 999px);
+  padding: 2px 8px;
+}
+
+.cinema-group .show-grid { padding: 12px; }
 .date-scroll {
   display: flex; gap: 10px; overflow-x: auto;
   padding-bottom: 12px; margin-bottom: 20px;

@@ -23,16 +23,10 @@ public class DatVeService {
     private final SanPhamRepository sanPhamRepository;
     private final KhuyenMaiRepository khuyenMaiRepository;
     private final NguoiDungRepository nguoiDungRepository;
+    private final SeatLockRepository seatLockRepository;
 
     /**
      * Tạo đơn đặt vé
-     * @param userId ID của người dùng
-     * @param lichChieuId ID của lịch chiếu
-     * @param gheIds Danh sách ID ghế
-     * @param comboData Danh sách combo: [{id: sanPhamId, soLuong: quantity}, ...]
-     * @param maKhuyenMai Mã khuyến mãi (optional)
-     * @param diemSuDung Điểm sử dụng (optional)
-     * @return DatVe object
      */
     @Transactional
     public DatVe createBooking(
@@ -43,73 +37,55 @@ public class DatVeService {
             String maKhuyenMai,
             Integer diemSuDung
     ) {
-        // 1. Validate cơ bản
         if (gheIds == null || gheIds.isEmpty()) {
             throw new IllegalArgumentException("Phải chọn ít nhất 1 ghế");
         }
-
         if (gheIds.size() > 8) {
             throw new IllegalArgumentException("Tối đa 8 ghế/lần đặt");
         }
 
-        // 2. Lấy lịch chiếu
         LichChieu lichChieu = lichChieuRepository.findById(lichChieuId)
                 .orElseThrow(() -> new IllegalArgumentException("Lịch chiếu không tồn tại"));
 
-        // 3. Lấy người dùng
         NguoiDung nguoiDung = nguoiDungRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
 
-        // 4. Validate ghế - kiểm tra tồn tại và còn trống
         List<GheNgoi> gheList = new ArrayList<>();
         for (Long gheId : gheIds) {
             GheNgoi ghe = gheNgoiRepository.findById(gheId)
                     .orElseThrow(() -> new IllegalArgumentException("Ghế ID " + gheId + " không tồn tại"));
-
-            // Kiểm tra ghế thuộc phòng chiếu của lịch chiếu này
             if (!ghe.getPhongChieu().getId().equals(lichChieu.getPhongChieu().getId())) {
                 throw new IllegalArgumentException("Ghế ID " + gheId + " không thuộc phòng chiếu này");
             }
-
             gheList.add(ghe);
         }
 
-        // 5. Kiểm tra ghế đã được đặt chưa
+        // Check if seats are already taken in this showtime
         Set<Long> gheDaDat = chiTietDatGheRepository.findByLichChieuId(lichChieuId)
                 .stream()
                 .map(ct -> ct.getGheNgoi().getId())
                 .collect(Collectors.toSet());
-
         for (Long gheId : gheIds) {
             if (gheDaDat.contains(gheId)) {
                 throw new IllegalArgumentException("Ghế ID " + gheId + " đã được đặt");
             }
         }
 
-        // 6. Tính tổng tiền ghế
         BigDecimal tongTienGhe = BigDecimal.ZERO;
         for (GheNgoi ghe : gheList) {
-            BigDecimal giaGhe = lichChieu.getGiaCoBan().multiply(ghe.getHeSoGia());
-            tongTienGhe = tongTienGhe.add(giaGhe);
+            tongTienGhe = tongTienGhe.add(lichChieu.getGiaCoBan().multiply(ghe.getHeSoGia()));
         }
 
-        // 7. Tính tổng tiền combo
         BigDecimal tongTienCombo = BigDecimal.ZERO;
         List<ChiTietDatSanPham> chiTietComboList = new ArrayList<>();
-
         if (comboData != null && !comboData.isEmpty()) {
             for (Map<String, Object> combo : comboData) {
                 Long sanPhamId = ((Number) combo.get("id")).longValue();
                 Integer soLuong = ((Number) combo.get("soLuong")).intValue();
-
                 SanPham sanPham = sanPhamRepository.findById(sanPhamId)
                         .orElseThrow(() -> new IllegalArgumentException("Sản phẩm ID " + sanPhamId + " không tồn tại"));
-
                 BigDecimal giaSanPham = sanPham.getGia();
-                BigDecimal tienCombo = giaSanPham.multiply(BigDecimal.valueOf(soLuong));
-                tongTienCombo = tongTienCombo.add(tienCombo);
-
-                // Chuẩn bị chi tiết combo
+                tongTienCombo = tongTienCombo.add(giaSanPham.multiply(BigDecimal.valueOf(soLuong)));
                 ChiTietDatSanPham chiTiet = new ChiTietDatSanPham();
                 chiTiet.setSanPham(sanPham);
                 chiTiet.setSoLuong(soLuong);
@@ -118,50 +94,34 @@ public class DatVeService {
             }
         }
 
-        // 8. Tính tổng tiền gốc (ghế + combo)
         BigDecimal tongTienGoc = tongTienGhe.add(tongTienCombo);
 
-        // 9. Áp dụng khuyến mãi
         KhuyenMai khuyenMai = null;
         BigDecimal tienGiamKhuyenMai = BigDecimal.ZERO;
-
         if (maKhuyenMai != null && !maKhuyenMai.isEmpty()) {
             khuyenMai = khuyenMaiRepository.findByMaKhuyenMai(maKhuyenMai)
                     .orElseThrow(() -> new IllegalArgumentException("Mã khuyến mãi không hợp lệ"));
-
-            // Tính tiền giảm
             if ("percent".equalsIgnoreCase(khuyenMai.getLoaiGiamGia())) {
-                tienGiamKhuyenMai = tongTienGoc
-                        .multiply(khuyenMai.getGiaTriGiam())
+                tienGiamKhuyenMai = tongTienGoc.multiply(khuyenMai.getGiaTriGiam())
                         .divide(BigDecimal.valueOf(100));
-                // Giới hạn tiền giảm tối đa
                 if (khuyenMai.getGiaTriGiamToiDa() != null) {
                     tienGiamKhuyenMai = tienGiamKhuyenMai.min(khuyenMai.getGiaTriGiamToiDa());
                 }
             } else {
-                // Giảm cố định
                 tienGiamKhuyenMai = khuyenMai.getGiaTriGiam().min(tongTienGoc);
             }
         }
 
-        // 10. Áp dụng điểm thích lập
         BigDecimal tienGiamTuDiem = BigDecimal.ZERO;
         if (diemSuDung != null && diemSuDung > 0) {
-            // 1 điểm = 1000 VND
-            tienGiamTuDiem = BigDecimal.valueOf(diemSuDung * 1000L);
-            // Không được giảm hơn tổng tiền
-            tienGiamTuDiem = tienGiamTuDiem.min(tongTienGoc);
+            tienGiamTuDiem = BigDecimal.valueOf(diemSuDung * 1000L).min(tongTienGoc);
         }
 
-        // 11. Tính tổng tiền thanh toán
-        BigDecimal tongTienThanhToan = tongTienGoc
-                .subtract(tienGiamKhuyenMai)
-                .subtract(tienGiamTuDiem);
+        BigDecimal tongTienThanhToan = tongTienGoc.subtract(tienGiamKhuyenMai).subtract(tienGiamTuDiem);
         if (tongTienThanhToan.compareTo(BigDecimal.ZERO) < 0) {
             tongTienThanhToan = BigDecimal.ZERO;
         }
 
-        // 12. Tạo đơn đặt vé
         DatVe datVe = new DatVe();
         datVe.setMaDatVe(generateBookingCode());
         datVe.setNguoiDung(nguoiDung);
@@ -174,11 +134,10 @@ public class DatVeService {
         datVe.setTongTienThanhToan(tongTienThanhToan);
         datVe.setTrangThai("pending");
         datVe.setTrangThaiThanhToan("unpaid");
-        datVe.setHetHanGiuGhe(LocalDateTime.now().plusMinutes(15)); // Giữ ghế 15 phút
+        datVe.setHetHanGiuGhe(LocalDateTime.now().plusMinutes(15));
 
         DatVe savedDatVe = datVeRepository.save(datVe);
 
-        // 13. Lưu chi tiết đặt ghế
         for (GheNgoi ghe : gheList) {
             ChiTietDatGhe chiTiet = new ChiTietDatGhe();
             chiTiet.setDatVe(savedDatVe);
@@ -189,7 +148,6 @@ public class DatVeService {
             chiTietDatGheRepository.save(chiTiet);
         }
 
-        // 14. Lưu chi tiết sản phẩm
         for (ChiTietDatSanPham chiTiet : chiTietComboList) {
             chiTiet.setDatVe(savedDatVe);
             chiTietDatSanPhamRepository.save(chiTiet);
@@ -198,45 +156,142 @@ public class DatVeService {
         return savedDatVe;
     }
 
-    /**
-     * Lấy lịch sử đặt vé của user
-     */
+    // ─────────────────────────────────────────────────────────────
+    // Query methods
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
     public List<DatVe> getBookingHistory(Long userId) {
-        return datVeRepository.findByNguoiDungId(userId);
+        return datVeRepository.findByNguoiDungIdOrderByIdDesc(userId);
     }
 
-    /**
-     * Lấy chi tiết một đơn đặt vé
-     */
+    @Transactional(readOnly = true)
     public DatVe getBookingDetail(Long bookingId) {
-        return datVeRepository.findById(bookingId).orElse(null);
+        return datVeRepository.findByIdWithDetails(bookingId).orElse(null);
     }
 
-    /**
-     * Hủy đơn đặt vé
-     */
+    // ─────────────────────────────────────────────────────────────
+    // Cancel — customer-facing (owner check enforced)
+    // ─────────────────────────────────────────────────────────────
+
     @Transactional
     public void cancelBooking(Long bookingId, Long userId) {
         DatVe datVe = datVeRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalArgumentException("Đơn đặt vé không tồn tại"));
 
-        // Kiểm tra quyền (chỉ user chủ sở hữu mới được hủy)
         if (!datVe.getNguoiDung().getId().equals(userId)) {
             throw new IllegalArgumentException("Bạn không có quyền hủy đơn này");
         }
-
-        // Chỉ được hủy nếu chưa thanh toán
         if ("paid".equalsIgnoreCase(datVe.getTrangThaiThanhToan())) {
             throw new IllegalArgumentException("Không thể hủy đơn đã thanh toán");
         }
 
-        datVe.setTrangThai("cancelled");
-        datVeRepository.save(datVe);
+        performCancel(datVe);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Cancel — admin (no owner check)
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional
+    public void cancelBookingByAdmin(String maDatVe) {
+        DatVe datVe = datVeRepository.findByMaDatVe(maDatVe)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn đặt vé: " + maDatVe));
+        if ("cancelled".equals(datVe.getTrangThai())) {
+            throw new IllegalArgumentException("Đơn đặt vé đã bị hủy trước đó");
+        }
+        performCancel(datVe);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Core cancel — used by customer, admin, and expiry scheduler
+    // ─────────────────────────────────────────────────────────────
+
     /**
-     * Generate mã đặt vé: "BK" + timestamp + random
+     * Cancels a booking.
+     *
+     * IMPORTANT — DB constraints:
+     *   TrangThai         CHECK: 'pending' | 'confirmed' | 'cancelled'
+     *   TrangThaiThanhToan CHECK: 'unpaid'  | 'paid'
+     *
+     * We ONLY set TrangThai = 'cancelled'.
+     * We NEVER touch TrangThaiThanhToan — it stays 'unpaid' (payment never happened).
+     * Only markPaid() in ThanhToanService sets TrangThaiThanhToan = 'paid'.
+     *
+     * Also deletes ChiTietDatGhe rows so the seats show as available in the seat map.
+     * GheNgoi has no status field — availability is determined solely by whether a
+     * ChiTietDatGhe record exists for that seat + showtime.
      */
+    @Transactional
+    public void performCancel(DatVe datVe) {
+        // ── 1. Mark booking cancelled ─────────────────────────────
+        datVe.setTrangThai("cancelled");
+        // DO NOT call setTrangThaiThanhToan() — CHECK constraint only allows 'unpaid'|'paid'
+        datVeRepository.save(datVe);
+
+        // ── 2. Release seat records and all seat locks ────────────
+        // releaseSeatsByBooking handles:
+        //   - ChiTietDatGhe deletion (frees seats on seat map)
+        //   - SeatLock deletion by maDatVe
+        //   - SeatLock deletion by gheNgoiId + lichChieuId (orphaned locks)
+        releaseSeatsByBooking(datVe);
+
+        // ── 3. Decrement promo usage counter ──────────────────────
+        if (datVe.getKhuyenMai() != null) {
+            KhuyenMai km = datVe.getKhuyenMai();
+            if (km.getDaSuDung() != null && km.getDaSuDung() > 0) {
+                km.setDaSuDung(km.getDaSuDung() - 1);
+                khuyenMaiRepository.save(km);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Seat release — shared by performCancel() and BookingExpiryService
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Deletes all ChiTietDatGhe records for this booking so the seats
+     * become available again in the seat map, and releases any orphaned
+     * SeatLock records that are tied to those seats by (gheNgoiId, lichChieuId)
+     * — these are locks created when the user clicked a seat before the booking
+     * was confirmed, where maDatVe may be NULL.
+     *
+     * Call order:
+     *  1. Read ChiTietDatGhe list first (needed for step 3)
+     *  2. Delete ChiTietDatGhe rows (frees seats on the seat map)
+     *  3. Delete SeatLock by maDatVe (named locks)
+     *  4. Delete SeatLock by gheNgoiId + lichChieuId (orphaned / unnamed locks)
+     */
+    @Transactional
+    public void releaseSeatsByBooking(DatVe datVe) {
+        // Step 1 — read BEFORE deleting (needed for step 4)
+        List<ChiTietDatGhe> seats = chiTietDatGheRepository.findByDatVeId(datVe.getId());
+
+        // Step 2 — delete ChiTietDatGhe rows → seats become available in seat map
+        if (!seats.isEmpty()) {
+            chiTietDatGheRepository.deleteAll(seats);
+        }
+
+        // Step 3 — delete SeatLock records tied to this booking by maDatVe
+        seatLockRepository.deleteByMaDatVe(datVe.getMaDatVe());
+
+        // Step 4 — delete orphaned SeatLock records by (gheNgoiId, lichChieuId)
+        // These exist when a user locked a seat before the booking was confirmed
+        // and the lock's maDatVe was never set (NULL).
+        if (datVe.getLichChieu() != null) {
+            Long lichChieuId = datVe.getLichChieu().getId();
+            for (ChiTietDatGhe ct : seats) {
+                seatLockRepository.deleteByGheNgoiIdAndLichChieuId(
+                        ct.getGheNgoi().getId(), lichChieuId);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────
+
     private String generateBookingCode() {
         long timestamp = System.currentTimeMillis();
         int random = new Random().nextInt(1000);

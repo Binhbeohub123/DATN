@@ -41,13 +41,26 @@ export const useBookingStore = defineStore('booking', () => {
 
   const promoDiscount = computed(() => {
     if (!promoData.value) return 0
-    if (promoData.value.loaiGiamGia === 'percent') {
-      return Math.min(
-        (subtotal.value * promoData.value.giaTriGiam) / 100,
-        promoData.value.giaTriGiamToiDa || Infinity
-      )
+
+    // Prefer the pre-computed discountAmount returned by the backend validate endpoint.
+    // This avoids any NaN/null arithmetic on the raw percent/fixed fields.
+    const precomputed = promoData.value.discountAmount
+    if (precomputed != null && !isNaN(Number(precomputed))) {
+      return Math.min(Number(precomputed), subtotal.value)
     }
-    return Math.min(promoData.value.giaTriGiam, subtotal.value)
+
+    // Fallback: re-compute locally from raw promo fields
+    const rate    = Number(promoData.value.giaTriGiam)     ?? 0
+    const maxDisc = promoData.value.giaTriGiamToiDa != null
+                      ? Number(promoData.value.giaTriGiamToiDa)
+                      : Infinity
+
+    if (promoData.value.loaiGiamGia === 'percent') {
+      const pct = (subtotal.value * rate) / 100
+      return Math.min(pct, isFinite(maxDisc) ? maxDisc : pct)
+    }
+    // fixed amount
+    return Math.min(rate, subtotal.value)
   })
 
   const pointsDiscount = computed(() => {
@@ -131,7 +144,21 @@ export const useBookingStore = defineStore('booking', () => {
     loading.value.promo = true
     error.value.promo = ''
     try {
-      const res = await api.post('/khuyen-mai/validate', { maKhuyenMai: code })
+      // Send tongTien so the backend can compute the actual discountAmount.
+      // Without it, percent-type promos return discountAmount = 0 (0 * rate / 100).
+      const res = await api.post('/khuyen-mai/validate', {
+        maKhuyenMai: code,
+        tongTien:    subtotal.value,
+      })
+
+      // Backend returns { valid, discountAmount, tenKhuyenMai, loaiGiamGia, giaTriGiam, ... }
+      if (!res.data?.valid) {
+        error.value.promo = res.data?.message || 'Mã không hợp lệ'
+        promoCode.value = ''
+        promoData.value = null
+        return false
+      }
+
       promoCode.value = code
       promoData.value = res.data
       return true

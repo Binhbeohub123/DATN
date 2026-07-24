@@ -9,4 +9,7 @@ public interface PhongChieuRepository
         extends JpaRepository<PhongChieu, Long> {
 
     List<PhongChieu> findByRapChieuIdAndTrangThaiTrue(Long rapChieuId);
+
+    /** Used by DinhDangController to guard DELETE — checks if any room references this format. */
+    long countByDinhDangId(Long dinhDangId);
 }

@@ -31,7 +31,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/ve")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class VeController {
 
     private final DatVeRepository datVeRepository;

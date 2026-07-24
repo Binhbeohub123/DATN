@@ -254,6 +254,20 @@
             </div>
           </div>
 
+          <!-- ================= EXPIRED SESSION NOTICE ================= -->
+          <transition name="slide">
+            <div v-if="route.query.expired === 'true' && !error && !success" class="msg warn glass-card">
+              <span class="icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <circle cx="12" cy="16" r="0.5" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="text">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</span>
+            </div>
+          </transition>
+
           <!-- ================= MESSAGE ================= -->
           <transition name="slide">
             <div v-if="error" class="msg error glass-card">
@@ -694,16 +708,37 @@ async function resetPassword() {
 }
 
 // ================= SOCIAL LOGIN =================
+/**
+ * Build the backend base URL for OAuth2 redirects.
+ * VITE_API_BASE_URL is e.g. "http://localhost:8080/api" in dev (when set)
+ * or "/api" via Vite proxy (when not set).
+ *
+ * OAuth2 endpoints live on the backend root, not under /api.
+ * Strategy:
+ *   1. If VITE_API_BASE_URL is set → strip "/api" suffix to get the origin.
+ *   2. If not set (Vite proxy mode) → use absolute http://localhost:8080
+ *      because /oauth2/... cannot be proxied the same way as /api/.
+ */
+function getBackendOrigin() {
+  const apiUrl = import.meta.env.VITE_API_BASE_URL
+  if (apiUrl) {
+    // e.g. "https://myapp.railway.app/api" → "https://myapp.railway.app"
+    return apiUrl.replace(/\/api\/?$/, '')
+  }
+  // Local dev with Vite proxy: must use full backend URL for OAuth2
+  return 'http://localhost:8080'
+}
+
 function loginGoogle() {
   clearMsg()
   isLoading.value.google = true
-  window.location.href = (import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace('/api', '') : '') + '/oauth2/authorization/google'
+  window.location.href = getBackendOrigin() + '/oauth2/authorization/google'
 }
 
 function loginDiscord() {
   clearMsg()
   isLoading.value.discord = true
-  window.location.href = (import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace('/api', '') : '') + '/oauth2/authorization/discord'
+  window.location.href = getBackendOrigin() + '/oauth2/authorization/discord'
 }
 </script>
 
@@ -951,6 +986,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .msg .text { flex: 1; word-break: break-word; }
 .error { border-color: rgba(248,113,113,0.3); color: #f87171; }
 .success { border-color: rgba(52,211,153,0.3); color: #34d399; }
+.warn { border-color: rgba(251,191,36,0.35); color: #fbbf24; }
 
 .slide-enter-active, .slide-leave-active { transition: all 0.2s ease; }
 .slide-enter-from, .slide-leave-to { opacity: 0; transform: translateY(-6px); }

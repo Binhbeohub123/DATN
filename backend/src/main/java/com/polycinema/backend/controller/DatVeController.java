@@ -1,8 +1,10 @@
 package com.polycinema.backend.controller;
 
 import com.polycinema.backend.entity.DatVe;
+import com.polycinema.backend.entity.SeatLock;
 import com.polycinema.backend.repository.NguoiDungRepository;
 import com.polycinema.backend.service.DatVeService;
+import com.polycinema.backend.service.SeatLockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,11 +18,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/dat-ve")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class DatVeController {
 
     private final DatVeService datVeService;
     private final NguoiDungRepository nguoiDungRepository;
+    private final SeatLockService seatLockService;
 
     /**
      * POST /api/dat-ve
@@ -155,6 +157,49 @@ public class DatVeController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Lỗi hủy đơn: " + e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/dat-ve/lock-seat
+     * Body: { "gheNgoiId": 1, "lichChieuId": 5 }
+     * Locks the seat for the current user for SEAT_LOCK_MINUTES minutes.
+     */
+    @PostMapping("/lock-seat")
+    public ResponseEntity<?> lockSeat(@RequestBody Map<String, Object> req) {
+        try {
+            Long userId = getUserIdFromToken();
+            if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
+            Long gheNgoiId  = ((Number) req.get("gheNgoiId")).longValue();
+            Long lichChieuId = ((Number) req.get("lichChieuId")).longValue();
+            SeatLock lock = seatLockService.lockSeat(gheNgoiId, lichChieuId, userId);
+            int lockMins  = seatLockService.getSeatLockDuration();
+            return ResponseEntity.ok(Map.of(
+                    "expiresAt",          lock.getExpiresAt().toString(),
+                    "lockDurationMinutes", lockMins));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khóa ghế: " + e.getMessage());
+        }
+    }
+
+    /**
+     * DELETE /api/dat-ve/release-seat
+     * Body: { "gheNgoiId": 1, "lichChieuId": 5 }
+     * Releases a seat lock held by the current user.
+     */
+    @DeleteMapping("/release-seat")
+    public ResponseEntity<?> releaseSeat(@RequestBody Map<String, Object> req) {
+        try {
+            Long userId = getUserIdFromToken();
+            if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
+            Long gheNgoiId  = ((Number) req.get("gheNgoiId")).longValue();
+            Long lichChieuId = ((Number) req.get("lichChieuId")).longValue();
+            seatLockService.releaseSeat(gheNgoiId, lichChieuId);
+            return ResponseEntity.ok(Map.of("message", "Đã giải phóng ghế"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi giải phóng ghế: " + e.getMessage());
         }
     }
 

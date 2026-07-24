@@ -1,57 +1,25 @@
 package com.polycinema.backend.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.MediaType;
-import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.springframework.web.servlet.resource.PathResourceResolver;
-import java.io.IOException;
-
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Override
-    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
-
-        // UTF-8 JSON responses
-        List<MediaType> supportedMediaTypes = new ArrayList<>();
-        supportedMediaTypes.add(new MediaType("application", "json", StandardCharsets.UTF_8));
-        supportedMediaTypes.add(new MediaType("application", "*+json", StandardCharsets.UTF_8));
-        converter.setSupportedMediaTypes(supportedMediaTypes);
-
-        // Configure ObjectMapper: ISO-8601 dates, UTF-8 locale
-        ObjectMapper mapper = converter.getObjectMapper();
-        mapper.setLocale(new java.util.Locale("vi", "VN"));
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        converters.add(0, converter);
+    /**
+     * RestTemplate bean used by ThanhToanService for PayOS HTTP calls.
+     */
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/**")
-                .addResourceLocations("classpath:/static/")
-                .resourceChain(true)
-                .addResolver(new PathResourceResolver() {
-                    @Override
-                    protected Resource getResource(String resourcePath, Resource location) throws IOException {
-                        Resource requestedResource = location.createRelative(resourcePath);
-                        return requestedResource.exists() && requestedResource.isReadable() ? requestedResource
-                                : new ClassPathResource("/static/index.html");
-                    }
-                });
+        registry.addResourceHandler("/static/**")
+                .addResourceLocations("classpath:/static/");
     }
 }

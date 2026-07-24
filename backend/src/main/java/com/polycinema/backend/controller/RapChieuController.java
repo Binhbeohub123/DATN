@@ -14,7 +14,6 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/rap-chieu")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class RapChieuController {
 
     private final RapChieuRepository rapChieuRepository;
@@ -28,6 +27,28 @@ public class RapChieuController {
     public ResponseEntity<List<RapChieu>> getAllRap() {
         List<RapChieu> raps = rapChieuRepository.findByTrangThaiTrue();
         return ResponseEntity.ok(raps);
+    }
+
+    /**
+     * GET /api/rap-chieu/cities — public
+     * Distinct non-null city names from active cinemas, sorted A-Z.
+     * Used to populate the city-selector dropdown on the movie detail page.
+     * Returns only cities where at least one active cinema is present.
+     */
+    @GetMapping("/cities")
+    public ResponseEntity<List<String>> getCities() {
+        return ResponseEntity.ok(rapChieuRepository.findDistinctCities());
+    }
+
+    /**
+     * GET /api/rap-chieu/{id} — public
+     * Trả về chi tiết một rạp chiếu theo id.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getRapById(@PathVariable Long id) {
+        return rapChieuRepository.findById(id)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     /**

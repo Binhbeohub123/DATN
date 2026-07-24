@@ -94,9 +94,11 @@ function showToast(msg, type='error') {
   toastTimer = setTimeout(() => toast.show=false, 3500)
 }
 
-// default range: last 30 days
-const today = new Date().toISOString().slice(0,10)
-const ago30 = new Date(Date.now()-30*86400000).toISOString().slice(0,10)
+// default range: last 30 days — use local-date arithmetic (no toISOString/UTC shift)
+const _now   = new Date()
+const _localDate = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+const today  = _localDate(_now)
+const ago30  = _localDate(new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 30))
 const from    = ref(ago30)
 const to      = ref(today)
 const groupBy = ref('day')
