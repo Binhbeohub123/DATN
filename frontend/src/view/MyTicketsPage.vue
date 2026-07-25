@@ -83,9 +83,9 @@
 
     <!-- QR Modal -->
     <transition name="fade">
-      <div v-if="qrTicket" class="modal-bg" @click.self="qrTicket = null">
+      <div v-if="qrTicket" class="modal-bg" @click.self="closeQr()">
         <div class="qr-modal">
-          <button class="modal-close" @click="qrTicket = null">✕</button>
+          <button class="modal-close" @click="closeQr()">✕</button>
           <h2 class="qr-title">{{ qrTicket.lichChieu?.phim?.tenPhim }}</h2>
           <p class="qr-sub">{{ fmtDt(qrTicket.lichChieu?.thoiGianBatDau) }} · {{ qrTicket.lichChieu?.phongChieu?.tenPhong }}</p>
           <div class="qr-box">
@@ -97,6 +97,8 @@
             </div>
           </div>
           <p class="qr-hint">Xuất trình mã QR tại quầy để nhận vé</p>
+          <!-- Download button — only visible when QR has loaded -->
+          <button v-if="qrSrc && !qrLoading" class="btn-dl-qr" @click="downloadQr">⬇ Tải mã QR</button>
           <div class="qr-rows">
             <div class="qr-row"><span>Ghế</span><span>{{ seatList(qrTicket) }}</span></div>
             <div class="qr-row"><span>Tổng tiền</span><span class="gold">{{ fmtPrice(qrTicket.tongTienThanhToan) }}</span></div>
@@ -125,6 +127,7 @@ const cancelling = ref(null)
 const qrTicket   = ref(null)
 const qrSrc      = ref('')
 const qrLoading  = ref(false)
+const qrObjectUrl = ref(null)  // tracks the current blob URL for revocation
 
 const TABS = [
   { val: 'all',       label: 'Tất cả' },
@@ -189,20 +192,41 @@ function repayTicket(tk) {
 }
 
 async function openQR(tk) {
+  // Revoke any previous blob URL before creating a new one
+  if (qrObjectUrl.value) {
+    URL.revokeObjectURL(qrObjectUrl.value)
+    qrObjectUrl.value = null
+  }
   qrTicket.value = tk
   qrSrc.value    = ''
-  // Use maQR field directly — it may be a URL or base64
-  if (tk.maQR) {
-    qrSrc.value = tk.maQR
-    return
-  }
-  // Fetch fresh booking detail to get maQR
   qrLoading.value = true
   try {
-    const res = await api.get(`/dat-ve/${tk.id}`)
-    qrSrc.value = res.data?.maQR || ''
-  } catch { qrSrc.value = '' }
-  finally { qrLoading.value = false }
+    const res = await api.get(`/ve/${tk.maDatVe}/qr`, { responseType: 'blob', headers: { Accept: 'image/png' } })
+    const url = URL.createObjectURL(res.data)
+    qrObjectUrl.value = url
+    qrSrc.value = url
+  } catch {
+    qrSrc.value = ''  // fallback SVG will display
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+function closeQr() {
+  if (qrObjectUrl.value) {
+    URL.revokeObjectURL(qrObjectUrl.value)
+    qrObjectUrl.value = null
+  }
+  qrSrc.value   = ''
+  qrTicket.value = null
+}
+
+function downloadQr() {
+  if (!qrObjectUrl.value || !qrTicket.value) return
+  const a = document.createElement('a')
+  a.href = qrObjectUrl.value
+  a.download = `ve-${qrTicket.value.maDatVe}-qr.png`
+  a.click()
 }
 
 async function cancelTicket(tk) {
@@ -493,6 +517,27 @@ onMounted(loadTickets)
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .qr-hint { font-size: 12px; color: var(--text-secondary, #94a3b8); margin: 0 0 16px; }
+
+.btn-dl-qr {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.15));
+  background: transparent;
+  color: var(--gold, #C9A84C);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-dl-qr:hover {
+  border-color: var(--gold, #C9A84C);
+  background: rgba(201,168,76,0.08);
+}
 .qr-rows { text-align: left; }
 .qr-row {
   display: flex; justify-content: space-between; font-size: 13px;

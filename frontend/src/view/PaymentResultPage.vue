@@ -138,7 +138,7 @@ async function loadQr(maVe) {
   qrLoading.value = true
   qrError.value   = false
   try {
-    const res = await api.get(`/ve/${maVe}/qr`, { responseType: 'blob' })
+    const res = await api.get(`/ve/${maVe}/qr`, { responseType: 'blob', headers: { Accept: 'image/png' } })
     if (qrObjectUrl.value) URL.revokeObjectURL(qrObjectUrl.value)
     qrObjectUrl.value = URL.createObjectURL(res.data)
   } catch {
