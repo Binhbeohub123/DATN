@@ -470,6 +470,13 @@ async function confirm() {
       }
       bookingId = booking.id
       ngayTao   = booking.ngayTao
+
+      // Zero-total: backend already confirmed/paid — skip gateway
+      if (booking.trangThaiThanhToan === 'paid'
+          || Number(booking.tongTienThanhToan) === 0) {
+        router.push({ name: 'payment-result', params: { bookingId: String(bookingId) } })
+        return
+      }
     }
 
     // Start countdown from booking creation time

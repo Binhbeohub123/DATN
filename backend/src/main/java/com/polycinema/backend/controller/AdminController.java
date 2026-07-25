@@ -357,6 +357,12 @@ public class AdminController {
         lichChieu.setPhim(phim);
         lichChieu.setPhongChieu(phongChieu);
 
+        // Format-compatibility check: room's dinhDang must be in the movie's dinhDangs list
+        java.util.Optional<String> formatErr = validateDinhDangCompatibility(phim, phongChieu);
+        if (formatErr.isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("message", formatErr.get()));
+        }
+
         // Conflict detection: same room, overlapping time
         if (lichChieu.getPhongChieu() != null && lichChieu.getThoiGianBatDau() != null && lichChieu.getThoiGianKetThuc() != null) {
             LocalDateTime start = lichChieu.getThoiGianBatDau();
@@ -507,179 +513,395 @@ public class AdminController {
     }
 
     /**
-     * POST /api/admin/lich-chieu/auto-generate
-     * Auto-computes N non-overlapping showtimes for a single day across one or more rooms.
-     * ALL-OR-NOTHING: if N doesn't fit, nothing is saved; returns how many could fit.
+     * POST /api/admin/lich-chieu/import-preview
+     * Accepts a multipart Excel file (.xlsx) with columns:
+     *   Tên phim | Tên phòng chiếu | Ngày chiếu (dd/MM/yyyy) | Giờ bắt đầu (HH:mm) | Giá cơ bản
      *
-     * Body:
-     * {
-     *   "phimId":        1,
-     *   "phongChieuIds": [1, 2],      // rooms to fill (in order, round-robin)
-     *   "date":          "2026-08-01",
-     *   "soSuat":        6,            // desired showtime count
-     *   "openTime":      "09:00",      // window start HH:mm
-     *   "closeTime":     "23:00",      // window end HH:mm
-     *   "bufferMinutes": 15,           // buffer between end of one and start of next (default 15)
-     *   "giaCoBan":      80000
-     * }
-     * Success response: { succeeded: [...], totalCreated: N }
-     * Shortfall response (HTTP 422):
-     *   { message: "Chỉ có thể xếp được X/N suất trong khung giờ này", canFit: X, requested: N, preview: [...] }
+     * Parses each data row, validates (movie lookup, room lookup, format compatibility,
+     * room+time conflict — both against DB and against earlier rows in the same file),
+     * and returns a preview array without saving anything.
+     *
+     * Response: [{ row, tenPhim, tenPhong, ngayChieu, gioChieu, giaCoBan, valid, reason }]
      */
-    @PostMapping("/lich-chieu/auto-generate")
-    @SuppressWarnings("unchecked")
-    public ResponseEntity<?> autoGenerateLichChieu(@RequestBody Map<String, Object> body) {
-        Long phimId       = body.get("phimId")  != null ? ((Number) body.get("phimId")).longValue()  : null;
-        String dateStr    = (String) body.get("date");
-        String openTime   = (String) body.get("openTime");
-        String closeTime  = (String) body.get("closeTime");
-        int soSuat        = body.get("soSuat")  != null ? ((Number) body.get("soSuat")).intValue()    : 0;
-        int bufferMin     = body.get("bufferMinutes") != null ? ((Number) body.get("bufferMinutes")).intValue() : 15;
-        java.math.BigDecimal giaCoBan = body.get("giaCoBan") != null
-                ? new java.math.BigDecimal(body.get("giaCoBan").toString()) : java.math.BigDecimal.valueOf(80000);
-        java.util.List<?> rawRoomIds  = body.get("phongChieuIds") instanceof java.util.List
-                ? (java.util.List<?>) body.get("phongChieuIds") : java.util.List.of();
+    @PostMapping("/lich-chieu/import-preview")
+    public ResponseEntity<?> importPreviewLichChieu(
+            @org.springframework.web.bind.annotation.RequestParam("file")
+            org.springframework.web.multipart.MultipartFile file) {
 
-        if (phimId == null || dateStr == null || openTime == null || closeTime == null
-                || soSuat <= 0 || rawRoomIds.isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Thiếu phimId, phongChieuIds, date, openTime, closeTime hoặc soSuat"));
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "File Excel không được để trống"));
         }
 
-        Phim phim = phimRepository.findById(phimId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim id=" + phimId));
-        if (phim.getThoiLuong() == null || phim.getThoiLuong() <= 0) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Phim chưa có thời lượng (thoiLuong)"));
-        }
+        java.util.List<Map<String, Object>> preview = new java.util.ArrayList<>();
 
-        // Resolve rooms in order
-        java.util.List<PhongChieu> rooms = new java.util.ArrayList<>();
-        for (Object raw : rawRoomIds) {
-            Long rid = ((Number) raw).longValue();
-            rooms.add(phongChieuRepository.findById(rid)
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu id=" + rid)));
-        }
+        // In-memory list of validated slots from this file — used for intra-file conflict checks
+        java.util.List<java.time.LocalDateTime[]> pendingSlots = new java.util.ArrayList<>(); // [start, end, phongId]
+        java.util.List<Long> pendingPhongIds = new java.util.ArrayList<>();
 
-        // Parse window
-        java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
-        String[] op = openTime.split(":");
-        String[] cp = closeTime.split(":");
-        int openH = Integer.parseInt(op[0]), openM = Integer.parseInt(op[1]);
-        int closeH = Integer.parseInt(cp[0]), closeM = Integer.parseInt(cp[1]);
-        java.time.LocalDateTime windowStart = date.atTime(openH, openM);
-        // If closeTime is at or before openTime in minutes-of-day, the window crosses midnight
-        // (e.g. openTime=16:00, closeTime=00:00 → close is next-day midnight)
-        java.time.LocalDateTime windowEnd;
-        if (closeH * 60 + closeM <= openH * 60 + openM) {
-            windowEnd = date.plusDays(1).atTime(closeH, closeM);
-        } else {
-            windowEnd = date.atTime(closeH, closeM);
-        }
-        int showDurationMin = phim.getThoiLuong();
-        int slotMin = showDurationMin + bufferMin; // total slot per showing
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb =
+                     new org.apache.poi.xssf.usermodel.XSSFWorkbook(file.getInputStream())) {
 
-        // Pre-load existing schedules for all rooms on this date
-        java.util.Map<Long, java.util.List<LichChieu>> existingByRoom = new java.util.LinkedHashMap<>();
-        for (PhongChieu room : rooms) {
-            existingByRoom.put(room.getId(), lichChieuRepository.findAll().stream()
-                    .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
-                    .filter(lc -> lc.getPhongChieu() != null && room.getId().equals(lc.getPhongChieu().getId()))
-                    .collect(java.util.stream.Collectors.toList()));
-        }
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            if (sheet == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "File Excel không có sheet nào"));
+            }
 
-        // ── Greedy placement algorithm ────────────────────────────────────────
-        // Iterate rooms round-robin, advance cursor within a room past any existing
-        // showtime that would conflict, and place a slot when free.
-        java.util.List<Map<String, Object>> preview   = new java.util.ArrayList<>();
-        java.util.List<Map<String, Object>> succeeded = new java.util.ArrayList<>();
+            java.time.format.DateTimeFormatter dateFmt =
+                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        // Pointer: next-available start time per room
-        java.util.Map<Long, java.time.LocalDateTime> cursors = new java.util.LinkedHashMap<>();
-        for (PhongChieu room : rooms) cursors.put(room.getId(), windowStart);
+            int rowNum = 0;
+            for (org.apache.poi.ss.usermodel.Row row : sheet) {
+                rowNum++;
+                if (rowNum == 1) continue; // skip header
 
-        int placed = 0;
-        int maxIterations = soSuat * rooms.size() * 5; // safety cap
-        int iter = 0;
+                // Helper: read cell as trimmed string regardless of cell type
+                java.util.function.Function<Integer, String> cell = (col) -> {
+                    org.apache.poi.ss.usermodel.Cell c = row.getCell(col,
+                            org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                    if (c == null) return "";
+                    switch (c.getCellType()) {
+                        case STRING:  return c.getStringCellValue().trim();
+                        case NUMERIC:
+                            if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(c)) {
+                                // Date cell — format as dd/MM/yyyy
+                                java.util.Date d = c.getDateCellValue();
+                                java.time.LocalDate ld = d.toInstant()
+                                        .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                                return String.format("%02d/%02d/%04d",
+                                        ld.getDayOfMonth(), ld.getMonthValue(), ld.getYear());
+                            }
+                            // Numeric — convert to plain integer string if whole number
+                            double dv = c.getNumericCellValue();
+                            return dv == Math.floor(dv) ? String.valueOf((long) dv) : String.valueOf(dv);
+                        case BOOLEAN: return String.valueOf(c.getBooleanCellValue());
+                        case FORMULA:
+                            try { return String.valueOf(c.getStringCellValue()).trim(); }
+                            catch (Exception ignored) {
+                                return String.valueOf(c.getNumericCellValue());
+                            }
+                        default: return "";
+                    }
+                };
 
-        while (placed < soSuat && iter++ < maxIterations) {
-            // Try each room in round-robin order for the next slot
-            boolean anyRoomAdvanced = false;
-            for (PhongChieu room : rooms) {
-                if (placed >= soSuat) break;
-                java.time.LocalDateTime cursor = cursors.get(room.getId());
-                java.time.LocalDateTime slotEnd = cursor.plusMinutes(showDurationMin);
+                String tenRap    = cell.apply(0);
+                String tenPhim   = cell.apply(1);
+                String tenPhong  = cell.apply(2);
+                String ngayChieu = cell.apply(3);
+                String gioChieu  = cell.apply(4);
+                String giaRaw    = cell.apply(5);
 
-                // Must fit within window
-                if (!slotEnd.isBefore(windowEnd) && !slotEnd.equals(windowEnd)) break;
+                Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("row",       rowNum);
+                entry.put("tenRap",    tenRap);
+                entry.put("tenPhim",   tenPhim);
+                entry.put("tenPhong",  tenPhong);
+                entry.put("ngayChieu", ngayChieu);
+                entry.put("gioChieu",  gioChieu);
+                entry.put("giaCoBan",  giaRaw);
 
-                // Check conflict with existing schedules in this room
-                java.time.LocalDateTime fCursor = cursor;
-                java.util.Optional<LichChieu> conflict = existingByRoom.get(room.getId()).stream()
-                        .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
-                                && fCursor.isBefore(lc.getThoiGianKetThuc())
-                                && slotEnd.isAfter(lc.getThoiGianBatDau()))
-                        .findFirst();
-
-                if (conflict.isPresent()) {
-                    // Advance cursor past the conflicting slot + buffer
-                    java.time.LocalDateTime newCursor = conflict.get().getThoiGianKetThuc().plusMinutes(bufferMin);
-                    cursors.put(room.getId(), newCursor);
-                    anyRoomAdvanced = true;
-                    continue; // retry this room on next iteration
+                // Skip completely empty rows
+                if (tenRap.isEmpty() && tenPhim.isEmpty() && tenPhong.isEmpty() && ngayChieu.isEmpty() && gioChieu.isEmpty()) {
+                    continue;
                 }
 
-                // Slot fits — record it
-                Map<String, Object> slot = new java.util.LinkedHashMap<>();
-                slot.put("roomId",           room.getId());
-                slot.put("tenPhong",         room.getTenPhong());
-                slot.put("thoiGianBatDau",   cursor.toString());
-                slot.put("thoiGianKetThuc",  slotEnd.toString());
-                preview.add(slot);
+                // Validate required fields
+                if (tenRap.isEmpty() || tenPhim.isEmpty() || tenPhong.isEmpty() || ngayChieu.isEmpty() || gioChieu.isEmpty()) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Thieu thong tin bat buoc (ten rap, ten phim, ten phong, ngay, gio)");
+                    preview.add(entry);
+                    continue;
+                }
 
-                // Advance cursor for this room
-                cursors.put(room.getId(), cursor.plusMinutes(slotMin));
-                placed++;
-                anyRoomAdvanced = true;
+                // Parse date
+                java.time.LocalDate date;
+                try {
+                    date = java.time.LocalDate.parse(ngayChieu.trim(), dateFmt);
+                } catch (Exception e) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Ngay chieu sai dinh dang, can dd/MM/yyyy");
+                    preview.add(entry);
+                    continue;
+                }
+
+                // Parse time
+                java.time.LocalTime time;
+                try {
+                    time = java.time.LocalTime.parse(gioChieu.trim());
+                } catch (Exception e) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Gio chieu sai dinh dang, can HH:mm");
+                    preview.add(entry);
+                    continue;
+                }
+
+                // Parse price
+                java.math.BigDecimal giaCoBan;
+                try {
+                    giaCoBan = new java.math.BigDecimal(giaRaw.replaceAll("[^0-9.]", ""));
+                } catch (Exception e) {
+                    giaCoBan = java.math.BigDecimal.ZERO;
+                }
+                entry.put("giaCoBan", giaCoBan);
+
+                // Lookup movie by exact name (case-insensitive)
+                final String tenPhimFinal = tenPhim;
+                java.util.Optional<Phim> phimOpt = phimRepository.findByIsDeletedFalse().stream()
+                        .filter(p -> p.getTenPhim() != null && p.getTenPhim().trim().equalsIgnoreCase(tenPhimFinal.trim()))
+                        .findFirst();
+                if (phimOpt.isEmpty()) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Khong tim thay phim [" + tenPhim + "]");
+                    preview.add(entry);
+                    continue;
+                }
+                Phim phim = phimOpt.get();
+
+                if (phim.getThoiLuong() == null || phim.getThoiLuong() <= 0) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Phim [" + tenPhim + "] chua co thoi luong");
+                    preview.add(entry);
+                    continue;
+                }
+
+                // Lookup room by cinema name + room name (both case-insensitive)
+                final String tenRapFinal   = tenRap;
+                final String tenPhongFinal = tenPhong;
+
+                // Step 1: find the cinema by name
+                java.util.Optional<PhongChieu> anyInRap = phongChieuRepository.findAll().stream()
+                        .filter(p -> p.getRapChieu() != null
+                                && p.getRapChieu().getTenRap() != null
+                                && p.getRapChieu().getTenRap().trim().equalsIgnoreCase(tenRapFinal.trim()))
+                        .findFirst();
+                if (anyInRap.isEmpty()) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Khong tim thay rap chieu [" + tenRap + "]");
+                    preview.add(entry);
+                    continue;
+                }
+
+                // Step 2: find the room within that cinema
+                java.util.Optional<PhongChieu> phongOpt = phongChieuRepository.findAll().stream()
+                        .filter(p -> Boolean.TRUE.equals(p.getTrangThai()))
+                        .filter(p -> p.getRapChieu() != null
+                                && p.getRapChieu().getTenRap() != null
+                                && p.getRapChieu().getTenRap().trim().equalsIgnoreCase(tenRapFinal.trim()))
+                        .filter(p -> p.getTenPhong() != null && p.getTenPhong().trim().equalsIgnoreCase(tenPhongFinal.trim()))
+                        .findFirst();
+                if (phongOpt.isEmpty()) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Khong tim thay phong chieu [" + tenPhong + "] trong rap [" + tenRap + "]");
+                    preview.add(entry);
+                    continue;
+                }
+                PhongChieu phong = phongOpt.get();
+
+                // Compute start/end times
+                java.time.LocalDateTime start = java.time.LocalDateTime.of(date, time);
+                java.time.LocalDateTime end   = start.plusMinutes(phim.getThoiLuong());
+
+                // Format-compatibility check
+                java.util.Optional<String> fmtErr = validateDinhDangCompatibility(phim, phong);
+                if (fmtErr.isPresent()) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": " + fmtErr.get());
+                    preview.add(entry);
+                    continue;
+                }
+
+                // Room+time conflict check against DB
+                Long phongId = phong.getId();
+                java.util.Optional<LichChieu> dbConflict = lichChieuRepository.findAll().stream()
+                        .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
+                        .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
+                        .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
+                                && start.isBefore(lc.getThoiGianKetThuc())
+                                && end.isAfter(lc.getThoiGianBatDau()))
+                        .findFirst();
+                if (dbConflict.isPresent()) {
+                    LichChieu cx = dbConflict.get();
+                    String cxS = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
+                    String cxE = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": " + phong.getTenPhong()
+                            + " da co suat chieu tu " + cxS + " den " + cxE);
+                    preview.add(entry);
+                    continue;
+                }
+
+                // Intra-file conflict check (against already-valid rows in this same import)
+                boolean intraConflict = false;
+                for (int pi = 0; pi < pendingSlots.size(); pi++) {
+                    if (!pendingPhongIds.get(pi).equals(phongId)) continue;
+                    java.time.LocalDateTime ps = pendingSlots.get(pi)[0];
+                    java.time.LocalDateTime pe = pendingSlots.get(pi)[1];
+                    if (start.isBefore(pe) && end.isAfter(ps)) {
+                        intraConflict = true;
+                        break;
+                    }
+                }
+                if (intraConflict) {
+                    entry.put("valid",  false);
+                    entry.put("reason", "Dong " + rowNum + ": Trung gio voi mot dong khac trong file cung phong nay");
+                    preview.add(entry);
+                    continue;
+                }
+
+                // All checks passed — mark valid
+                entry.put("valid",          true);
+                entry.put("reason",         "");
+                entry.put("phimId",         phim.getId());
+                entry.put("phongChieuId",   phong.getId());
+                entry.put("thoiGianBatDau", start.toString());
+                entry.put("thoiGianKetThuc",end.toString());
+                pendingSlots.add(new java.time.LocalDateTime[]{start, end});
+                pendingPhongIds.add(phongId);
+                preview.add(entry);
             }
-            if (!anyRoomAdvanced) break; // all rooms exhausted
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Loi doc file Excel: " + e.getMessage()));
         }
 
-        // Shortfall check — fail entirely if N doesn't fit
-        if (placed < soSuat) {
-            return ResponseEntity.status(422)
-                    .body(Map.of(
-                            "message",   "Chỉ có thể xếp được " + placed + "/" + soSuat + " suất trong khung giờ này",
-                            "canFit",    placed,
-                            "requested", soSuat,
-                            "preview",   preview));
+        if (preview.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "File Excel khong co du lieu (co the chi co dong tieu de)"));
+        }
+        return ResponseEntity.ok(preview);
+    }
+
+    /**
+     * POST /api/admin/lich-chieu/import-confirm
+     * Accepts the valid rows from import-preview, re-validates each from scratch,
+     * saves only those that still pass, and returns succeeded/failed in the same
+     * shape as batchCreateLichChieu.
+     *
+     * Body: array of row objects as returned by import-preview (fields: phimId, phongChieuId,
+     *       thoiGianBatDau, thoiGianKetThuc, giaCoBan, tenPhim, tenPhong, ngayChieu, gioChieu, row)
+     */
+    @PostMapping("/lich-chieu/import-confirm")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> importConfirmLichChieu(@RequestBody java.util.List<Map<String, Object>> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Khong co du lieu de luu"));
         }
 
-        // All N fit — save atomically (inside the same request thread, same Hibernate session)
-        for (int i = 0; i < preview.size(); i++) {
-            Map<String, Object> slot = preview.get(i);
-            Long roomId = ((Number) slot.get("roomId")).longValue();
-            PhongChieu room = rooms.stream().filter(r -> r.getId().equals(roomId)).findFirst().orElseThrow();
+        java.util.List<Map<String, Object>> succeeded = new java.util.ArrayList<>();
+        java.util.List<Map<String, Object>> failed    = new java.util.ArrayList<>();
 
-            LichChieu lc = new LichChieu();
-            lc.setPhim(phim);
-            lc.setPhongChieu(room);
-            lc.setThoiGianBatDau(java.time.LocalDateTime.parse((String) slot.get("thoiGianBatDau")));
-            lc.setThoiGianKetThuc(java.time.LocalDateTime.parse((String) slot.get("thoiGianKetThuc")));
-            lc.setGiaCoBan(giaCoBan);
-            lc.setTrangThai("active");
-            lc.setIsDeleted(false);
-            LichChieu saved = lichChieuRepository.save(lc);
+        // Track rows saved in this batch for intra-batch conflict checking
+        java.util.List<java.time.LocalDateTime[]> savedSlots  = new java.util.ArrayList<>();
+        java.util.List<Long>                      savedPhongIds = new java.util.ArrayList<>();
 
-            Map<String, Object> s = new java.util.LinkedHashMap<>(slot);
-            s.put("id", saved.getId());
-            succeeded.add(s);
+        for (Map<String, Object> row : rows) {
+            int rowNum = row.get("row") instanceof Number ? ((Number) row.get("row")).intValue() : 0;
+
+            try {
+                // Re-resolve from DB — never trust client-supplied IDs directly
+                Object phimIdRaw   = row.get("phimId");
+                Object phongIdRaw  = row.get("phongChieuId");
+                Object startRaw    = row.get("thoiGianBatDau");
+                Object endRaw      = row.get("thoiGianKetThuc");
+                Object giaRaw      = row.get("giaCoBan");
+
+                if (phimIdRaw == null || phongIdRaw == null || startRaw == null || endRaw == null) {
+                    Map<String, Object> f = new java.util.LinkedHashMap<>(row);
+                    f.put("reason", "Thieu thong tin bat buoc (phimId, phongChieuId, thoiGianBatDau, thoiGianKetThuc)");
+                    failed.add(f); continue;
+                }
+
+                Long phimId  = ((Number) phimIdRaw).longValue();
+                Long phongId = ((Number) phongIdRaw).longValue();
+                java.time.LocalDateTime start = java.time.LocalDateTime.parse(startRaw.toString());
+                java.time.LocalDateTime end   = java.time.LocalDateTime.parse(endRaw.toString());
+
+                Phim phim = phimRepository.findById(phimId).orElse(null);
+                if (phim == null) {
+                    Map<String, Object> f = new java.util.LinkedHashMap<>(row);
+                    f.put("reason", "Khong tim thay phim id=" + phimId);
+                    failed.add(f); continue;
+                }
+
+                PhongChieu phong = phongChieuRepository.findById(phongId).orElse(null);
+                if (phong == null) {
+                    Map<String, Object> f = new java.util.LinkedHashMap<>(row);
+                    f.put("reason", "Khong tim thay phong chieu id=" + phongId);
+                    failed.add(f); continue;
+                }
+
+                // Format-compatibility re-check
+                java.util.Optional<String> fmtErr = validateDinhDangCompatibility(phim, phong);
+                if (fmtErr.isPresent()) {
+                    Map<String, Object> f = new java.util.LinkedHashMap<>(row);
+                    f.put("reason", fmtErr.get());
+                    failed.add(f); continue;
+                }
+
+                // DB conflict re-check
+                java.util.Optional<LichChieu> dbConflict = lichChieuRepository.findAll().stream()
+                        .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
+                        .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
+                        .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
+                                && start.isBefore(lc.getThoiGianKetThuc())
+                                && end.isAfter(lc.getThoiGianBatDau()))
+                        .findFirst();
+                if (dbConflict.isPresent()) {
+                    LichChieu cx = dbConflict.get();
+                    String cxS = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
+                    String cxE = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
+                    Map<String, Object> f = new java.util.LinkedHashMap<>(row);
+                    f.put("reason", phong.getTenPhong() + " da co suat chieu tu " + cxS + " den " + cxE);
+                    failed.add(f); continue;
+                }
+
+                // Intra-batch conflict check
+                boolean intraConflict = false;
+                for (int pi = 0; pi < savedSlots.size(); pi++) {
+                    if (!savedPhongIds.get(pi).equals(phongId)) continue;
+                    java.time.LocalDateTime ps = savedSlots.get(pi)[0];
+                    java.time.LocalDateTime pe = savedSlots.get(pi)[1];
+                    if (start.isBefore(pe) && end.isAfter(ps)) { intraConflict = true; break; }
+                }
+                if (intraConflict) {
+                    Map<String, Object> f = new java.util.LinkedHashMap<>(row);
+                    f.put("reason", "Trung gio voi mot suat khac trong cung lan nhap nay");
+                    failed.add(f); continue;
+                }
+
+                // Save
+                java.math.BigDecimal gia = giaRaw != null
+                        ? new java.math.BigDecimal(giaRaw.toString()) : java.math.BigDecimal.ZERO;
+                LichChieu lc = new LichChieu();
+                lc.setPhim(phim);
+                lc.setPhongChieu(phong);
+                lc.setThoiGianBatDau(start);
+                lc.setThoiGianKetThuc(end);
+                lc.setGiaCoBan(gia);
+                lc.setTrangThai("active");
+                lc.setIsDeleted(false);
+                LichChieu saved = lichChieuRepository.save(lc);
+
+                savedSlots.add(new java.time.LocalDateTime[]{start, end});
+                savedPhongIds.add(phongId);
+
+                Map<String, Object> s = new java.util.LinkedHashMap<>(row);
+                s.put("id",  saved.getId());
+                s.put("row", rowNum);
+                succeeded.add(s);
+
+            } catch (Exception e) {
+                Map<String, Object> f = new java.util.LinkedHashMap<>(row);
+                f.put("reason", "Loi xu ly dong " + rowNum + ": " + e.getMessage());
+                failed.add(f);
+            }
         }
 
-        return ResponseEntity.ok(Map.of(
-                "succeeded",    succeeded,
-                "totalCreated", succeeded.size(),
-                "date",         dateStr,
-                "phim",         phim.getTenPhim()));
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("succeeded",      succeeded);
+        result.put("failed",         failed);
+        result.put("totalRequested", rows.size());
+        result.put("totalSucceeded", succeeded.size());
+        result.put("totalFailed",    failed.size());
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -706,6 +928,15 @@ public class AdminController {
 
         if (start != null && end != null && !end.isAfter(start)) {
             throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+
+        // Format-compatibility check: room's dinhDang must be in the movie's dinhDangs list
+        // lc.getPhim() reflects the updated phim (if body changed it) or the existing one.
+        if (lc.getPhim() != null && phong != null) {
+            java.util.Optional<String> formatErr = validateDinhDangCompatibility(lc.getPhim(), phong);
+            if (formatErr.isPresent()) {
+                return ResponseEntity.badRequest().body(Map.of("message", formatErr.get()));
+            }
         }
 
         if (phong != null && start != null && end != null) {
@@ -752,9 +983,49 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Đã xóa lịch chiếu"));
     }
 
+    /**
+     * Validates that the room's format (PhongChieu.dinhDang) is compatible with
+     * the movie's allowed formats (Phim.dinhDangs).
+     *
+     * Rules:
+     *  - If phong.getDinhDang() is null  → skip, return empty (not enough data to compare)
+     *  - If phim.getDinhDangs() contains the room's dinhDang by id → compatible, return empty
+     *  - If phim.getDinhDangs() is empty → skip (movie has no format restrictions set yet)
+     *  - Otherwise → return an error message in Vietnamese
+     *
+     * @return Optional.empty() if compatible or not enough data; Optional.of(message) if incompatible
+     */
+    private java.util.Optional<String> validateDinhDangCompatibility(Phim phim, PhongChieu phong) {
+        DinhDang roomFormat = phong.getDinhDang();
+        // Rule 1: no format on the room → nothing to validate
+        if (roomFormat == null) return java.util.Optional.empty();
+
+        java.util.List<DinhDang> movieFormats = phim.getDinhDangs();
+        // Rule 2: movie has no formats defined yet → skip validation
+        if (movieFormats == null || movieFormats.isEmpty()) return java.util.Optional.empty();
+
+        // Rule 3: check if any of the movie's formats matches the room's format by id
+        boolean compatible = movieFormats.stream()
+                .anyMatch(df -> roomFormat.getId() != null && roomFormat.getId().equals(df.getId()));
+
+        if (!compatible) {
+            String formatName = roomFormat.getTenDinhDang() != null ? roomFormat.getTenDinhDang() : "dinh dang nay";
+            String movieName  = phim.getTenPhim()           != null ? phim.getTenPhim()           : "phim nay";
+            return java.util.Optional.of(
+                    "Phong chieu su dung dinh dang [" + formatName + "] khong duoc ho tro boi phim [" + movieName + "]");
+        }
+        return java.util.Optional.empty();
+    }
+
     // ─────────────────────────────────────────────────────────────
     // CINEMA ADMIN CRUD
     // ─────────────────────────────────────────────────────────────
+
+    /** GET /api/admin/rap-chieu — returns ALL cinemas regardless of trangThai */
+    @GetMapping("/rap-chieu")
+    public ResponseEntity<java.util.List<RapChieu>> getAllRap() {
+        return ResponseEntity.ok(rapChieuRepository.findAll());
+    }
 
     @PostMapping("/rap-chieu")
     public ResponseEntity<?> createRap(@RequestBody RapChieu rap) {
@@ -774,6 +1045,9 @@ public class AdminController {
         if (body.getLatitude() != null) rap.setLatitude(body.getLatitude());
         if (body.getLongitude()!= null) rap.setLongitude(body.getLongitude());
         if (body.getHinhAnh()  != null) rap.setHinhAnh(body.getHinhAnh());
+        // banDoUrl: always overwrite (including clearing to null when blank string sent)
+        rap.setBanDoUrl(body.getBanDoUrl() != null && !body.getBanDoUrl().isBlank()
+                ? body.getBanDoUrl().trim() : null);
         return ResponseEntity.ok(rapChieuRepository.save(rap));
     }
 
@@ -854,6 +1128,12 @@ public class AdminController {
     // PRODUCT ADMIN CRUD
     // ─────────────────────────────────────────────────────────────
 
+    /** GET /api/admin/san-pham — returns ALL products regardless of dangHoatDong */
+    @GetMapping("/san-pham")
+    public ResponseEntity<java.util.List<SanPham>> getAllSanPham() {
+        return ResponseEntity.ok(sanPhamRepository.findAll());
+    }
+
     @PostMapping("/san-pham")
     public ResponseEntity<?> createSanPham(@RequestBody SanPham sp) {
         sp.setId(null);
@@ -888,6 +1168,12 @@ public class AdminController {
     // BANNER ADMIN CRUD
     // ─────────────────────────────────────────────────────────────
 
+    /** GET /api/admin/banner — returns ALL banners regardless of status or date range */
+    @GetMapping("/banner")
+    public ResponseEntity<java.util.List<Banner>> getAllBanners() {
+        return ResponseEntity.ok(bannerRepository.findAllByOrderByThuTuAsc());
+    }
+
     @PostMapping("/banner")
     public ResponseEntity<?> createBanner(@RequestBody Banner banner) {
         banner.setId(null);
@@ -904,6 +1190,8 @@ public class AdminController {
         if (body.getLinkUrl() != null) banner.setLinkUrl(body.getLinkUrl());
         if (body.getThuTu() != null) banner.setThuTu(body.getThuTu());
         if (body.getDangHoatDong() != null) banner.setDangHoatDong(body.getDangHoatDong());
+        if (body.getNgayBatDau() != null) banner.setNgayBatDau(body.getNgayBatDau());
+        if (body.getNgayKetThuc() != null) banner.setNgayKetThuc(body.getNgayKetThuc());
         return ResponseEntity.ok(bannerRepository.save(banner));
     }
 

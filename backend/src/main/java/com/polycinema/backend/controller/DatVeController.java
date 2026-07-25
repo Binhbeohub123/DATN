@@ -5,6 +5,7 @@ import com.polycinema.backend.entity.SeatLock;
 import com.polycinema.backend.repository.NguoiDungRepository;
 import com.polycinema.backend.service.DatVeService;
 import com.polycinema.backend.service.SeatLockService;
+import com.polycinema.backend.service.ThanhToanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,7 @@ public class DatVeController {
     private final DatVeService datVeService;
     private final NguoiDungRepository nguoiDungRepository;
     private final SeatLockService seatLockService;
+    private final ThanhToanService thanhToanService;
 
     /**
      * POST /api/dat-ve
@@ -71,6 +73,15 @@ public class DatVeController {
                     maKhuyenMai,
                     diemSuDung
             );
+
+            // Auto-confirm zero-total bookings (100% promo, free showtimes, etc.)
+            // Uses "Cash" method — no payment gateway is involved.
+            if (datVe.getTongTienThanhToan() != null
+                    && datVe.getTongTienThanhToan().compareTo(java.math.BigDecimal.ZERO) == 0) {
+                thanhToanService.markPaid(datVe, "Cash", null);
+                // Re-fetch to return the updated trangThai/trangThaiThanhToan to the client
+                datVe = datVeService.getBookingDetail(datVe.getId());
+            }
 
             return ResponseEntity.status(HttpStatus.CREATED).body(datVe);
 

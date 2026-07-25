@@ -15,10 +15,10 @@ public class BannerController {
 
     private final BannerRepository bannerRepository;
 
-    // GET /api/banner — public, trả về tất cả banner đang hoạt động
+    // GET /api/banner — public, trả về tất cả banner đang hoạt động trong khoảng ngày hiện tại
     @GetMapping
     public ResponseEntity<List<Banner>> getActiveBanners() {
-        List<Banner> banners = bannerRepository.findByDangHoatDongTrueOrderByThuTuAsc();
+        List<Banner> banners = bannerRepository.findActiveBannersForDate(java.time.LocalDate.now());
         return ResponseEntity.ok(banners);
     }
 }

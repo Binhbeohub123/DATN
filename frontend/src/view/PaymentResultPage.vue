@@ -51,15 +51,20 @@
         <!-- QR -->
         <div class="qr-section">
           <p class="qr-label">Mã QR vé</p>
-          <div class="qr-box" ref="qrBoxRef">
+          <div class="qr-box">
+            <!-- Real QR PNG from /ve/{maVe}/qr -->
             <img
-              v-if="booking.maQR && booking.maQR.startsWith('http')"
-              :src="booking.maQR"
-              :alt="booking.maDatVe"
+              v-if="qrObjectUrl"
+              :src="qrObjectUrl"
+              :alt="'QR vé ' + booking.maDatVe"
               class="qr-img"
             />
+            <!-- Loading state -->
+            <div v-else-if="qrLoading" class="qr-placeholder">
+              <div class="qr-spinner"></div>
+            </div>
+            <!-- Error / placeholder fallback -->
             <div v-else class="qr-placeholder">
-              <!-- Inline SVG QR-style grid generated from booking code -->
               <svg viewBox="0 0 9 9" fill="#000000" xmlns="http://www.w3.org/2000/svg" class="qr-svg">
                 <rect x="0" y="0" width="4" height="4" fill="#000000"/>
                 <rect x="1" y="1" width="2" height="2" fill="white"/>
@@ -82,6 +87,7 @@
       <!-- Actions -->
       <div class="actions">
         <button class="btn btn--primary" @click="goHome">🏠 Về trang chủ</button>
+        <button class="btn btn--outline" v-if="qrObjectUrl" @click="downloadQr">🖼️ Tải mã QR</button>
         <button class="btn btn--outline" @click="downloadTicket">⬇ Tải vé</button>
         <button class="btn btn--ghost" @click="viewTickets">📋 Vé của tôi</button>
       </div>
@@ -105,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useBookingStore } from '@/stores/bookingStore'
@@ -121,6 +127,34 @@ const phase       = ref('loading')   // 'loading' | 'success' | 'fail'
 const booking     = ref(null)
 const failMessage = ref('')
 const failCode    = ref('')
+
+// ── QR image ─────────────────────────────────────────────────
+const qrObjectUrl  = ref(null)   // blob URL for the PNG returned by /ve/{maVe}/qr
+const qrLoading    = ref(false)
+const qrError      = ref(false)
+
+async function loadQr(maVe) {
+  if (!maVe) return
+  qrLoading.value = true
+  qrError.value   = false
+  try {
+    const res = await api.get(`/ve/${maVe}/qr`, { responseType: 'blob' })
+    if (qrObjectUrl.value) URL.revokeObjectURL(qrObjectUrl.value)
+    qrObjectUrl.value = URL.createObjectURL(res.data)
+  } catch {
+    qrError.value = true
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+function downloadQr() {
+  if (!qrObjectUrl.value || !booking.value) return
+  const a = document.createElement('a')
+  a.href = qrObjectUrl.value
+  a.download = `ve-${booking.value.maDatVe}-qr.png`
+  a.click()
+}
 
 // ── Computed ─────────────────────────────────────────────────
 const seatList = computed(() => {
@@ -190,6 +224,8 @@ async function fetchBooking(id) {
     phase.value   = 'success'
     // Clear booking store after success
     bookingStore.clearBooking()
+    // Load QR image
+    if (res.data?.maDatVe) loadQr(res.data.maDatVe)
   } catch (e) {
     failMessage.value = e.response?.data?.message || 'Không lấy được thông tin đơn đặt vé'
     failCode.value    = e.response?.status ? String(e.response.status) : ''
@@ -245,6 +281,10 @@ function vnpayMessage(code) {
   }
   return map[code] || `Giao dịch thất bại (mã ${code})`
 }
+onUnmounted(() => {
+  if (qrObjectUrl.value) URL.revokeObjectURL(qrObjectUrl.value)
+})
+
 function momoMessage(code) {
   const map = {
     '1':'Giao dịch thất bại', '2':'Tài khoản bị khóa', '3':'Không đủ số dư',
@@ -392,6 +432,14 @@ function momoMessage(code) {
   letter-spacing: 1px; margin: 0;
 }
 .qr-hint { font-size: 12px; color: var(--text-secondary, #94a3b8); margin: 0; }
+
+.qr-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: var(--gold, #C9A84C);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
 
 /* ── fail code ─────────────────────────────────────────────── */
 .fail-code {

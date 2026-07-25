@@ -166,6 +166,11 @@
         <div class="form-group"><label>Địa chỉ</label><input v-model="rapForm.diaChi" placeholder="Địa chỉ rạp" /></div>
         <div class="form-group"><label>Thành phố</label><input v-model="rapForm.thanhPho" placeholder="TP.HCM / Hà Nội / ..." /></div>
         <div class="form-group"><label>Hình ảnh (URL)</label><input v-model="rapForm.hinhAnh" placeholder="https://..." /></div>
+        <div class="form-group">
+          <label>Google Maps URL</label>
+          <input v-model="rapForm.banDoUrl" type="url" placeholder="https://maps.app.goo.gl/..." />
+          <small class="form-hint">Dán link Google Maps chia sẻ vào đây</small>
+        </div>
         <div class="form-row">
           <div class="form-group form-group--half"><label>Latitude</label><input v-model="rapForm.latitude" type="text" inputmode="decimal" placeholder="10.7769" /></div>
           <div class="form-group form-group--half"><label>Longitude</label><input v-model="rapForm.longitude" type="text" inputmode="decimal" placeholder="106.7009" /></div>
@@ -231,7 +236,7 @@ const rapForm = ref({ tenRap: '', diaChi: '', trangThai: true })
 async function loadRap() {
   loadingRap.value = true
   try {
-    const res = await api.get('/rap-chieu')
+    const res = await api.get('/admin/rap-chieu')
     rapList.value = res.data || []
   } catch (e) { console.error(e) } finally { loadingRap.value = false }
 }
@@ -247,8 +252,9 @@ function openRapModal(rap = null) {
     latitude:  rap.latitude  != null ? Number(rap.latitude).toFixed(7).replace(/\.?0+$/, '') : '',
     longitude: rap.longitude != null ? Number(rap.longitude).toFixed(7).replace(/\.?0+$/, '') : '',
     hinhAnh:   rap.hinhAnh   || '',
+    banDoUrl:  rap.banDoUrl  || '',
   }
-  else rapForm.value = { tenRap: '', diaChi: '', trangThai: true, thanhPho: '', latitude: '', longitude: '', hinhAnh: '' }
+  else rapForm.value = { tenRap: '', diaChi: '', trangThai: true, thanhPho: '', latitude: '', longitude: '', hinhAnh: '', banDoUrl: '' }
   showRapModal.value = true
 }
 
@@ -664,6 +670,12 @@ td {
 }
 .form-group input:focus, .form-group select:focus { outline: none; border-color: #FFFFFF; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
 .form-error { color: #EF4444; font-size: 13px; margin-top: 8px; }
+.form-hint {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  color: #6B7280;
+  margin-top: 4px;
+}
 .modal-actions {
   display: flex;
   gap: 10px;

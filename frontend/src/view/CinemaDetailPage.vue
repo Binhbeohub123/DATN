@@ -65,30 +65,47 @@
           </div>
         </div>
 
-        <!-- Map button -->
-        <a
-          v-if="hasCoords"
-          :href="`https://maps.google.com/?q=${cinema.latitude},${cinema.longitude}`"
-          class="cdp-map-btn"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="`Xem bản đồ rạp ${cinema.tenRap} trên Google Maps`"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-          Xem bản đồ trên Google Maps
-        </a>
+        <!-- Action buttons row -->
+        <div class="cdp-actions">
+          <!-- Xem bản đồ: lat/lng coords link -->
+          <a
+            v-if="hasCoords"
+            :href="`https://maps.google.com/?q=${cinema.latitude},${cinema.longitude}`"
+            class="cdp-map-btn"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="`Xem bản đồ rạp ${cinema.tenRap} trên Google Maps`"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Xem bản đồ trên Google Maps
+          </a>
+
+          <!-- Đường đi: shared Google Maps URL from admin -->
+          <button
+            v-if="cinema.banDoUrl"
+            class="btn-directions"
+            @click="handleDirections"
+          >
+            🗺️ Đường đi
+          </button>
+        </div>
       </div>
     </div>
   </div>
+  <!-- Confirm modal (teleported to body) -->
+  <ConfirmModal />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/services/api'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import { useConfirmModal } from '@/composables/useConfirmModal'
 
 const router = useRouter()
 const route  = useRoute()
+const { open } = useConfirmModal()
 
 const cinema = ref(null)
 const loading = ref(true)
@@ -99,6 +116,16 @@ const hasCoords = computed(() =>
   cinema.value.latitude  != null &&
   cinema.value.longitude != null
 )
+
+function handleDirections() {
+  open({
+    title: 'Mở đường đi?',
+    description: `Bạn sẽ được chuyển đến Google Maps để xem đường đi đến ${cinema.value.tenRap}`,
+    confirmLabel: 'Mở Google Maps',
+    cancelLabel: 'Hủy',
+    onConfirm: () => window.open(cinema.value.banDoUrl, '_blank', 'noopener,noreferrer'),
+  })
+}
 
 onMounted(async () => {
   try {
@@ -286,7 +313,15 @@ onMounted(async () => {
 .cdp-info-row svg { flex-shrink: 0; margin-top: 2px; color: rgba(255,255,255,0.35); }
 .cdp-info-row span { color: #d1d5db; }
 
-/* ── Map button ── */
+/* ── Action buttons row ── */
+.cdp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* ── Map button (lat/lng link) ── */
 .cdp-map-btn {
   display: inline-flex;
   align-items: center;
@@ -302,6 +337,26 @@ onMounted(async () => {
 }
 .cdp-map-btn:hover {
   filter: brightness(0.92);
+  transform: translateY(-1px);
+}
+
+/* ── Directions button (banDoUrl) ── */
+.btn-directions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #FFFFFF;
+  color: #FFFFFF;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 150ms ease;
+}
+.btn-directions:hover {
+  background: rgba(255, 255, 255, 0.1);
   transform: translateY(-1px);
 }
 

@@ -159,12 +159,14 @@ export const useMovieStore = defineStore('movie', () => {
       const data = res.data
       const raw = Array.isArray(data) ? data : data ? [data] : []
       banners.value = raw.map(b => ({
-        id:      b.id,
-        tieuDe:  b.tieuDe  || b.title       || '',
-        hinhAnh: b.hinhAnh || b.image       || '',
-        linkUrl: b.linkUrl || b.link        || '',
-        thuTu:   b.thuTu   || 0,
-        moTa:    b.moTa    || b.description || '',
+        id:          b.id,
+        tieuDe:      b.tieuDe  || b.title       || '',
+        hinhAnh:     b.hinhAnh || b.image       || '',
+        linkUrl:     b.linkUrl || b.link        || '',
+        thuTu:       b.thuTu   || 0,
+        moTa:        b.moTa    || b.description || '',
+        ngayBatDau:  b.ngayBatDau  || null,
+        ngayKetThuc: b.ngayKetThuc || null,
       }))
     } catch {
       error.value.banner = 'Không tải được banner'

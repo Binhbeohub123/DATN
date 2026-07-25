@@ -59,6 +59,14 @@
             <div class="field field-full"><label>URL hình ảnh *</label><input v-model="bForm.hinhAnh" placeholder="https://..."/>
               <img v-if="bForm.hinhAnh" :src="bForm.hinhAnh" class="preview-img" @error="e=>e.target.style.display='none'" />
             </div>
+            <div class="field field-full">
+              <label>Phim liên kết <span class="field-optional">(tuỳ chọn)</span></label>
+              <select v-model="selectedMovieId">
+                <option value="">— Không chọn phim / nhập link thủ công —</option>
+                <option v-for="m in movies" :key="m.id" :value="String(m.id)">{{ m.tenPhim }}</option>
+              </select>
+              <p class="field-hint">Chọn phim để tự điền link bên dưới. Hoặc để trống và nhập link tuỳ ý.</p>
+            </div>
             <div class="field field-full"><label>Link khi click</label><input v-model="bForm.linkUrl" placeholder="/phim/1"/></div>
             <div class="field"><label>Ngày bắt đầu</label><input v-model="bForm.ngayBatDau" type="date"/></div>
             <div class="field"><label>Ngày kết thúc</label><input v-model="bForm.ngayKetThuc" type="date"/></div>
@@ -211,11 +219,41 @@ const editingBanner = ref(null)
 const bSaving      = ref(false)
 const bFormErr     = ref('')
 
+// Movies for the banner link picker
+const movies = ref([])
+async function loadMovies() {
+  if (movies.value.length > 0) return  // already loaded
+  try {
+    const r = await api.get('/admin/phim')
+    movies.value = (r.data || []).filter(m => !m.isDeleted)
+  } catch { /* non-critical — picker will be empty, text input still works */ }
+}
+
+// Tracks which movie is selected in the picker (null = none / custom URL)
+const selectedMovieId = ref('')
+
 const blankBanner = () => ({ tieuDe:'', hinhAnh:'', linkUrl:'', ngayBatDau:'', ngayKetThuc:'', thuTu:0, moTa:'', dangHoatDong:true })
 const bForm = ref(blankBanner())
 
-function openBannerAdd()  { editingBanner.value=null; bForm.value=blankBanner(); bFormErr.value=''; bannerModal.value=true }
-function openBannerEdit(b){ editingBanner.value=b; bForm.value={...b}; bFormErr.value=''; bannerModal.value=true }
+function openBannerAdd() {
+  editingBanner.value = null
+  bForm.value = blankBanner()
+  selectedMovieId.value = ''
+  bFormErr.value = ''
+  loadMovies()
+  bannerModal.value = true
+}
+
+function openBannerEdit(b) {
+  editingBanner.value = b
+  bForm.value = { ...b }
+  bFormErr.value = ''
+  // Pre-select movie dropdown if linkUrl matches /phim/<id>
+  const match = /^\/phim\/(\d+)$/.exec(b.linkUrl || '')
+  selectedMovieId.value = match ? match[1] : ''
+  loadMovies()
+  bannerModal.value = true
+}
 
 async function saveBanner() {
   if (!bForm.value.tieuDe.trim() || !bForm.value.hinhAnh.trim()) { bFormErr.value='Tiêu đề và URL hình ảnh là bắt buộc'; return }
@@ -249,7 +287,7 @@ async function delBanner(b) {
 
 async function loadBanners() {
   loadingB.value=true
-  try { const r = await api.get('/banner'); banners.value = r.data||[] }
+  try { const r = await api.get('/admin/banner'); banners.value = r.data||[] }
   catch(e) { showToast('Không tải được banner') }
   finally { loadingB.value=false }
 }
@@ -301,13 +339,19 @@ async function delProd(p) {
 
 async function loadProducts() {
   loadingP.value=true
-  try { const r = await api.get('/san-pham'); products.value = r.data||[] }
+  try { const r = await api.get('/admin/san-pham'); products.value = r.data||[] }
   catch(e) { showToast('Không tải được sản phẩm') }
   finally { loadingP.value=false }
 }
 
 // load data when switching tabs
 watch(tab, t => { if (t==='banners') loadBanners(); else if (t==='products') loadProducts() })
+
+// When movie picker selection changes → push linkUrl into bForm
+watch(selectedMovieId, id => {
+  if (id) bForm.value.linkUrl = '/phim/' + id
+})
+
 onMounted(() => { loadBanners() })
 
 // ── GIỚI THIỆU ──────────────────────────────────────────────────
@@ -567,6 +611,10 @@ async function saveGioiThieu() {
 .field-hint {
   font-size: 11px; color: #6B7280; margin: 4px 0 0;
   font-family: var(--font-ui, 'Inter', sans-serif);
+}
+.field-optional {
+  font-size: 10px; color: #6B7280; font-weight: 400;
+  text-transform: none; letter-spacing: 0; margin-left: 4px;
 }
 
 /* ── Product name wrap ── */

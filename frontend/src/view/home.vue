@@ -136,6 +136,7 @@
       <div class="hero-grain"></div>
       <div class="hero-content" v-if="currentBanner">
         <h1 class="hero-title">{{ currentBanner.tieuDe }}</h1>
+        <p v-if="bannerDateRange" class="hero-date-range" aria-label="Thời gian diễn ra">{{ bannerDateRange }}</p>
         <p class="hero-desc">{{ currentBanner.moTa }}</p>
         <button
           class="btn-bib btn-hero"
@@ -464,16 +465,26 @@
               {{ cinema.thanhPho }}
             </p>
             <p class="cinema-address">{{ cinema.diaChi }}</p>
-            <a
-              v-if="cinema.latitude != null && cinema.longitude != null"
-              :href="`https://maps.google.com/?q=${cinema.latitude},${cinema.longitude}`"
-              class="cinema-map-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-              {{ t('viewMap') }}
-            </a>
+            <div class="cinema-card-actions">
+              <a
+                v-if="cinema.latitude != null && cinema.longitude != null"
+                :href="`https://maps.google.com/?q=${cinema.latitude},${cinema.longitude}`"
+                class="cinema-map-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                @click.stop
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                {{ t('viewMap') }}
+              </a>
+              <button
+                v-if="cinema.banDoUrl"
+                class="btn-directions-card"
+                @click.stop="handleDirectionsCard(cinema)"
+              >
+                🗺️ Đường đi
+              </button>
+            </div>
           </div>
         </article>
       </div>
@@ -580,6 +591,9 @@
       <p>&copy; 2026 PolyCinema. {{ t('allRights') }}</p>
     </footer>
   </div>
+
+  <!-- Confirm modal (teleported to body, shared with cinema cards) -->
+  <ConfirmModal />
 </template>
 
 <script setup>
@@ -588,10 +602,13 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useMovieStore } from '@/stores/movieStore'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import { useConfirmModal } from '@/composables/useConfirmModal'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const movieStore = useMovieStore()
+const { open: openConfirmModal } = useConfirmModal()
 
 const lang = ref(localStorage.getItem('poly_lang') || 'vi')
 const activeTab = ref('dang_chieu')
@@ -621,6 +638,22 @@ const displayMovies = computed(() => activeTab.value === 'dang_chieu' ? movieSto
 const isLoading = computed(() => activeTab.value === 'dang_chieu' ? movieStore.loading.dangChieu : movieStore.loading.sapChieu)
 const isError = computed(() => activeTab.value === 'dang_chieu' ? movieStore.error.dangChieu : movieStore.error.sapChieu)
 const currentBanner = computed(() => movieStore.banners[bannerIndex.value])
+
+/**
+ * Formatted date-range string for the current hero banner.
+ * Uses the existing formatDate() helper (returns 'dd/MM/yyyy').
+ * Returns '' when no dates are set so the element stays hidden.
+ */
+const bannerDateRange = computed(() => {
+  const b = currentBanner.value
+  if (!b) return ''
+  const start = b.ngayBatDau  || null
+  const end   = b.ngayKetThuc || null
+  if (start && end)   return `Diễn ra từ ${formatDate(start)} - ${formatDate(end)}`
+  if (start)          return `Bắt đầu từ ${formatDate(start)}`
+  if (end)            return `Đến hết ${formatDate(end)}`
+  return ''
+})
 
 function startBannerTimer() {
   if (bannerTimer) clearInterval(bannerTimer)
@@ -655,6 +688,16 @@ watch(() => movieStore.banners.length, (len) => {
 const toggleLang = () => { lang.value = lang.value === 'vi' ? 'en' : 'vi'; localStorage.setItem('poly_lang', lang.value) }
 const bookNow = () => { if (!authStore.isLoggedIn) router.push('/auth'); else router.push('/') }
 const goToMovie = (id) => router.push({ name: 'movie-detail', params: { id } })
+
+function handleDirectionsCard(cinema) {
+  openConfirmModal({
+    title: 'Mở đường đi?',
+    description: `Bạn sẽ được chuyển đến Google Maps để xem đường đi đến ${cinema.tenRap}`,
+    confirmLabel: 'Mở Google Maps',
+    cancelLabel: 'Hủy',
+    onConfirm: () => window.open(cinema.banDoUrl, '_blank', 'noopener,noreferrer'),
+  })
+}
 
 /**
  * Navigate using the current banner's linkUrl (internal router path like "/phim/1").
@@ -1234,6 +1277,18 @@ onUnmounted(() => {
   max-width: 480px;
 }
 
+.hero-date-range {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #94a3b8);
+  opacity: 0.75;
+}
+
 .hero-loading {
   color: var(--text-ghost, rgba(241,245,249,0.45));
   font-size: 18px;
@@ -1730,6 +1785,34 @@ onUnmounted(() => {
 }
 
 .cinema-map-link:hover { background: var(--electric, #29bcea); color: #fff; }
+
+.cinema-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 0;
+}
+
+.btn-directions-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  background: transparent;
+  padding: 5px 10px;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.2));
+  border-radius: var(--radius-pill, 999px);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.btn-directions-card:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary, #f1f5f9);
+  border-color: rgba(255,255,255,0.4);
+}
 
 .promo {
   background: #29bcea;
