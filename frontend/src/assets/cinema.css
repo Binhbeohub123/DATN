@@ -1,0 +1,165 @@
+/*
+ * cinema.css — Shared cross-page patterns for PolyCinema Premium UI.
+ * Imported once in main.css. Requires tokens.css to be loaded first.
+ *
+ * Contents:
+ *   1. Glass Card
+ *   2. Button-in-Button (BiB) CTA
+ *   3. Glass Chips
+ *   4. Premium Spinner
+ *   5. Scroll Reveal Base
+ *   6. @supports fallback (no backdrop-filter)
+ */
+
+/* ─────────────────────────────────────────
+   1. Glass Card
+   ───────────────────────────────────────── */
+
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-md);
+}
+
+.glass-card--heavy {
+  background: var(--glass-bg-heavy);
+  backdrop-filter: var(--glass-blur-lg);
+  -webkit-backdrop-filter: var(--glass-blur-lg);
+}
+
+/* ─────────────────────────────────────────
+   2. Button-in-Button (BiB) CTA
+   The outer ring uses outline/outline-offset; the inner fill is the lit
+   button surface. No extra DOM element required.
+   ───────────────────────────────────────── */
+
+.btn-bib {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 32px;
+  background: var(--electric);
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  /* Outer bezel ring */
+  outline: 1.5px solid rgba(41, 188, 234, 0.45);
+  outline-offset: 3px;
+  transition:
+    transform 0.3s var(--spring),
+    box-shadow 0.3s var(--ease-out),
+    outline-offset 0.3s var(--spring);
+  will-change: transform;
+}
+
+.btn-bib:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--electric-glow);
+  outline-offset: 5px;
+}
+
+/* Gold variant */
+.btn-bib--gold {
+  background: var(--gold);
+  outline-color: var(--gold-glow);
+}
+
+.btn-bib--gold:hover:not(:disabled) {
+  box-shadow: var(--glow-gold);
+}
+
+/* ─────────────────────────────────────────
+   3. Glass Chips
+   ───────────────────────────────────────── */
+
+.chip-glass {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.chip-glass--electric {
+  background: var(--electric-soft);
+  border-color: rgba(41, 188, 234, 0.25);
+  color: var(--electric);
+}
+
+.chip-glass--gold {
+  background: var(--gold-soft);
+  border-color: rgba(201, 168, 76, 0.30);
+  color: var(--gold-bright);
+}
+
+/* ─────────────────────────────────────────
+   4. Premium Spinner
+   ───────────────────────────────────────── */
+
+.spinner-cinema {
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--glass-border);
+  border-top-color: var(--electric);
+  border-radius: 50%;
+  animation: cinema-spin 0.8s linear infinite;
+}
+
+@keyframes cinema-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─────────────────────────────────────────
+   5. Scroll Reveal Base
+   Toggled by useReveal.js (IntersectionObserver adds .is-visible)
+   ───────────────────────────────────────── */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.6s var(--ease-out),
+    transform 0.6s var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─────────────────────────────────────────
+   6. @supports fallback — no backdrop-filter
+   Provides opaque surface fallbacks for browsers that do not support
+   backdrop-filter (e.g. older Firefox, some mobile WebViews).
+   ───────────────────────────────────────── */
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-card {
+    background: var(--surface-2);
+  }
+
+  .nav-island {
+    background: rgba(5, 5, 8, 0.97);
+  }
+
+  .book-bar {
+    background: var(--surface-1);
+  }
+}

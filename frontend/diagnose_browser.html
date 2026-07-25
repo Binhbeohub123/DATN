@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head><title>Promo Bug Diagnosis - Browser Simulation</title></head>
+<body>
+<h2>Promo Checkbox Bug — Browser Diagnosis</h2>
+<p>This page simulates the exact Vue checkbox binding logic in a real browser to test if the bug is in rendering.</p>
+<div id="output" style="font-family:monospace; white-space:pre; background:#111; color:#0f0; padding:16px; border-radius:8px;"></div>
+<hr>
+<h3>Live Checkbox Test:</h3>
+<div id="checkbox-test"></div>
+
+<script type="module">
+const API_BASE = '/api'
+const out = document.getElementById('output')
+function log(msg) { out.textContent += msg + '\n'; console.log(msg) }
+
+async function run() {
+  // Get token from localStorage (user should be logged in as admin)
+  let token = localStorage.getItem('token')
+  if (!token) {
+    log('No token in localStorage. Attempting login...')
+    const loginResp = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@cinema.com', password: 'Admin@123' })
+    })
+    token = await loginResp.text()
+    localStorage.setItem('token', token)
+    log('Logged in successfully.')
+  }
+  
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+
+  // 1. Fetch promos
+  log('\n=== Fetching promos (GET /khuyen-mai/all) ===')
+  const promosResp = await fetch(`${API_BASE}/khuyen-mai/all`, { headers })
+  const promos = await promosResp.json()
+  
+  // 2. Fetch movies
+  log('=== Fetching movies (GET /phim) ===')
+  const moviesResp = await fetch(`${API_BASE}/phim`, { headers })
+  const allMovies = await moviesResp.json()
+
+  // 3. For each promo with phims, create checkboxes identical to Vue template
+  const testDiv = document.getElementById('checkbox-test')
+  
+  for (const km of promos) {
+    if (!km.phims || km.phims.length === 0) continue
+    
+    const phimIds = km.phims.map(p => p.id)
+    log(`\n--- Promo "${km.maKhuyenMai}" ---`)
+    log(`  form.phimIds = ${JSON.stringify(phimIds)}`)
+    log(`  form.phimIds types = [${phimIds.map(id => typeof id)}]`)
+    
+    const section = document.createElement('div')
+    section.innerHTML = `<h4>Promo: ${km.maKhuyenMai} — phimIds = ${JSON.stringify(phimIds)}</h4>`
+    
+    for (const m of allMovies) {
+      const label = document.createElement('label')
+      label.style.display = 'block'
+      label.style.padding = '4px'
+      
+      const cb = document.createElement('input')
+      cb.type = 'checkbox'
+      cb.value = m.id  // This is what :value="m.id" does
+      
+      // Check: does phimIds.includes(m.id) work?
+      const includesMatch = phimIds.includes(m.id)
+      // Check: does phimIds.includes(cb.value) work?  
+      const cbValueMatch = phimIds.includes(cb.value)
+      // Check: what is cb.value's type after assignment?
+      const cbValueType = typeof cb.value
+      
+      cb.checked = includesMatch
+      
+      const span = document.createElement('span')
+      span.textContent = ` ${m.tenPhim} (id=${m.id}, typeof id=${typeof m.id}, cb.value=${cb.value}, typeof cb.value=${cbValueType}, includes(m.id)=${includesMatch}, includes(cb.value)=${cbValueMatch})`
+      
+      if (cbValueType !== typeof m.id) {
+        span.style.color = 'red'
+        span.style.fontWeight = 'bold'
+        log(`  ⚠️  CHECKBOX VALUE TYPE COERCION: m.id=${m.id} (${typeof m.id}) → cb.value="${cb.value}" (${cbValueType})`)
+      }
+      
+      label.appendChild(cb)
+      label.appendChild(span)
+      section.appendChild(label)
+    }
+    
+    testDiv.appendChild(section)
+  }
+  
+  // KEY TEST: HTML checkbox .value is ALWAYS a string!
+  log('\n=== KEY FINDING ===')
+  const testCb = document.createElement('input')
+  testCb.type = 'checkbox'
+  testCb.value = 42  // assign a number
+  log(`  Assigned checkbox.value = 42 (number)`)
+  log(`  Actual checkbox.value = "${testCb.value}" (${typeof testCb.value})`)
+  log(`  42 === testCb.value → ${42 === testCb.value}`)
+  log(`  "42" === testCb.value → ${"42" === testCb.value}`)
+  
+  if (typeof testCb.value === 'string') {
+    log('\n  ⚠️⚠️⚠️ HTML checkbox .value is ALWAYS coerced to string!')
+    log('  Vue uses :value (v-bind) which preserves the JS type, NOT the DOM .value')
+    log('  BUT if there is any issue with Vue binding, the fallback is string comparison')
+  }
+}
+
+run().catch(e => { log('Error: ' + e.message); console.error(e) })
+</script>
+</body>
+</html>

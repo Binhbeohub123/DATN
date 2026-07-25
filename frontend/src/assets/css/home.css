@@ -1,0 +1,18 @@
+/* Legacy home.css — aligned with design.md (Galaxy). home.vue uses scoped styles; keep in sync for reference. */
+
+:root {
+  --primary: #29bcea;
+  --primary-dark: #1a9fbd;
+  --bg: #ffffff;
+  --surface: #f7f7f7;
+  --text: #000000;
+  --text-secondary: #7f7e7f;
+  --border: #efefef;
+}
+
+.home {
+  font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-secondary);
+  min-height: 100vh;
+}
