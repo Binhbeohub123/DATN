@@ -1,4 +1,4 @@
-/*
+﻿/*
  * tokens.css — Single source of truth for all CSS design tokens.
  * Part of the PolyCinema Premium UI design system.
  * Import this file before any other stylesheet.
@@ -63,10 +63,18 @@
   --page-bg: var(--void);
   --border:  var(--glass-border);
 
+  /* ── Legacy compatibility aliases (base.css values migrated here) ── */
+  --accent:           #29bcea;
+  --accent-hover:     #1a9fbd;
+  --surface:          #1a1a28;   /* ≈ surface-3, matches base.css dark value intent */
+  --surface-plain:    #0f0f17;   /* ≈ surface-1 */
+  --surface-elevated: #222235;   /* ≈ surface-4 */
+
   /*
    * ── Admin-specific tokens ──────────────────────────────────────────────
-   * These are ONLY for the admin panel (.admin-container scope).
-   * They are NOT overridden in [data-theme='light'] — they stay dark always.
+   * These tokens serve the admin panel (.admin-container scope).
+   * Default values are the dark admin palette.
+   * [data-theme='light'] overrides them below for the light mode variant.
    */
   --admin-accent:        #FFFFFF;
   --admin-accent-muted:  rgba(255,255,255,0.08);
@@ -77,6 +85,8 @@
   --admin-border:        #374151;
   --admin-text:          #E5E5E5;
   --admin-text-muted:    #9CA3AF;
+  /* Admin-specific border-divider (slightly lighter than border) */
+  --admin-divider:       #1F2937;
 }
 
 /* ── Light Theme Overrides ── */
@@ -102,6 +112,23 @@
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.12);
   --shadow-md:  0 4px 16px rgba(0,0,0,0.16);
   --shadow-lg:  0 12px 40px rgba(0,0,0,0.20);
+
+  /* ── Legacy compatibility aliases — light values ── */
+  --surface:          #f7f7f7;
+  --surface-plain:    #ffffff;
+  --surface-elevated: #efefef;
+
+  /* ── Admin panel light-mode token overrides ── */
+  --admin-accent:        #1e40af;
+  --admin-accent-muted:  rgba(30,64,175,0.08);
+  --admin-accent-border: rgba(30,64,175,0.25);
+  --admin-bg:            #f0f2f7;
+  --admin-surface:       #ffffff;
+  --admin-surface-hover: #e8eaf0;
+  --admin-border:        rgba(15,23,42,0.15);
+  --admin-text:          #0f172a;
+  --admin-text-muted:    #475569;
+  --admin-divider:       rgba(15,23,42,0.08);
 }
 
 /* ── Dark Theme Override (cinematic palette — identical to :root) ── */
@@ -128,65 +155,21 @@
 
   --page-bg: var(--void);
   --border:  var(--glass-border);
+
+  /* ── Legacy compatibility aliases — dark values ── */
+  --surface:          #1a222d;
+  --surface-plain:    #161b22;
+  --surface-elevated: #242d3a;
 }
 
 /*
- * ── Admin panel: forced dark token scope ──────────────────────────────────
- *
- * Problem: themeStore sets data-theme on document.documentElement (<html>).
- * dark-theme.css contains admin-specific rules with !important that fire
- * under [data-theme='dark'] and inject gold/amber (#FFD700) into the admin
- * panel (active nav item, section headings, tabs).
- *
- * Solution: Use the combined selector
- *   .admin-container, .admin-container [data-theme='light'], .admin-container [data-theme='dark']
- * to override tokens at the admin scope with !important so they beat any
- * descendant or ancestor data-theme attribute selector.
- *
- * Additionally, key property overrides are applied directly (not via tokens)
- * to defeat the !important rules in dark-theme.css that target:
- *   [data-theme='dark'] .admin-container .menu-item.active  (gold #FFD700)
- *   [data-theme='dark'] .admin-container .section-title     (gold #FFD700)
- *   [data-theme='dark'] .admin-container .tab--active       (gold #FFD700)
- *   [data-theme='dark'] .admin-container .sidebar           (var(--surface))
- *   [data-theme='dark'] .admin-container .topbar            (var(--surface-plain))
- *   [data-theme='dark'] .admin-container .card              (var(--surface))
- *   [data-theme='dark'] .admin-container input/select/textarea
- *
- * These overrides are placed here (tokens.css) so they load before
- * dark-theme.css, but the !important declarations win the cascade regardless
- * of source order because the admin-container selectors have equal or higher
- * specificity.
- *
- * Note: The property overrides for .menu-item.active, .section-title,
- * .tab--active etc. live in admin-theme.css (see below) using
- * .admin-container .menu-item.active with !important to beat dark-theme.css.
+ * ── Admin panel: color-scheme hints only ─────────────────────────────────
+ * The old "forced dark" override block has been removed so that light-mode
+ * toggles correctly. The admin panel now reads its colors from var(--admin-*)
+ * tokens defined in :root and overridden under [data-theme='light'] above.
+ * admin-theme.css references var(--admin-*) throughout instead of hardcoded hex.
  */
-.admin-container,
-.admin-container [data-theme='light'],
-.admin-container [data-theme='dark'] {
-  --void:           #0D0D0D !important;
-  --deep:           #0D0D0D !important;
-  --surface-1:      #111827 !important;
-  --surface-2:      #111827 !important;
-  --surface-3:      #1F2937 !important;
-  --surface-4:      #1F2937 !important;
-  --gold:           #FFFFFF !important;
-  --gold-bright:    #FFFFFF !important;
-  --gold-glow:      rgba(255,255,255,0.15) !important;
-  --gold-soft:      rgba(255,255,255,0.08) !important;
-  --electric:       #FFFFFF !important;
-  --electric-hover: #E5E5E5 !important;
-  --electric-glow:  rgba(255,255,255,0.15) !important;
-  --electric-soft:  rgba(255,255,255,0.08) !important;
-  --text-primary:   #E5E5E5 !important;
-  --text-secondary: #9CA3AF !important;
-  --text-ghost:     rgba(229,229,229,0.45) !important;
-  --glass-bg:       rgba(255,255,255,0.04) !important;
-  --glass-bg-heavy: rgba(255,255,255,0.08) !important;
-  --glass-border:   rgba(255,255,255,0.08) !important;
-  --page-bg:        #0D0D0D !important;
-  --border:         rgba(255,255,255,0.08) !important;
-  background:       #0D0D0D !important;
-  color-scheme:     dark !important;
-}
+[data-theme='dark'] .admin-container,
+.admin-container { color-scheme: dark; }
+
+[data-theme='light'] .admin-container { color-scheme: light; }

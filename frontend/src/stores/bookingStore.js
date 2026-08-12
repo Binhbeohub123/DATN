@@ -10,7 +10,7 @@ export const useBookingStore = defineStore('booking', () => {
   const selectedCombos = ref([])
   const promoCode = ref('')
   const promoData = ref(null)
-  const paymentMethod = ref('VNPay')
+  const paymentMethod = ref('PayOS')
   const useLoyaltyPoints = ref(false)
   const loyaltyPointsToUse = ref(0)
 
@@ -64,7 +64,8 @@ export const useBookingStore = defineStore('booking', () => {
   })
 
   const pointsDiscount = computed(() => {
-    return loyaltyPointsToUse.value * 1000
+    // 1 điểm = 100đ
+    return loyaltyPointsToUse.value * 100
   })
 
   const totalPrice = computed(() => {
@@ -221,7 +222,7 @@ export const useBookingStore = defineStore('booking', () => {
     selectedCombos.value = []
     promoCode.value = ''
     promoData.value = null
-    paymentMethod.value = 'VNPay'
+    paymentMethod.value = 'PayOS'
     useLoyaltyPoints.value = false
     loyaltyPointsToUse.value = 0
     error.value = { seats: '', products: '', promo: '', booking: '' }

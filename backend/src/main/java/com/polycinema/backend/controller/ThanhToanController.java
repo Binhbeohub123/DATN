@@ -36,9 +36,15 @@ public class ThanhToanController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
             }
 
-            Long datVeId = ((Number) req.get("datVeId")).longValue();
+            Object datVeRaw = req.get("datVeId");
+            if (datVeRaw == null) {
+                return ResponseEntity.badRequest().body("Thiếu trường datVeId");
+            }
+            Long datVeId = ((Number) datVeRaw).longValue();
             String ipAddr = getClientIp(httpRequest);
-            String paymentUrl = thanhToanService.createVNPayUrl(datVeId, ipAddr);
+            String frontendOrigin = req.get("frontendOrigin") != null
+                    ? String.valueOf(req.get("frontendOrigin")) : null;
+            String paymentUrl = thanhToanService.createVNPayUrl(datVeId, ipAddr, frontendOrigin);
 
             return ResponseEntity.ok(Map.of("paymentUrl", paymentUrl));
         } catch (IllegalArgumentException e) {
@@ -81,8 +87,14 @@ public class ThanhToanController {
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
             }
-            Long datVeId = ((Number) req.get("datVeId")).longValue();
-            Map<String, Object> result = thanhToanService.createPayOSPayment(datVeId);
+            Object datVeRaw = req.get("datVeId");
+            if (datVeRaw == null) {
+                return ResponseEntity.badRequest().body("Thiếu trường datVeId");
+            }
+            Long datVeId = ((Number) datVeRaw).longValue();
+            String frontendOrigin = req.get("frontendOrigin") != null
+                    ? String.valueOf(req.get("frontendOrigin")) : null;
+            Map<String, Object> result = thanhToanService.createPayOSPayment(datVeId, frontendOrigin);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -101,16 +113,75 @@ public class ThanhToanController {
     @PostMapping("/payos/cancel")
     public ResponseEntity<?> payosCancel(@RequestBody Map<String, Object> body) {
         String maDatVe = body.get("maDatVe") != null ? String.valueOf(body.get("maDatVe")) : null;
-        if (maDatVe == null || maDatVe.isBlank() || "null".equals(maDatVe)) {
+        Long   datVeId = parseLong(body.get("datVeId"));
+        Long   orderCode = parseLong(body.get("orderCode"));
+
+        boolean hasMaDatVe = maDatVe != null && !maDatVe.isBlank() && !"null".equals(maDatVe);
+        if (!hasMaDatVe && datVeId == null && orderCode == null) {
             return ResponseEntity.ok(Map.of("message", "no maDatVe provided"));
         }
         try {
-            thanhToanService.cancelByPayOSCancel(maDatVe);
+            if (hasMaDatVe) {
+                thanhToanService.cancelByPayOSCancel(maDatVe);
+            } else if (orderCode != null) {
+                thanhToanService.cancelByPayOSOrderCode(orderCode);
+            } else {
+                thanhToanService.cancelByPayOSCancel(datVeId);
+            }
             return ResponseEntity.ok(Map.of("message", "cancelled"));
         } catch (Exception e) {
             // Always return 200 — the frontend redirect should succeed regardless
             return ResponseEntity.ok(Map.of("message", "error: " + e.getMessage()));
         }
+    }
+
+    /**
+     * POST /api/thanh-toan/payos/confirm
+     * Called from /payment-result when PayOS redirects back (returnUrl).
+     * Body: { "orderCode": 123456 }
+     * PUBLIC — PayOS appends orderCode to the returnUrl; there is no auth context.
+     * Re-queries PayOS for the link status and reconciles the booking (markPaid/cancel).
+     */
+    @PostMapping("/payos/confirm")
+    public ResponseEntity<?> payosConfirm(@RequestBody Map<String, Object> body) {
+        Long orderCode = parseLong(body.get("orderCode"));
+        Long datVeId   = parseLong(body.get("datVeId"));
+        if (orderCode == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "missing orderCode"));
+        }
+        try {
+            return ResponseEntity.ok(thanhToanService.confirmPayOS(orderCode, datVeId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * POST /api/thanh-toan/zalopay/redirect
+     * Called from /payment-result when ZaloPay redirects the browser back
+     * (returnUrl/cancelUrl). Body = the full ZaloPay redirect query params.
+     * PUBLIC — ZaloPay signs the params with the checksum, there is no auth context.
+     */
+    @PostMapping("/zalopay/redirect")
+    public ResponseEntity<?> zaloPayRedirect(@RequestBody Map<String, Object> body) {
+        Long datVeId = parseLong(body.get("datVeId"));
+        try {
+            return ResponseEntity.ok(thanhToanService.handleZaloPayRedirect(body, datVeId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    private Long parseLong(Object value) {
+        if (value == null) return null;
+        try { return Long.valueOf(String.valueOf(value)); }
+        catch (NumberFormatException ignored) { return null; }
     }
 
     /**
@@ -141,8 +212,14 @@ public class ThanhToanController {
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
             }
-            Long datVeId = ((Number) req.get("datVeId")).longValue();
-            Map<String, Object> result = thanhToanService.createZaloPayOrder(datVeId);
+            Object datVeRaw = req.get("datVeId");
+            if (datVeRaw == null) {
+                return ResponseEntity.badRequest().body("Thiếu trường datVeId");
+            }
+            Long datVeId = ((Number) datVeRaw).longValue();
+            String frontendOrigin = req.get("frontendOrigin") != null
+                    ? String.valueOf(req.get("frontendOrigin")) : null;
+            Map<String, Object> result = thanhToanService.createZaloPayOrder(datVeId, frontendOrigin);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

@@ -3,6 +3,9 @@ package com.polycinema.backend.controller;
 import com.polycinema.backend.entity.*;
 import com.polycinema.backend.repository.*;
 import com.polycinema.backend.service.DatVeService;
+import com.polycinema.backend.service.AuthService;
+import com.polycinema.backend.service.EmailService;
+import com.polycinema.backend.service.PhimService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -45,6 +48,9 @@ public class AdminController {
     private final SeatLockRepository seatLockRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final DatVeService datVeService;
+    private final AuthService authService;
+    private final EmailService emailService;
+    private final PhimService phimService;
     private final TheLoaiRepository theLoaiRepository;
     private final ChiTietDatGheRepository chiTietDatGheRepository;
     private final DinhDangRepository dinhDangRepository;
@@ -188,41 +194,320 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Đã mở khóa tài khoản"));
     }
 
+    /**
+     * POST /api/admin/users
+     * Admin creates a new staff or admin account.
+     * Body: { "email", "password", "hoTen", "soDienThoai" (optional), "vaiTro": "staff"|"admin" }
+     * The new account is immediately active (no email verification needed).
+     * createdBy is set to the calling admin's ID.
+     */
+    @PostMapping("/users")
+    public ResponseEntity<?> createUser(@RequestBody Map<String, String> body) {
+        try {
+            // Resolve the calling admin's ID
+            String callerEmail = getCallerEmail();
+            if (callerEmail == null) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Vui lòng đăng nhập"));
+            }
+            Long callerAdminId = nguoiDungRepository.findByEmail(callerEmail)
+                    .map(NguoiDung::getId).orElse(null);
+
+            String email      = body.get("email");
+            String password   = body.get("password");
+            String hoTen      = body.get("hoTen");
+            String soDienThoai = body.get("soDienThoai");
+            String vaiTro     = body.get("vaiTro");
+
+            NguoiDung created = authService.createStaffOrAdmin(
+                    email, password, hoTen, soDienThoai, vaiTro, callerAdminId);
+            created.setMatKhauHash(null);   // never return hash
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi tạo tài khoản: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * PUT /api/admin/users/{id}/points
+     * Body: { "delta": 100, "lyDo": "Bù điểm khiếu nại" }
+     * Adjusts a user's diemTichLuy by delta (positive = add, negative = subtract).
+     * Balance is clamped to 0 (cannot go negative).
+     * Adjustment is logged to application log for audit purposes.
+     */
+    @PutMapping("/users/{id}/points")
+    public ResponseEntity<?> adjustPoints(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            NguoiDung user = nguoiDungRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+
+            Object deltaRaw = body.get("delta");
+            if (deltaRaw == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Thiếu trường delta"));
+            }
+            int delta = ((Number) deltaRaw).intValue();
+            String lyDo = body.get("lyDo") != null ? String.valueOf(body.get("lyDo")) : "";
+
+            int before = user.getDiemTichLuy() == null ? 0 : user.getDiemTichLuy();
+            int after  = Math.max(0, before + delta);
+            user.setDiemTichLuy(after);
+            nguoiDungRepository.save(user);
+
+            // Audit log (application-level; no new table needed)
+            String adminEmail = getCallerEmail();
+            org.slf4j.LoggerFactory.getLogger(AdminController.class).info(
+                "[POINTS_ADJUST] admin={} targetUserId={} before={} delta={} after={} lyDo={}",
+                adminEmail, id, before, delta, after, lyDo);
+
+            user.setMatKhauHash(null);
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("userId",       id);
+            result.put("diemTichLuy",  after);
+            result.put("delta",        delta);
+            result.put("lyDo",         lyDo);
+            result.put("message",      "Đã điều chỉnh điểm tích lũy");
+            return ResponseEntity.ok(result);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi điều chỉnh điểm: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * PUT /api/admin/users/{id}/role
+     * Body: { "vaiTro": "customer" | "staff" | "admin" }
+     * Safety checks:
+     *  - Rejects if target user == calling admin (self-lockout prevention)
+     *  - Rejects if demoting the last remaining admin account
+     */
+    @PutMapping("/users/{id}/role")
+    public ResponseEntity<?> changeUserRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        try {
+            String newRole = body.get("vaiTro");
+            if (newRole == null || (!newRole.equals("customer") && !newRole.equals("staff") && !newRole.equals("admin"))) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Vai trò không hợp lệ. Chỉ chấp nhận: customer, staff, admin"));
+            }
+
+            NguoiDung target = nguoiDungRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+
+            // Self-change guard
+            String callerEmail = getCallerEmail();
+            if (callerEmail != null) {
+                NguoiDung caller = nguoiDungRepository.findByEmail(callerEmail).orElse(null);
+                if (caller != null && caller.getId().equals(id)) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Không thể thay đổi vai trò của chính mình"));
+                }
+            }
+
+            // Last-admin guard: prevent demoting the last admin
+            if ("admin".equals(target.getVaiTro()) && !"admin".equals(newRole)) {
+                long adminCount = nguoiDungRepository.countByVaiTro("admin");
+                if (adminCount <= 1) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Không thể hạ cấp tài khoản admin cuối cùng"));
+                }
+            }
+
+            String oldRole = target.getVaiTro();
+            target.setVaiTro(newRole);
+            nguoiDungRepository.save(target);
+
+            org.slf4j.LoggerFactory.getLogger(AdminController.class).info(
+                "[ROLE_CHANGE] admin={} targetUserId={} oldRole={} newRole={}",
+                callerEmail, id, oldRole, newRole);
+
+            target.setMatKhauHash(null);
+            return ResponseEntity.ok(Map.of(
+                    "userId",  id,
+                    "vaiTro",  newRole,
+                    "message", "Đã cập nhật vai trò"));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi thay đổi vai trò: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * PUT /api/admin/users/{id}/profile
+     * Body: { "hoTen": "...", "email": "..." }  (either or both fields)
+     * Validates:
+     *  - hoTen must not be blank if provided
+     *  - email must be valid format if provided
+     *  - email must be unique (not taken by a different account)
+     * When email changes: notifications are sent to both old and new addresses,
+     * and emailChangedAt is stamped so JwtAuthenticationFilter rejects any token
+     * issued before this moment (forcing the user to log in again with the new email).
+     * Password-reset OTPs always look up by the CURRENT email column value —
+     * the existing in-memory OTP store in AuthService already does this correctly
+     * (sendForgotOtp calls findByEmail with whatever email the user provides at
+     * request time, which is the DB value after any admin change).
+     */
+    @PutMapping("/users/{id}/profile")
+    public ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        try {
+            NguoiDung user = nguoiDungRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+
+            boolean changed = false;
+            String oldEmail = user.getEmail();   // capture before any mutation
+            boolean emailChanged = false;
+
+            // ── hoTen ─────────────────────────────────────────────
+            if (body.containsKey("hoTen")) {
+                String hoTen = body.get("hoTen");
+                if (hoTen == null || hoTen.isBlank()) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Họ tên không được để trống"));
+                }
+                user.setHoTen(hoTen.trim());
+                changed = true;
+            }
+
+            // ── email ─────────────────────────────────────────────
+            if (body.containsKey("email")) {
+                String email = body.get("email");
+                if (email == null || email.isBlank()) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Email không được để trống"));
+                }
+                email = email.trim().toLowerCase();
+
+                // Basic email format validation
+                if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Email không hợp lệ"));
+                }
+
+                // Uniqueness check — reject if taken by a different account
+                java.util.Optional<NguoiDung> existing = nguoiDungRepository.findByEmail(email);
+                if (existing.isPresent() && !existing.get().getId().equals(id)) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Email " + email + " đã được sử dụng bởi tài khoản khác"));
+                }
+
+                if (!email.equals(oldEmail)) {
+                    user.setEmail(email);
+                    // Stamp the change time — JwtAuthenticationFilter uses this to reject
+                    // tokens issued before this moment (old-email session invalidation).
+                    user.setEmailChangedAt(LocalDateTime.now());
+                    emailChanged = true;
+                }
+                changed = true;
+            }
+
+            if (!changed) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Không có trường nào được cập nhật"));
+            }
+
+            nguoiDungRepository.save(user);
+
+            // ── Email-change notifications (fire-and-forget, non-blocking) ──
+            if (emailChanged) {
+                final String newEmail = user.getEmail();
+                final String displayName = user.getHoTen();
+                final String capturedOld = oldEmail;
+                new Thread(() ->
+                    emailService.sendEmailChangedNotification(capturedOld, newEmail, displayName)
+                ).start();
+            }
+
+            String adminEmail = getCallerEmail();
+            org.slf4j.LoggerFactory.getLogger(AdminController.class).info(
+                "[PROFILE_UPDATE] admin={} targetUserId={} fields={} emailChanged={}",
+                adminEmail, id, body.keySet(), emailChanged);
+
+            user.setMatKhauHash(null);
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("id",           user.getId());
+            result.put("hoTen",        user.getHoTen());
+            result.put("email",        user.getEmail());
+            result.put("emailChanged", emailChanged);
+            result.put("message",      "Đã cập nhật thông tin người dùng"
+                    + (emailChanged ? ". Email thông báo đã được gửi tới cả hai địa chỉ." : ""));
+            return ResponseEntity.ok(result);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi cập nhật thông tin: " + e.getMessage()));
+        }
+    }
+
+
+    private String getCallerEmail() {
+        try {
+            org.springframework.security.core.Authentication auth =
+                    org.springframework.security.core.context.SecurityContextHolder
+                            .getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) return null;
+            Object p = auth.getPrincipal();
+            if (!(p instanceof String)) return null;
+            String email = (String) p;
+            return "anonymousUser".equals(email) ? null : email;
+        } catch (Exception e) { return null; }
+    }
+
     // ─────────────────────────────────────────────────────────────
     // MOVIE ADMIN CRUD
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * GET /api/admin/phim — all movies including deleted
+     * GET /api/admin/phim — all movies including deleted.
+     * trangThai is computed from showtimes, not the stored value.
      */
     @GetMapping("/phim")
     public ResponseEntity<?> getAllPhim() {
-        return ResponseEntity.ok(phimRepository.findAll());
+        List<Phim> movies = phimRepository.findAll();
+        phimService.applyComputedStatus(movies);
+        return ResponseEntity.ok(movies);
     }
 
     /**
      * POST /api/admin/phim
-     * Body: standard Phim fields + optional theLoaiIds: [1, 2, 3]
+     * trangThai in the body is IGNORED — computed status is applied at read time.
+     * New movies always start as "chua_chieu" (no showtimes yet).
      */
     @PostMapping("/phim")
     public ResponseEntity<?> createPhim(@RequestBody Map<String, Object> body) {
         Phim phim = new Phim();
         phim.setIsDeleted(false);
+        phim.setTrangThai("sap_chieu");  // auto-computed; stored default must satisfy DB CHECK (ngung_chieu/dang_chieu/sap_chieu)
         applyPhimFields(phim, body);
-        return ResponseEntity.status(HttpStatus.CREATED).body(phimRepository.save(phim));
+        // Never use caller-supplied trangThai — keep a DB-valid default
+        phim.setTrangThai("sap_chieu");
+        Phim saved = phimRepository.save(phim);
+        phimService.applyComputedStatus(saved);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     /**
      * PUT /api/admin/phim/{id}
-     * Body: any subset of Phim fields + optional theLoaiIds: [1, 2, 3]
-     * If theLoaiIds is present it replaces the entire genre list.
+     * trangThai in the body is IGNORED — computed status is applied at read time.
      */
     @PutMapping("/phim/{id}")
     public ResponseEntity<?> updatePhim(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Phim phim = phimRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
+        String storedStatus = phim.getTrangThai();  // preserve stored value
         applyPhimFields(phim, body);
-        return ResponseEntity.ok(phimRepository.save(phim));
+        phim.setTrangThai(storedStatus);  // restore: never override with incoming value
+        Phim saved = phimRepository.save(phim);
+        phimService.applyComputedStatus(saved);
+        return ResponseEntity.ok(saved);
     }
 
     /** Helper — applies fields from request body to a Phim entity, including theLoaiIds. */
@@ -298,23 +583,75 @@ public class AdminController {
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * GET /api/admin/lich-chieu?page=0&size=20&dateFrom=yyyy-MM-dd&dateTo=yyyy-MM-dd
-     * Uses DB-level pagination and date-range filter — no findAll().
+     * GET /api/admin/lich-chieu/validate-date
+     * Checks whether a given room/time/date combination has conflicts.
+     * Used by the frontend date-chip selector to show green/red indicators.
+     * Params: phongChieuId, ngay (yyyy-MM-dd), thoiGianBatDau (HH:mm), thoiGianNghi (minutes), phimId
+     */
+    @GetMapping("/lich-chieu/validate-date")
+    public ResponseEntity<?> validateDate(
+            @RequestParam Long phongChieuId,
+            @RequestParam String ngay,
+            @RequestParam String thoiGianBatDau,
+            @RequestParam(defaultValue = "15") int thoiGianNghi,
+            @RequestParam Long phimId,
+            @RequestParam(required = false) Long excludeId) {
+
+        Phim phim = phimRepository.findById(phimId).orElse(null);
+        if (phim == null || phim.getThoiLuong() == null) {
+            return ResponseEntity.ok(Map.of("date", ngay, "valid", false, "reason", "Không tìm thấy phim"));
+        }
+
+        String[] hm = thoiGianBatDau.split(":");
+        java.time.LocalDateTime start = java.time.LocalDate.parse(ngay)
+                .atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1]));
+        java.time.LocalDateTime end = start.plusMinutes(phim.getThoiLuong() + thoiGianNghi);
+
+        java.util.Optional<LichChieu> conflict = lichChieuRepository.findAll().stream()
+                .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
+                .filter(lc -> lc.getPhongChieu() != null && phongChieuId.equals(lc.getPhongChieu().getId()))
+                .filter(lc -> excludeId == null || !excludeId.equals(lc.getId()))
+                .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
+                        && start.isBefore(lc.getThoiGianKetThuc())
+                        && end.isAfter(lc.getThoiGianBatDau()))
+                .findFirst();
+
+        if (conflict.isPresent()) {
+            LichChieu cx = conflict.get();
+            String cxS = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
+            String cxE = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
+            return ResponseEntity.ok(Map.of(
+                    "date", ngay, "valid", false,
+                    "reason", "Trùng với suất chiếu " + cxS + "–" + cxE));
+        }
+        return ResponseEntity.ok(Map.of("date", ngay, "valid", true, "reason", ""));
+    }
+
+    /**
+     * GET /api/admin/lich-chieu?page=0&size=20&dateFrom=yyyy-MM-dd&dateTo=yyyy-MM-dd&rapChieuId=X&phongChieuId=Y
+     * Uses DB-level pagination and optional filters — no findAll().
+     * When rapChieuId is provided, size is raised to 500 automatically so all
+     * rooms of the cinema load in one request for client-side grouping.
      */
     @GetMapping("/lich-chieu")
     public ResponseEntity<?> getAllLichChieu(
-            @RequestParam(defaultValue = "0")  int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0")   int page,
+            @RequestParam(defaultValue = "20")  int size,
             @RequestParam(required = false) String dateFrom,
-            @RequestParam(required = false) String dateTo) {
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) Long rapChieuId,
+            @RequestParam(required = false) Long phongChieuId) {
 
         LocalDateTime from = (dateFrom != null && !dateFrom.isBlank())
                 ? LocalDate.parse(dateFrom).atStartOfDay() : null;
         LocalDateTime to = (dateTo != null && !dateTo.isBlank())
                 ? LocalDate.parse(dateTo).plusDays(1).atStartOfDay() : null;
 
-        PageRequest pr = PageRequest.of(page, size);
-        Page<LichChieu> result = lichChieuRepository.findAdminPage(from, to, pr);
+        // Raise page size when cinema filter is active so grouped view loads all rooms
+        int effectiveSize = (rapChieuId != null) ? Math.max(size, 500) : size;
+
+        PageRequest pr = PageRequest.of(page, effectiveSize);
+        Page<LichChieu> result = lichChieuRepository.findAdminPage(from, to, rapChieuId, phongChieuId, pr);
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("content",       result.getContent());
@@ -363,7 +700,7 @@ public class AdminController {
             return ResponseEntity.badRequest().body(Map.of("message", formatErr.get()));
         }
 
-        // Conflict detection: same room, overlapping time
+        // Conflict detection: same room, overlapping time (include break time from existing schedules)
         if (lichChieu.getPhongChieu() != null && lichChieu.getThoiGianBatDau() != null && lichChieu.getThoiGianKetThuc() != null) {
             LocalDateTime start = lichChieu.getThoiGianBatDau();
             LocalDateTime end = lichChieu.getThoiGianKetThuc();
@@ -409,18 +746,14 @@ public class AdminController {
     @PostMapping("/lich-chieu/batch")
     @SuppressWarnings("unchecked")
     public ResponseEntity<?> batchCreateLichChieu(@RequestBody Map<String, Object> body) {
-        Long phimId    = body.get("phimId")    != null ? ((Number) body.get("phimId")).longValue()    : null;
-        Long phongId   = body.get("phongChieuId") != null ? ((Number) body.get("phongChieuId")).longValue() : null;
-        String startTime = (String) body.get("startTime");  // "HH:mm"
-        String endTime   = (String) body.get("endTime");    // "HH:mm"
-        java.math.BigDecimal giaCoBan = body.get("giaCoBan") != null
-                ? new java.math.BigDecimal(body.get("giaCoBan").toString()) : java.math.BigDecimal.ZERO;
+        Long phimId  = body.get("phimId")       != null ? ((Number) body.get("phimId")).longValue()       : null;
+        Long phongId = body.get("phongChieuId") != null ? ((Number) body.get("phongChieuId")).longValue() : null;
         java.util.List<String> dates = body.get("dates") instanceof java.util.List
                 ? (java.util.List<String>) body.get("dates") : java.util.List.of();
 
-        if (phimId == null || phongId == null || startTime == null || endTime == null || dates.isEmpty()) {
+        if (phimId == null || phongId == null || dates.isEmpty()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Thiếu phimId, phongChieuId, startTime, endTime hoặc dates"));
+                    .body(Map.of("message", "Thiếu phimId, phongChieuId hoặc dates"));
         }
 
         Phim phim = phimRepository.findById(phimId)
@@ -428,13 +761,35 @@ public class AdminController {
         PhongChieu phong = phongChieuRepository.findById(phongId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu id=" + phongId));
 
-        // Parse HH:mm into hours+minutes
-        String[] sParts = startTime.split(":");
-        String[] eParts = endTime.split(":");
-        int startH = Integer.parseInt(sParts[0]), startM = Integer.parseInt(sParts[1]);
-        int endH   = Integer.parseInt(eParts[0]),  endM   = Integer.parseInt(eParts[1]);
+        // ── Build the list of shows to create ────────────────────────────────
+        // Multi-show mode: body.shows = [{ startTime, endTime, thoiGianNghi, giaCoBan }, ...]
+        // Single-show mode (backwards-compatible): body.startTime / endTime / thoiGianNghi / giaCoBan
+        java.util.List<Map<String, Object>> showDefs;
+        if (body.get("shows") instanceof java.util.List) {
+            showDefs = (java.util.List<Map<String, Object>>) body.get("shows");
+            if (showDefs.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Danh sách suất chiếu trống"));
+            }
+        } else {
+            // Legacy single-show path
+            String startTime = (String) body.get("startTime");
+            String endTime   = (String) body.get("endTime");
+            if (startTime == null || endTime == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Thiếu startTime, endTime hoặc shows"));
+            }
+            int legacyNghi = body.get("thoiGianNghi") != null ? ((Number) body.get("thoiGianNghi")).intValue() : 15;
+            java.math.BigDecimal legacyGia = body.get("giaCoBan") != null
+                    ? new java.math.BigDecimal(body.get("giaCoBan").toString()) : java.math.BigDecimal.ZERO;
+            Map<String, Object> single = new java.util.LinkedHashMap<>();
+            single.put("startTime", startTime);
+            single.put("endTime", endTime);
+            single.put("thoiGianNghi", legacyNghi);
+            single.put("giaCoBan", legacyGia);
+            showDefs = java.util.List.of(single);
+        }
 
-        // Pre-load all active schedules in this room once — reused per date to avoid N+1
+        // Pre-load all active schedules in this room once — reused to avoid N+1
         java.util.List<LichChieu> roomSchedules = lichChieuRepository.findAll().stream()
                 .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
                 .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
@@ -442,73 +797,90 @@ public class AdminController {
 
         java.util.List<Map<String, Object>> succeeded = new java.util.ArrayList<>();
         java.util.List<Map<String, Object>> failed    = new java.util.ArrayList<>();
+        int totalRequested = dates.size() * showDefs.size();
 
         for (String dateStr : dates) {
-            try {
-                java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
-                java.time.LocalDateTime start = date.atTime(startH, startM);
+            java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
 
-                // If end time <= start time, the showtime ends the NEXT calendar day
-                java.time.LocalDateTime end;
-                if (endH < startH || (endH == startH && endM <= startM)) {
-                    end = date.plusDays(1).atTime(endH, endM);
-                } else {
-                    end = date.atTime(endH, endM);
-                }
+            for (Map<String, Object> show : showDefs) {
+                String stRaw = (String) show.get("startTime");
+                String etRaw = (String) show.get("endTime");
+                int nghi = show.get("thoiGianNghi") != null ? ((Number) show.get("thoiGianNghi")).intValue() : 15;
+                java.math.BigDecimal gia = show.get("giaCoBan") != null
+                        ? new java.math.BigDecimal(show.get("giaCoBan").toString()) : java.math.BigDecimal.ZERO;
 
-                // Overlap check against pre-loaded room schedules
-                java.util.Optional<LichChieu> conflict = roomSchedules.stream()
-                        .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
-                                && start.isBefore(lc.getThoiGianKetThuc())
-                                && end.isAfter(lc.getThoiGianBatDau()))
-                        .findFirst();
+                try {
+                    String[] sParts = stRaw.split(":");
+                    String[] eParts = etRaw.split(":");
+                    int sH = Integer.parseInt(sParts[0]), sM = Integer.parseInt(sParts[1]);
+                    int eH = Integer.parseInt(eParts[0]), eM = Integer.parseInt(eParts[1]);
 
-                if (conflict.isPresent()) {
-                    LichChieu cx = conflict.get();
-                    String cxS = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
-                    String cxE = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
+                    java.time.LocalDateTime start = date.atTime(sH, sM);
+                    java.time.LocalDateTime end;
+                    if (eH < sH || (eH == sH && eM <= sM)) {
+                        end = date.plusDays(1).atTime(eH, eM);
+                    } else {
+                        end = date.atTime(eH, eM);
+                    }
+
+                    // Overlap check against pre-loaded + already-saved room schedules
+                    java.util.Optional<LichChieu> conflict = roomSchedules.stream()
+                            .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
+                                    && start.isBefore(lc.getThoiGianKetThuc())
+                                    && end.isAfter(lc.getThoiGianBatDau()))
+                            .findFirst();
+
+                    if (conflict.isPresent()) {
+                        LichChieu cx = conflict.get();
+                        String cxS = cx.getThoiGianBatDau().toLocalTime().toString().substring(0, 5);
+                        String cxE = cx.getThoiGianKetThuc().toLocalTime().toString().substring(0, 5);
+                        Map<String, Object> f = new java.util.LinkedHashMap<>();
+                        f.put("date", dateStr);
+                        f.put("startTime", stRaw);
+                        f.put("reason", phong.getTenPhong() + " đã có suất chiếu từ " + cxS + "–" + cxE + " vào ngày này");
+                        failed.add(f);
+                        continue;
+                    }
+
+                    // Save
+                    LichChieu lc = new LichChieu();
+                    lc.setPhim(phim);
+                    lc.setPhongChieu(phong);
+                    lc.setThoiGianBatDau(start);
+                    lc.setThoiGianKetThuc(end);
+                    lc.setGiaCoBan(gia);
+                    lc.setThoiGianNghi(nghi);
+                    lc.setTrangThai("active");
+                    lc.setIsDeleted(false);
+                    LichChieu saved = lichChieuRepository.save(lc);
+
+                    // Track so intra-batch shows on the same date also see it
+                    roomSchedules.add(saved);
+
+                    Map<String, Object> s = new java.util.LinkedHashMap<>();
+                    s.put("date", dateStr);
+                    s.put("startTime", stRaw);
+                    s.put("id",   saved.getId());
+                    s.put("thoiGianBatDau",  saved.getThoiGianBatDau().toString());
+                    s.put("thoiGianKetThuc", saved.getThoiGianKetThuc().toString());
+                    succeeded.add(s);
+
+                } catch (Exception e) {
                     Map<String, Object> f = new java.util.LinkedHashMap<>();
                     f.put("date", dateStr);
-                    f.put("reason", phong.getTenPhong() + " đã có suất chiếu từ " + cxS + "–" + cxE + " vào ngày này");
+                    f.put("startTime", stRaw != null ? stRaw : "?");
+                    f.put("reason", e.getMessage());
                     failed.add(f);
-                    continue;
                 }
-
-                // Save
-                LichChieu lc = new LichChieu();
-                lc.setPhim(phim);
-                lc.setPhongChieu(phong);
-                lc.setThoiGianBatDau(start);
-                lc.setThoiGianKetThuc(end);
-                lc.setGiaCoBan(giaCoBan);
-                lc.setTrangThai("active");
-                lc.setIsDeleted(false);
-                LichChieu saved = lichChieuRepository.save(lc);
-
-                // Add to in-memory list so subsequent dates in this batch also see it
-                roomSchedules.add(saved);
-
-                Map<String, Object> s = new java.util.LinkedHashMap<>();
-                s.put("date", dateStr);
-                s.put("id",   saved.getId());
-                s.put("thoiGianBatDau",  saved.getThoiGianBatDau().toString());
-                s.put("thoiGianKetThuc", saved.getThoiGianKetThuc().toString());
-                succeeded.add(s);
-
-            } catch (Exception e) {
-                Map<String, Object> f = new java.util.LinkedHashMap<>();
-                f.put("date", dateStr);
-                f.put("reason", e.getMessage());
-                failed.add(f);
             }
         }
 
         Map<String, Object> result = new java.util.LinkedHashMap<>();
-        result.put("succeeded", succeeded);
-        result.put("failed",    failed);
-        result.put("totalRequested",  dates.size());
-        result.put("totalSucceeded",  succeeded.size());
-        result.put("totalFailed",     failed.size());
+        result.put("succeeded",      succeeded);
+        result.put("failed",         failed);
+        result.put("totalRequested", totalRequested);
+        result.put("totalSucceeded", succeeded.size());
+        result.put("totalFailed",    failed.size());
         return ResponseEntity.ok(result);
     }
 
@@ -870,12 +1242,15 @@ public class AdminController {
                 // Save
                 java.math.BigDecimal gia = giaRaw != null
                         ? new java.math.BigDecimal(giaRaw.toString()) : java.math.BigDecimal.ZERO;
+                Object nghi = row.get("thoiGianNghi");
+                int nghibMin = nghi instanceof Number ? ((Number) nghi).intValue() : 15;
                 LichChieu lc = new LichChieu();
                 lc.setPhim(phim);
                 lc.setPhongChieu(phong);
                 lc.setThoiGianBatDau(start);
                 lc.setThoiGianKetThuc(end);
                 lc.setGiaCoBan(gia);
+                lc.setThoiGianNghi(nghibMin);
                 lc.setTrangThai("active");
                 lc.setIsDeleted(false);
                 LichChieu saved = lichChieuRepository.save(lc);
@@ -906,11 +1281,20 @@ public class AdminController {
 
     /**
      * PUT /api/admin/lich-chieu/{id}
+     * Requires: no active (non-cancelled) tickets for this showtime.
      */
     @PutMapping("/lich-chieu/{id}")
     public ResponseEntity<?> updateLichChieu(@PathVariable Long id, @RequestBody LichChieu body) {
         LichChieu lc = lichChieuRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch chiếu"));
+
+        // Ticket check: block if any non-cancelled booking exists
+        boolean hasTickets = datVeRepository.findByLichChieuId(id).stream()
+                .anyMatch(dv -> !"cancelled".equalsIgnoreCase(dv.getTrangThai()));
+        if (hasTickets) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể chỉnh sửa lịch chiếu đã phát sinh vé"));
+        }
 
         LocalDateTime start = body.getThoiGianBatDau() != null ? body.getThoiGianBatDau() : lc.getThoiGianBatDau();
         LocalDateTime end = body.getThoiGianKetThuc() != null ? body.getThoiGianKetThuc() : lc.getThoiGianKetThuc();
@@ -964,6 +1348,7 @@ public class AdminController {
 
         if (body.getThoiGianBatDau() != null) lc.setThoiGianBatDau(body.getThoiGianBatDau());
         if (body.getThoiGianKetThuc() != null) lc.setThoiGianKetThuc(body.getThoiGianKetThuc());
+        if (body.getThoiGianNghi() != null) lc.setThoiGianNghi(body.getThoiGianNghi());
         if (body.getGiaCoBan() != null) lc.setGiaCoBan(body.getGiaCoBan());
         if (body.getTrangThai() != null) lc.setTrangThai(body.getTrangThai());
         if (body.getPhongChieu() != null && body.getPhongChieu().getId() != null) lc.setPhongChieu(phong);
@@ -973,11 +1358,20 @@ public class AdminController {
 
     /**
      * DELETE /api/admin/lich-chieu/{id}
+     * Requires: no active (non-cancelled) tickets for this showtime.
      */
     @DeleteMapping("/lich-chieu/{id}")
     public ResponseEntity<?> deleteLichChieu(@PathVariable Long id) {
         LichChieu lc = lichChieuRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch chiếu"));
+
+        boolean hasTickets = datVeRepository.findByLichChieuId(id).stream()
+                .anyMatch(dv -> !"cancelled".equalsIgnoreCase(dv.getTrangThai()));
+        if (hasTickets) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể xóa lịch chiếu đã phát sinh vé"));
+        }
+
         lc.setIsDeleted(true);
         lichChieuRepository.save(lc);
         return ResponseEntity.ok(Map.of("message", "Đã xóa lịch chiếu"));
@@ -1061,7 +1455,7 @@ public class AdminController {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // SEAT (GHE NGOI) — read-only list for admin seat map display
+    // SEAT (GHE NGOI) — admin seat map display + seat/row management
     // ─────────────────────────────────────────────────────────────
 
     /**
@@ -1072,6 +1466,143 @@ public class AdminController {
     @GetMapping("/ghe-ngoi")
     public ResponseEntity<?> getGheByPhong(@RequestParam Long phongChieuId) {
         return ResponseEntity.ok(gheNgoiRepository.findByPhongChieuId(phongChieuId));
+    }
+
+    /**
+     * POST /api/admin/ghe-ngoi/row
+     * Creates an entire seat row (e.g. F1..F10) in one call.
+     * Existing seats in the row (same HangGhe + SoGhe) are skipped, so the
+     * endpoint is safe to re-run. After inserting, the room's sucChua is
+     * resynced to the actual seat count so "Sức chứa" always matches reality.
+     * Body: { "phongChieuId": 1, "hangGhe": "F", "soGheTu": 1, "soGheDen": 10, "loaiGhe": "thường" }
+     */
+    @PostMapping("/ghe-ngoi/row")
+    @Transactional
+    public ResponseEntity<?> createGheRow(@RequestBody Map<String, Object> body) {
+        try {
+            Long phongChieuId = ((Number) body.get("phongChieuId")).longValue();
+            String hangGhe    = String.valueOf(body.get("hangGhe")).trim().toUpperCase();
+            int soGheTu       = ((Number) body.get("soGheTu")).intValue();
+            int soGheDen      = ((Number) body.get("soGheDen")).intValue();
+            String loaiGhe    = body.get("loaiGhe") != null ? String.valueOf(body.get("loaiGhe")) : "thường";
+
+            if (hangGhe.isBlank() || soGheTu <= 0 || soGheDen < soGheTu) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Dữ liệu dãy ghế không hợp lệ"));
+            }
+            if (hangGhe.length() > 2) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Tên dãy ghế tối đa 2 ký tự"));
+            }
+            if (!java.util.Set.of("thường", "vip", "cặp đôi").contains(loaiGhe)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Loại ghế không hợp lệ"));
+            }
+
+            PhongChieu phong = phongChieuRepository.findById(phongChieuId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
+
+            // Build existing keys once, trimmed (CHAR(2) pads HangGhe with spaces)
+            java.util.Set<String> existingKeys = gheNgoiRepository.findByPhongChieuId(phongChieuId)
+                    .stream()
+                    .map(g -> g.getHangGhe().trim() + "-" + g.getSoGhe())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            BigDecimal heSoGia;
+            switch (loaiGhe) {
+                case "vip":     heSoGia = new BigDecimal("1.50"); break;
+                case "cặp đôi": heSoGia = new BigDecimal("2.00"); break;
+                default:        heSoGia = BigDecimal.ONE;
+            }
+
+            int created = 0;
+            for (int n = soGheTu; n <= soGheDen; n++) {
+                String key = hangGhe + "-" + n;
+                if (existingKeys.contains(key)) continue;
+                GheNgoi ghe = new GheNgoi();
+                ghe.setPhongChieu(phong);
+                ghe.setHangGhe(hangGhe);
+                ghe.setSoGhe(n);
+                ghe.setLoaiGhe(loaiGhe);
+                ghe.setHeSoGia(heSoGia);
+                gheNgoiRepository.save(ghe);
+                created++;
+            }
+
+            // Link "Sức chứa" to the real seat count
+            int soGheThucTe = (int) gheNgoiRepository.countByPhongChieuId(phongChieuId);
+            phong.setSucChua(soGheThucTe);
+            phongChieuRepository.save(phong);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("message",    "Đã thêm " + created + " ghế (dãy " + hangGhe + ")");
+            result.put("created",    created);
+            result.put("soGheThucTe", soGheThucTe);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi thêm dãy ghế: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * DELETE /api/admin/ghe-ngoi/row?phongChieuId={id}&hangGhe={F}
+     * Deletes every seat of a row, then resyncs the room's sucChua.
+     */
+    @DeleteMapping("/ghe-ngoi/row")
+    public ResponseEntity<?> deleteGheRow(@RequestParam Long phongChieuId, @RequestParam String hangGhe) {
+        try {
+            PhongChieu phong = phongChieuRepository.findById(phongChieuId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
+            String target = hangGhe.trim().toUpperCase();
+            List<GheNgoi> seats = gheNgoiRepository.findByPhongChieuId(phongChieuId)
+                    .stream()
+                    .filter(g -> target.equals(g.getHangGhe().trim()))
+                    .collect(Collectors.toList());
+            gheNgoiRepository.deleteAll(seats);
+
+            int soGheThucTe = (int) gheNgoiRepository.countByPhongChieuId(phongChieuId);
+            phong.setSucChua(soGheThucTe);
+            phongChieuRepository.save(phong);
+
+            return ResponseEntity.ok(Map.of(
+                    "message",    "Đã xóa dãy " + target + " (" + seats.size() + " ghế)",
+                    "deleted",    seats.size(),
+                    "soGheThucTe", soGheThucTe));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi xóa dãy ghế: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * DELETE /api/admin/ghe-ngoi/{id}
+     * Deletes a single seat, then resyncs the room's sucChua.
+     */
+    @DeleteMapping("/ghe-ngoi/{id}")
+    public ResponseEntity<?> deleteGhe(@PathVariable Long id) {
+        try {
+            GheNgoi ghe = gheNgoiRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ghế"));
+            Long phongChieuId = ghe.getPhongChieu() != null ? ghe.getPhongChieu().getId() : null;
+            gheNgoiRepository.delete(ghe);
+
+            if (phongChieuId != null) {
+                PhongChieu phong = phongChieuRepository.findById(phongChieuId).orElse(null);
+                if (phong != null) {
+                    int soGheThucTe = (int) gheNgoiRepository.countByPhongChieuId(phongChieuId);
+                    phong.setSucChua(soGheThucTe);
+                    phongChieuRepository.save(phong);
+                }
+            }
+            return ResponseEntity.ok(Map.of("message", "Đã xóa ghế"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi xóa ghế: " + e.getMessage()));
+        }
     }
 
     /**
@@ -1097,6 +1628,28 @@ public class AdminController {
         phong.setId(null);
         if (phong.getTrangThai() == null) phong.setTrangThai(true);
         return ResponseEntity.status(HttpStatus.CREATED).body(phongChieuRepository.save(phong));
+    }
+
+    /**
+     * GET /api/admin/phong-chieu?rapChieuId={id}
+     * Lists ALL rooms of a cinema (regardless of trangThai) enriched with the
+     * real seat count (soGheThucTe), so the admin "Phòng chiếu" tab shows a
+     * "Sức chứa" value that always matches the seats actually configured.
+     */
+    @GetMapping("/phong-chieu")
+    public ResponseEntity<?> getPhongByRap(@RequestParam Long rapChieuId) {
+        List<PhongChieu> phongs = phongChieuRepository.findByRapChieuId(rapChieuId);
+        List<Map<String, Object>> result = phongs.stream().map(p -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id",          p.getId());
+            m.put("tenPhong",    p.getTenPhong());
+            m.put("loaiPhong",   p.getLoaiPhong());
+            m.put("trangThai",   p.getTrangThai());
+            m.put("sucChua",     p.getSucChua());
+            m.put("soGheThucTe", gheNgoiRepository.countByPhongChieuId(p.getId()));
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/phong-chieu/{id}")
@@ -1178,6 +1731,9 @@ public class AdminController {
     public ResponseEntity<?> createBanner(@RequestBody Banner banner) {
         banner.setId(null);
         if (banner.getDangHoatDong() == null) banner.setDangHoatDong(true);
+        // Exactly one FK must be set and must match loaiBanner
+        ResponseEntity<?> validErr = validateBannerTarget(banner);
+        if (validErr != null) return validErr;
         return ResponseEntity.status(HttpStatus.CREATED).body(bannerRepository.save(banner));
     }
 
@@ -1185,14 +1741,36 @@ public class AdminController {
     public ResponseEntity<?> updateBanner(@PathVariable Long id, @RequestBody Banner body) {
         Banner banner = bannerRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy banner"));
-        if (body.getTieuDe() != null) banner.setTieuDe(body.getTieuDe());
-        if (body.getHinhAnh() != null) banner.setHinhAnh(body.getHinhAnh());
-        if (body.getLinkUrl() != null) banner.setLinkUrl(body.getLinkUrl());
-        if (body.getThuTu() != null) banner.setThuTu(body.getThuTu());
-        if (body.getDangHoatDong() != null) banner.setDangHoatDong(body.getDangHoatDong());
-        if (body.getNgayBatDau() != null) banner.setNgayBatDau(body.getNgayBatDau());
-        if (body.getNgayKetThuc() != null) banner.setNgayKetThuc(body.getNgayKetThuc());
+        if (body.getTieuDe() != null)       banner.setTieuDe(body.getTieuDe());
+        if (body.getHinhAnh() != null)       banner.setHinhAnh(body.getHinhAnh());
+        if (body.getThuTu() != null)         banner.setThuTu(body.getThuTu());
+        if (body.getDangHoatDong() != null)  banner.setDangHoatDong(body.getDangHoatDong());
+        if (body.getNgayBatDau() != null)    banner.setNgayBatDau(body.getNgayBatDau());
+        if (body.getNgayKetThuc() != null)   banner.setNgayKetThuc(body.getNgayKetThuc());
+        if (body.getMoTa() != null)          banner.setMoTa(body.getMoTa());
+        // When the typed-target fields are explicitly present in the request, update them
+        if (body.getLoaiBanner() != null) {
+            banner.setLoaiBanner(body.getLoaiBanner());
+            banner.setPhimId(body.getPhimId());
+            // Validate after applying new target
+            ResponseEntity<?> validErr = validateBannerTarget(banner);
+            if (validErr != null) return validErr;
+        }
         return ResponseEntity.ok(bannerRepository.save(banner));
+    }
+
+    /** Enforces the loaiBanner/FK rule. "Phim" requires a movie; "Khac" has no link. */
+    private ResponseEntity<?> validateBannerTarget(Banner b) {
+        String type = b.getLoaiBanner();
+        if (type == null || type.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Vui lòng chọn loại banner (Phim / Khac)"));
+        }
+        if ("Phim".equals(type) && b.getPhimId() == null)
+            return ResponseEntity.badRequest().body(Map.of("message", "Loại 'Phim' yêu cầu chọn phim"));
+        if ("Khac".equals(type))
+            b.setPhimId(null);
+        return null;
     }
 
     @DeleteMapping("/banner/{id}")
@@ -1263,6 +1841,10 @@ public class AdminController {
             tt.setLyDoHoan("Admin hoàn tiền");
         }
         if (!payments.isEmpty()) thanhToanRepository.saveAll(payments);
+
+        // Restore product inventory — the stock was deducted when the booking
+        // was paid, so it must be added back when the money is refunded.
+        datVeService.restoreStock(datVe);
 
         return ResponseEntity.ok(Map.of(
                 "message", "Đã hoàn tiền thành công",

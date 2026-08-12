@@ -11,4 +11,6 @@ public interface GheNgoiRepository
     List<GheNgoi> findByPhongChieuId(Long phongChieuId);
 
     List<GheNgoi> findByPhongChieuIdAndLoaiGhe(Long phongChieuId, String loaiGhe);
+
+    long countByPhongChieuId(Long phongChieuId);
 }

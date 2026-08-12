@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="cinemas-page">
     <!-- Tabs -->
     <div class="tabs">
@@ -20,11 +20,11 @@
             <tr><th>ID</th><th>Tên rạp</th><th>Địa chỉ</th><th>Thành phố</th><th>Trạng thái</th><th>Thao tác</th></tr>
           </thead>
           <tbody>
-            <tr v-for="rap in rapList" :key="rap.id">
+            <tr v-for="rap in filteredRapList" :key="rap.id" :data-row-id="rap.id">
               <td>#{{ rap.id }}</td>
               <td class="font-bold">{{ rap.tenRap }}</td>
               <td>{{ rap.diaChi }}</td>
-              <td class="td-city">{{ rap.thanhPho || '—' }}</td>
+              <td class="td-city">{{ normalizeCity(rap.thanhPho) || '—' }}</td>
               <td><span :class="['badge', rap.trangThai ? 'badge-green' : 'badge-gray']">{{ rap.trangThai ? 'Hoạt động' : 'Dừng' }}</span></td>
               <td>
                 <div class="action-btns">
@@ -37,7 +37,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="rapList.length === 0"><td colspan="6" class="empty-text">Chưa có rạp nào</td></tr>
+            <tr v-if="filteredRapList.length === 0"><td colspan="6" class="empty-text">{{ rapList.length === 0 ? 'Chưa có rạp nào' : 'Không tìm thấy rạp phù hợp' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -66,7 +66,7 @@
               <td>#{{ phong.id }}</td>
               <td class="font-bold">{{ phong.tenPhong }}</td>
               <td><span class="badge badge-blue">{{ phong.loaiPhong }}</span></td>
-              <td>{{ phong.sucChua }} ghế</td>
+              <td>{{ phong.soGheThucTe ?? phong.sucChua }} ghế</td>
               <td><span :class="['badge', phong.trangThai ? 'badge-green' : 'badge-gray']">{{ phong.trangThai ? 'Hoạt động' : 'Dừng' }}</span></td>
               <td>
                 <div class="action-btns">
@@ -95,6 +95,7 @@
             <option v-for="p in phongList" :key="p.id" :value="p.id">{{ p.tenPhong }}</option>
           </select>
         </div>
+        <button v-if="selectedPhongId" class="btn-primary" @click="openAddRowModal">+ Thêm dãy ghế</button>
       </div>
 
       <div class="card">
@@ -113,6 +114,7 @@
                 <option value="cặp đôi">Cặp đôi</option>
               </select>
               <button class="btn-bulk-apply" @click="applyBulkEdit">Áp dụng</button>
+              <button class="btn-bulk-danger" @click="deleteSelectedSeats">Xóa ghế</button>
               <button class="btn-bulk-clear" @click="selectedSeatIds = new Set()">Bỏ chọn</button>
             </div>
           </div>
@@ -140,6 +142,7 @@
                 @click="toggleSeat(seat)"
               >{{ seat.soGhe }}</button>
             </div>
+            <button class="row-delete-btn" :title="`Xóa cả dãy ${row.hang.trim()}`" @click="deleteRow(row.hang)">×</button>
           </div>
 
           <!-- STEP 2: Legend with inline style colors -->
@@ -164,7 +167,14 @@
         <h2>{{ editingRap ? 'Sửa rạp' : 'Thêm rạp mới' }}</h2>
         <div class="form-group"><label>Tên rạp *</label><input v-model="rapForm.tenRap" placeholder="Tên rạp chiếu" /></div>
         <div class="form-group"><label>Địa chỉ</label><input v-model="rapForm.diaChi" placeholder="Địa chỉ rạp" /></div>
-        <div class="form-group"><label>Thành phố</label><input v-model="rapForm.thanhPho" placeholder="TP.HCM / Hà Nội / ..." /></div>
+        <div class="form-group">
+          <label>Thành phố</label>
+          <select v-model="rapForm.thanhPho">
+            <option value="">-- Chọn thành phố --</option>
+            <option value="TPHCM">TPHCM</option>
+            <option value="Hà Nội">Hà Nội</option>
+          </select>
+        </div>
         <div class="form-group"><label>Hình ảnh (URL)</label><input v-model="rapForm.hinhAnh" placeholder="https://..." /></div>
         <div class="form-group">
           <label>Google Maps URL</label>
@@ -201,7 +211,11 @@
             <option value="2D">2D</option><option value="3D">3D</option><option value="IMAX">IMAX</option><option value="4DX">4DX</option>
           </select>
         </div>
-        <div class="form-group"><label>Sức chứa</label><input v-model.number="phongForm.sucChua" type="number" min="1" /></div>
+        <div class="form-group">
+          <label>Sức chứa</label>
+          <input v-model.number="phongForm.sucChua" type="number" min="1" />
+          <small class="form-hint">Tự động cập nhật theo tổng số ghế đã tạo ở tab "Ghế ngồi".</small>
+        </div>
         <div class="form-group">
           <label>Rạp chiếu</label>
           <select v-model="phongForm.rapChieuId">
@@ -215,12 +229,48 @@
         </div>
       </div>
     </div>
+
+    <!-- THEM DAY GHE MODAL -->
+    <div v-if="showAddRowModal" class="modal-overlay" @click.self="showAddRowModal = false">
+      <div class="modal">
+        <h2>Thêm dãy ghế</h2>
+        <div class="form-group">
+          <label>Phòng</label>
+          <input :value="selectedPhongName" disabled />
+        </div>
+        <div class="form-group">
+          <label>Tên dãy</label>
+          <input v-model="addRowForm.hangGhe" maxlength="2" placeholder="Ví dụ: F" />
+        </div>
+        <div class="form-row">
+          <div class="form-group form-group--half"><label>Số ghế bắt đầu</label><input v-model.number="addRowForm.soGheTu" type="number" min="1" /></div>
+          <div class="form-group form-group--half"><label>Số ghế kết thúc</label><input v-model.number="addRowForm.soGheDen" type="number" min="1" /></div>
+        </div>
+        <div class="form-group">
+          <label>Loại ghế</label>
+          <select v-model="addRowForm.loaiGhe">
+            <option value="thường">Thường</option>
+            <option value="vip">VIP</option>
+            <option value="cặp đôi">Cặp đôi</option>
+          </select>
+        </div>
+        <div v-if="modalError" class="form-error">{{ modalError }}</div>
+        <div class="modal-actions">
+          <button class="btn-ghost" @click="showAddRowModal = false">Hủy</button>
+          <button class="btn-primary" @click="saveGheRow" :disabled="savingGheRow">{{ savingGheRow ? 'Đang thêm...' : 'Thêm dãy' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import api from '@/services/api'
+import { useAdminShellStore } from '@/stores/adminShellStore'
+import { flashRow } from '@/utils/flashRow'
+
+const shell = useAdminShellStore()
 
 const activeTab = ref('rap')
 
@@ -233,6 +283,15 @@ const savingRap = ref(false)
 const modalError = ref('')
 const rapForm = ref({ tenRap: '', diaChi: '', trangThai: true })
 
+// Normalize legacy city strings ("TP.HCM", "TP hcm", "Tp. Hồ Chí Minh") → "TPHCM"
+function normalizeCity(v) {
+  if (!v) return ''
+  const t = v.trim().toLowerCase()
+  if (t.includes('hcm') || t.includes('hồ chí minh') || t.includes('ho chi minh')) return 'TPHCM'
+  if (t.includes('hà nội') || t.includes('ha noi')) return 'Hà Nội'
+  return v
+}
+
 async function loadRap() {
   loadingRap.value = true
   try {
@@ -241,6 +300,39 @@ async function loadRap() {
   } catch (e) { console.error(e) } finally { loadingRap.value = false }
 }
 
+// ── Command-palette targeting (mirrors MoviesPage syncFromShell) ──
+const search = ref('')
+const flashQueued = ref(false)
+
+const filteredRapList = computed(() => {
+  const q = search.value.toLowerCase()
+  if (!q) return rapList.value
+  return rapList.value.filter(r =>
+    r.tenRap?.toLowerCase().includes(q) ||
+    r.diaChi?.toLowerCase().includes(q) ||
+    normalizeCity(r.thanhPho)?.toLowerCase().includes(q)
+  )
+})
+
+function syncFromShell() {
+  if (shell.searchTargetPage !== 'cinemas') return
+  if (shell.searchQuery) {
+    activeTab.value = 'rap'
+    search.value = shell.searchQuery
+    flashQueued.value = true
+  }
+}
+
+watch(() => shell.searchTick, syncFromShell)
+
+// When the palette-narrowed list renders, flash + scroll the matched row.
+watch(filteredRapList, (list) => {
+  if (flashQueued.value && list.length > 0) {
+    flashQueued.value = false
+    nextTick(() => flashRow(document.querySelector(`[data-row-id="${list[0].id}"]`)))
+  }
+})
+
 function openRapModal(rap = null) {
   editingRap.value = rap
   modalError.value = ''
@@ -248,7 +340,7 @@ function openRapModal(rap = null) {
     tenRap:    rap.tenRap    || '',
     diaChi:    rap.diaChi    || '',
     trangThai: rap.trangThai ?? true,
-    thanhPho:  rap.thanhPho  || '',
+    thanhPho:  normalizeCity(rap.thanhPho),
     latitude:  rap.latitude  != null ? Number(rap.latitude).toFixed(7).replace(/\.?0+$/, '') : '',
     longitude: rap.longitude != null ? Number(rap.longitude).toFixed(7).replace(/\.?0+$/, '') : '',
     hinhAnh:   rap.hinhAnh   || '',
@@ -296,14 +388,14 @@ async function loadPhong() {
   if (!selectedRapId.value) { phongList.value = []; return }
   loadingPhong.value = true
   try {
-    const res = await api.get(`/rap-chieu/${selectedRapId.value}/phong`)
+    const res = await api.get(`/admin/phong-chieu?rapChieuId=${selectedRapId.value}`)
     phongList.value = res.data || []
   } catch (e) { console.error(e) } finally { loadingPhong.value = false }
 }
 
 function openPhongModal(phong = null) {
   editingPhong.value = phong; modalError.value = ''
-  if (phong) phongForm.value = { tenPhong: phong.tenPhong || '', loaiPhong: phong.loaiPhong || '2D', sucChua: phong.sucChua || 100, rapChieuId: selectedRapId.value }
+  if (phong) phongForm.value = { tenPhong: phong.tenPhong || '', loaiPhong: phong.loaiPhong || '2D', sucChua: phong.soGheThucTe ?? phong.sucChua ?? 100, rapChieuId: selectedRapId.value }
   else phongForm.value = { tenPhong: '', loaiPhong: '2D', sucChua: 100, rapChieuId: selectedRapId.value }
   showPhongModal.value = true
 }
@@ -422,6 +514,90 @@ async function loadGhe() {
   } catch (e) { gheList.value = [] } finally { loadingGhe.value = false }
 }
 
+// ── Thêm dãy ghế ─────────────────────────────
+const showAddRowModal = ref(false)
+const savingGheRow = ref(false)
+const addRowForm = ref({ hangGhe: '', soGheTu: 1, soGheDen: 10, loaiGhe: 'thường' })
+
+const selectedPhongName = computed(() => {
+  const p = phongList.value.find(x => String(x.id) === String(selectedPhongId.value))
+  return p ? p.tenPhong : ''
+})
+
+function openAddRowModal() {
+  modalError.value = ''
+  // Suggest next row letter after the last existing one
+  const rows = gheList.value.map(g => g.hangGhe?.trim()).filter(Boolean)
+  const unique = [...new Set(rows)]
+  let nextLetter = 'A'
+  if (unique.length > 0) {
+    const last = unique.map(r => r.charCodeAt(r.length - 1)).sort((a, b) => a - b).pop()
+    nextLetter = String.fromCharCode(last + 1)
+  }
+  addRowForm.value = { hangGhe: nextLetter, soGheTu: 1, soGheDen: 10, loaiGhe: 'thường' }
+  showAddRowModal.value = true
+}
+
+async function saveGheRow() {
+  if (!addRowForm.value.hangGhe.trim()) { modalError.value = 'Vui lòng nhập tên dãy'; return }
+  if (!addRowForm.value.soGheTu || !addRowForm.value.soGheDen || addRowForm.value.soGheDen < addRowForm.value.soGheTu) {
+    modalError.value = 'Khoảng số ghế không hợp lệ'; return
+  }
+  savingGheRow.value = true; modalError.value = ''
+  try {
+    await api.post('/admin/ghe-ngoi/row', {
+      phongChieuId: selectedPhongId.value,
+      hangGhe: addRowForm.value.hangGhe,
+      soGheTu: addRowForm.value.soGheTu,
+      soGheDen: addRowForm.value.soGheDen,
+      loaiGhe: addRowForm.value.loaiGhe,
+    })
+    showAddRowModal.value = false
+    await loadGhe()
+    await refreshPhongCapacity()
+  } catch (e) {
+    modalError.value = e.response?.data?.message || 'Lỗi thêm dãy ghế'
+  } finally { savingGheRow.value = false }
+}
+
+async function deleteRow(hangGhe) {
+  if (!confirm(`Xóa toàn bộ dãy ${hangGhe.trim()}?`)) return
+  try {
+    await api.delete('/admin/ghe-ngoi/row', {
+      params: { phongChieuId: selectedPhongId.value, hangGhe }
+    })
+    selectedSeatIds.value = new Set()
+    await loadGhe()
+    await refreshPhongCapacity()
+  } catch (e) {
+    alert(e.response?.data?.message || 'Lỗi xóa dãy ghế')
+  }
+}
+
+async function deleteSelectedSeats() {
+  const ids = [...selectedSeatIds.value]
+  if (ids.length === 0) return
+  if (!confirm(`Xóa ${ids.length} ghế đã chọn?`)) return
+  try {
+    await Promise.all(ids.map(id => api.delete(`/admin/ghe-ngoi/${id}`)))
+    selectedSeatIds.value = new Set()
+    await loadGhe()
+    await refreshPhongCapacity()
+  } catch (e) {
+    alert(e.response?.data?.message || 'Lỗi xóa ghế')
+  }
+}
+
+// Reload the phong list (from the room dropdown in the ghe tab AND the phong tab)
+// so "Sức chứa" stays in sync with the actual seat count.
+async function refreshPhongCapacity() {
+  if (!selectedRapId.value) return
+  try {
+    const res = await api.get(`/admin/phong-chieu?rapChieuId=${selectedRapId.value}`)
+    phongList.value = res.data || []
+  } catch (e) { console.error(e) }
+}
+
 watch(activeTab, async (tab) => {
   if (tab === 'ghe') {
     if (rapList.value.length === 0) await loadRap()
@@ -436,7 +612,10 @@ watch(selectedPhongId, (newId) => {
   if (newId) loadGhe()
 })
 
-onMounted(loadRap)
+onMounted(() => {
+  syncFromShell()
+  loadRap()
+})
 </script>
 
 <style scoped>
@@ -445,8 +624,8 @@ onMounted(loadRap)
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: #0D0D0D;
-  color: #E5E5E5;
+  background: var(--admin-bg);
+  color: var(--admin-text);
 }
 
 /* ── Toolbar ── */
@@ -462,9 +641,9 @@ onMounted(loadRap)
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--admin-accent);
   padding-left: 12px;
-  border-left: 3px solid #FFFFFF;
+  border-left: 3px solid var(--admin-accent);
   margin: 0;
 }
 .toolbar-left {
@@ -478,10 +657,10 @@ onMounted(loadRap)
 .filter-select {
   min-height: 40px;
   padding: 9px 36px 9px 14px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #111827;
-  color: #E5E5E5;
+  background: var(--admin-surface);
+  color: var(--admin-text);
   font-size: 14px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   -webkit-appearance: none;
@@ -492,19 +671,19 @@ onMounted(loadRap)
   cursor: pointer;
   transition: border-color 150ms ease;
 }
-.filter-select:focus { outline: none; border-color: #FFFFFF; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+.filter-select:focus { outline: none; border-color: var(--admin-accent); box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
 
 /* ── Card ── */
 .card {
-  background: #111827;
-  border: 1px solid #374151;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   overflow: hidden;
 }
 
 /* ── Table ── */
 table { width: 100%; border-collapse: collapse; }
-thead tr { background: #0D0D0D; }
+thead tr { background: var(--admin-bg); }
 th {
   padding: 12px 16px;
   text-align: left;
@@ -513,18 +692,18 @@ th {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9CA3AF;
-  border-bottom: 2px solid #374151;
+  color: var(--admin-text-muted);
+  border-bottom: 2px solid var(--admin-border);
   white-space: nowrap;
 }
-tbody tr { border-bottom: 1px solid #1F2937; transition: background 150ms ease; }
+tbody tr { border-bottom: 1px solid var(--admin-divider); transition: background 150ms ease; }
 tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #1F2937; }
+tbody tr:hover { background: var(--admin-surface-hover); }
 td {
   padding: 14px 16px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
-  color: #E5E5E5;
+  color: var(--admin-text);
   vertical-align: middle;
 }
 .font-bold { font-weight: 600; }
@@ -543,8 +722,8 @@ td {
   white-space: nowrap;
 }
 .badge-green { background: rgba(16,185,129,0.15); color: #10B981; }
-.badge-gray  { background: rgba(156,163,175,0.15); color: #9CA3AF; }
-.badge-blue  { background: rgba(255,255,255,0.10); color: #FFFFFF; }
+.badge-gray  { background: rgba(156,163,175,0.15); color: var(--admin-text-muted); }
+.badge-blue  { background: rgba(255,255,255,0.10); color: var(--admin-accent); }
 
 /* ── Action buttons ── */
 .action-btns { display: flex; gap: 4px; align-items: center; }
@@ -560,7 +739,7 @@ td {
   justify-content: center;
   transition: color 150ms ease, background 150ms ease;
 }
-.btn-edit:hover   { color: #FFFFFF; background: rgba(255,255,255,0.10); }
+.btn-edit:hover   { color: var(--admin-accent); background: rgba(255,255,255,0.10); }
 .btn-delete:hover { color: #EF4444; background: rgba(239,68,68,0.1); }
 
 /* ── Primary / ghost buttons ── */
@@ -572,8 +751,8 @@ td {
   padding: 9px 18px;
   border-radius: 8px;
   border: none;
-  background: #FFFFFF;
-  color: #0D0D0D;
+  background: var(--admin-accent);
+  color: var(--admin-bg);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 600;
   font-size: 13px;
@@ -589,16 +768,16 @@ td {
   min-height: 40px;
   padding: 9px 18px;
   border-radius: 8px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   background: transparent;
-  color: #E5E5E5;
+  color: var(--admin-text);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
   transition: border-color 150ms ease, color 150ms ease;
 }
-.btn-ghost:hover { border-color: #FFFFFF; color: #FFFFFF; }
+.btn-ghost:hover { border-color: var(--admin-accent); color: var(--admin-accent); }
 
 /* ── Modal ── */
 .modal-overlay {
@@ -616,21 +795,21 @@ td {
   width: min(480px, 100%);
   max-height: 90vh;
   overflow-y: auto;
-  background: #1F2937;
-  border: 1px solid #374151;
+  background: var(--admin-surface-hover);
+  border: 1px solid var(--admin-border);
   border-radius: 16px;
   padding: 28px;
   box-shadow: 0 24px 48px rgba(0,0,0,0.5);
-  color: #E5E5E5;
+  color: var(--admin-text);
 }
 .modal h2 {
   font-family: var(--font-display, 'Playfair Display', serif);
   font-size: 18px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--admin-accent);
   margin: 0 0 20px;
   padding-left: 12px;
-  border-left: 3px solid #FFFFFF;
+  border-left: 3px solid var(--admin-accent);
 }
 .form-group {
   display: flex;
@@ -651,29 +830,29 @@ td {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 11px;
   font-weight: 600;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .form-group input, .form-group select {
   min-height: 40px;
   padding: 9px 14px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #111827;
-  color: #E5E5E5;
+  background: var(--admin-surface);
+  color: var(--admin-text);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   -webkit-appearance: none;
   appearance: none;
   transition: border-color 150ms ease;
 }
-.form-group input:focus, .form-group select:focus { outline: none; border-color: #FFFFFF; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--admin-accent); box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
 .form-error { color: #EF4444; font-size: 13px; margin-top: 8px; }
 .form-hint {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 11px;
-  color: #6B7280;
+  color: var(--admin-text-muted);
   margin-top: 4px;
 }
 .modal-actions {
@@ -687,7 +866,7 @@ td {
 .loading-text, .empty-text {
   text-align: center;
   padding: 32px;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
   font-size: 14px;
 }
 
@@ -706,7 +885,7 @@ td {
 .bulk-count {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13px;
-  color: #FFFFFF;
+  color: var(--admin-accent);
 }
 .bulk-actions {
   display: flex;
@@ -718,15 +897,15 @@ td {
 .bulk-label {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13px;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
 }
 .bulk-select {
   min-height: 34px;
   padding: 5px 30px 5px 10px;
   border: 1px solid #4B5563;
   border-radius: 8px;
-  background: #374151;
-  color: #E5E5E5;
+  background: var(--admin-surface-hover);
+  color: var(--admin-text);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13px;
   -webkit-appearance: none;
@@ -741,7 +920,7 @@ td {
   border: none;
   border-radius: 8px;
   background: #2563EB;
-  color: #FFFFFF;
+  color: var(--admin-accent);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13px;
   font-weight: 600;
@@ -757,13 +936,29 @@ td {
   border: none;
   border-radius: 8px;
   background: #4B5563;
-  color: #E5E5E5;
+  color: var(--admin-text);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13px;
   cursor: pointer;
   transition: background 150ms ease;
 }
 .btn-bulk-clear:hover { background: #6B7280; }
+.btn-bulk-danger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #DC2626;
+  color: #ffffff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.btn-bulk-danger:hover { background: #B91C1C; }
 
 /* ── Seat map ── */
 .seat-map { padding: 24px; }
@@ -771,11 +966,11 @@ td {
   text-align: center;
   padding: 8px;
   margin-bottom: 20px;
-  background: #1F2937;
-  border: 1px solid #374151;
+  background: var(--admin-surface-hover);
+  border: 1px solid var(--admin-border);
   border-radius: 6px;
   font-size: 12px;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
 }
 .seat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 
@@ -793,12 +988,12 @@ td {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 12px;
   font-weight: 700;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
   cursor: pointer;
   transition: color 150ms ease, background 150ms ease;
   flex-shrink: 0;
 }
-.row-label-btn:hover { color: #FFFFFF; background: rgba(255,255,255,0.06); }
+.row-label-btn:hover { color: var(--admin-accent); background: var(--admin-accent-muted); }
 .row-label-btn--active { color: #60A5FA; }
 
 .seats { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -808,9 +1003,9 @@ td {
   width: 28px;
   height: 28px;
   border-radius: 4px;
-  border: 1px solid #374151;
-  background: #1F2937;
-  color: #E5E5E5;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-hover);
+  color: var(--admin-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -824,6 +1019,26 @@ td {
 }
 .seat-chip:hover { filter: brightness(1.25); }
 
+.row-delete-btn {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--admin-text-muted);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 4px;
+  transition: color 150ms ease, background 150ms ease;
+}
+.row-delete-btn:hover { color: #EF4444; background: rgba(239,68,68,0.15); }
+
 /* STEP 3: Selected state — blue ring */
 .seat-chip--selected {
   outline: 2px solid #60A5FA;
@@ -831,10 +1046,19 @@ td {
 }
 
 /* ── Legend ── */
-.seat-legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #374151; flex-wrap: wrap; }
-.legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--font-ui, 'Inter', sans-serif); font-size: 12px; font-weight: 600; color: #9CA3AF; }
+.seat-legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--admin-border); flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--font-ui, 'Inter', sans-serif); font-size: 12px; font-weight: 600; color: var(--admin-text-muted); }
 .chip { width: 16px; height: 16px; border-radius: 3px; border: 1px solid transparent; }
-.chip--thuong { background: #1F2937; border-color: #374151; }
+.chip--thuong { background: var(--admin-surface-hover); border-color: var(--admin-border); }
 .chip--vip    { background: #C9A84C; border-color: #C9A84C; }
 .chip--doi    { background: #ec4899; border-color: #db2777; }
+
+/* ── Palette target row flash ── */
+.row-flash {
+  animation: row-flash-pop 1.6s ease;
+}
+@keyframes row-flash-pop {
+  0%, 100% { background-color: transparent; }
+  20%, 60% { background-color: rgba(41, 188, 234, 0.18); }
+}
 </style>

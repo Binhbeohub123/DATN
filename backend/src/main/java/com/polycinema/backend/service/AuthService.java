@@ -264,6 +264,58 @@ public class AuthService {
         return "Đổi mật khẩu thành công";
     }
 
+    // ================= ADMIN: CREATE STAFF / ADMIN ACCOUNT =================
+    /**
+     * Called by an authenticated ADMIN to create a staff or admin account.
+     * Bypasses the OTP email-verification flow — account is immediately active.
+     * @param vaiTro  "staff" or "admin"
+     * @param createdByAdminId  ID of the admin performing the creation (for audit trail)
+     */
+    public NguoiDung createStaffOrAdmin(String email, String password, String hoTen,
+                                        String soDienThoai, String vaiTro, Long createdByAdminId) {
+        // Validate allowed roles
+        if (!"staff".equals(vaiTro) && !"admin".equals(vaiTro)) {
+            throw new IllegalArgumentException("Vai trò không hợp lệ. Chỉ chấp nhận 'staff' hoặc 'admin'");
+        }
+
+        String emailError = validateEmail(email);
+        if (emailError != null) throw new IllegalArgumentException(emailError);
+
+        if (password == null || password.isBlank())
+            throw new IllegalArgumentException("Mật khẩu không được để trống");
+        if (password.length() < 8)
+            throw new IllegalArgumentException("Mật khẩu phải từ 8 ký tự để đảm bảo bảo mật");
+
+        if (hoTen == null || hoTen.isBlank())
+            throw new IllegalArgumentException("Họ tên không được để trống");
+
+        email = email.trim().toLowerCase();
+        hoTen = hoTen.trim();
+
+        if (repo.findByEmail(email).isPresent())
+            throw new IllegalArgumentException("Email đã tồn tại");
+
+        if (soDienThoai != null && !soDienThoai.isBlank()) {
+            soDienThoai = soDienThoai.trim();
+            if (repo.findBySoDienThoai(soDienThoai).isPresent())
+                throw new IllegalArgumentException("Số điện thoại đã tồn tại");
+        } else {
+            soDienThoai = null;
+        }
+
+        NguoiDung u = new NguoiDung();
+        u.setEmail(email);
+        u.setMatKhauHash(encoder.encode(password));
+        u.setHoTen(hoTen);
+        u.setSoDienThoai(soDienThoai);
+        u.setVaiTro(vaiTro);
+        u.setTrangThai(true);
+        u.setIsEmailVerified(true);   // admin-created accounts are immediately active
+        u.setCreatedBy(createdByAdminId);
+
+        return repo.save(u);
+    }
+
     // ================= GET PROFILE =================
     public NguoiDung getProfile(String email) {
         if (email == null || email.isBlank()) return null;

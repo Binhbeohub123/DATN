@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="movies-page">
     <transition name="toast">
       <div v-if="toast.show" :class="['toast', `toast--${toast.type}`]">{{ toast.msg }}</div>
@@ -6,12 +6,12 @@
 
     <!-- Toolbar -->
     <div class="toolbar">
-      <input v-model="search" placeholder="Tìm phim..." class="search-input" />
       <select v-model="statusFilter" class="filter-select">
         <option value="">Tất cả trạng thái</option>
         <option value="dang_chieu">Đang chiếu</option>
         <option value="sap_chieu">Sắp chiếu</option>
-        <option value="ngung_chieu">Ngừng chiếu</option>
+        <option value="chua_chieu">Chưa chiếu</option>
+        <option value="da_ket_thuc">Đã kết thúc</option>
       </select>
       <button class="btn-primary" @click="openCreate">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -116,13 +116,6 @@
           <div class="field"><label>Đạo diễn</label><input v-model="form.daoDien"/></div>
           <div class="field"><label>Diễn viên chính</label><input v-model="form.dienVienChinh"/></div>
           <div class="field"><label>Ngày khởi chiếu</label><input v-model="form.ngayCongChieu" type="date"/></div>
-          <div class="field"><label>Trạng thái</label>
-            <select v-model="form.trangThai">
-              <option value="sap_chieu">Sắp chiếu</option>
-              <option value="dang_chieu">Đang chiếu</option>
-              <option value="ngung_chieu">Ngừng chiếu</option>
-            </select>
-          </div>
           <div class="field field-full"><label>URL Poster</label><input v-model="form.posterUrl" placeholder="https://..."/></div>
           <div class="field field-full"><label>URL Trailer (YouTube)</label><input v-model="form.trailerUrl" placeholder="https://youtube.com/..."/></div>
           <div class="field field-full"><label>Mô tả</label><textarea v-model="form.moTa" rows="4" placeholder="Nội dung phim..."></textarea></div>
@@ -239,7 +232,7 @@ function toggleFormat(id) {
 const blankForm = () => ({
   tenPhim:'', tenPhimTiengAnh:'', thoiLuong:90, ngonNgu:'Tiếng Việt',
   phanLoaiDoTuoi:'P', daoDien:'', dienVienChinh:'', moTa:'', posterUrl:'',
-  trailerUrl:'', ngayCongChieu:'', trangThai:'sap_chieu'
+  trailerUrl:'', ngayCongChieu:''
 })
 const form = ref(blankForm())
 
@@ -251,14 +244,17 @@ const filteredMovies = computed(() => {
 })
 
 function statusClass(s) {
-  if (s==='dang_chieu') return 'sbadge--green'
-  if (s==='sap_chieu')  return 'sbadge--amber'
-  return 'sbadge--gray'
+  if (s==='dang_chieu')  return 'sbadge--green'
+  if (s==='sap_chieu')   return 'sbadge--amber'
+  if (s==='da_ket_thuc') return 'sbadge--gray'
+  return 'sbadge--gray'  // chua_chieu + fallback
 }
 function statusLabel(s) {
-  if (s==='dang_chieu') return 'Đang chiếu'
-  if (s==='sap_chieu')  return 'Sắp chiếu'
-  return 'Ngừng chiếu'
+  if (s==='dang_chieu')  return 'Đang chiếu'
+  if (s==='sap_chieu')   return 'Sắp chiếu'
+  if (s==='chua_chieu')  return 'Chưa chiếu'
+  if (s==='da_ket_thuc') return 'Đã kết thúc'
+  return s || 'Chưa chiếu'
 }
 function fmtDate(d) {
   if (!d) return '—'
@@ -280,7 +276,6 @@ function openEdit(m) {
     thoiLuong: m.thoiLuong||90, ngonNgu: m.ngonNgu||'', phanLoaiDoTuoi: m.phanLoaiDoTuoi||'P',
     daoDien: m.daoDien||'', dienVienChinh: m.dienVienChinh||'', moTa: m.moTa||'',
     posterUrl: m.posterUrl||'', trailerUrl: m.trailerUrl||'', ngayCongChieu: m.ngayCongChieu||'',
-    trangThai: m.trangThai||'sap_chieu'
   }
   selectedGenreIds.value = Array.isArray(m.theLoais)
     ? m.theLoais.map(t => Number(t.id))
@@ -348,8 +343,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: #0D0D0D;
-  color: #E5E5E5;
+  background: var(--admin-bg);
+  color: var(--admin-text);
 }
 
 /* ── Poster cell ── */
@@ -358,25 +353,25 @@ onMounted(() => {
   height: 68px;
   object-fit: cover;
   border-radius: 6px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
 }
 .poster-fallback {
   width: 48px;
   height: 68px;
-  background: #1F2937;
+  background: var(--admin-surface-hover);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
 }
 
 /* ── Movie name stacked ── */
-.movie-name { font-weight: 600; color: #E5E5E5; font-size: 14px; }
-.movie-en   { font-size: 12px; color: #9CA3AF; margin-top: 2px; }
+.movie-name { font-weight: 600; color: var(--admin-text); font-size: 14px; }
+.movie-en   { font-size: 12px; color: var(--admin-text-muted); margin-top: 2px; }
 
 /* ── Inline cell utilities ── */
-.td-genre, .td-dur, .td-date { font-size: 12px; color: #9CA3AF; }
+.td-genre, .td-dur, .td-date { font-size: 12px; color: var(--admin-text-muted); }
 
 /* ── Genre chips in table cell ── */
 .genre-chips { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -390,7 +385,7 @@ onMounted(() => {
   color: #29bcea;
   white-space: nowrap;
 }
-.td-no-genre { font-size: 12px; color: #6B7280; }
+.td-no-genre { font-size: 12px; color: var(--admin-text-muted); }
 
 /* ── Genre multi-select in modal ── */
 .genre-grid {
@@ -398,8 +393,8 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 8px;
   padding: 8px;
-  background: #111827;
-  border: 1px solid #374151;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   max-height: 200px;
   overflow-y: auto;
@@ -409,31 +404,31 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   border-radius: 6px;
   cursor: pointer;
   user-select: none;
   font-size: 13px;
-  color: #E5E5E5;
-  background: #111827;
+  color: var(--admin-text);
+  background: var(--admin-surface);
   transition: all 0.15s;
 }
 .genre-item:hover {
-  border-color: #FFFFFF;
-  color: #FFFFFF;
+  border-color: var(--admin-accent);
+  color: var(--admin-accent);
 }
 .genre-selected {
-  border-color: #FFFFFF !important;
-  background: rgba(255,255,255,0.08) !important;
-  color: #FFFFFF !important;
+  border-color: var(--admin-accent) !important;
+  background: var(--admin-accent-muted) !important;
+  color: var(--admin-accent) !important;
 }
 .genre-checkbox {
   width: 14px;
   height: 14px;
-  accent-color: #FFFFFF;
+  accent-color: var(--admin-accent);
   cursor: pointer;
   pointer-events: none; /* click is handled by the parent div */
 }
-.genre-loading { font-size: 13px; color: #9CA3AF; padding: 8px 0; }
-.genre-empty   { font-size: 13px; color: #6B7280; }
+.genre-loading { font-size: 13px; color: var(--admin-text-muted); padding: 8px 0; }
+.genre-empty   { font-size: 13px; color: var(--admin-text-muted); }
 </style>

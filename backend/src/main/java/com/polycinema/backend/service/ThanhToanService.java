@@ -94,6 +94,9 @@ public class ThanhToanService {
     @Value("${zalopay.create-url:https://sb-openapi.zalopay.vn/v2/create}")
     private String zaloCreateUrl;
 
+    @Value("${zalopay.query-url:https://sb-openapi.zalopay.vn/v2/query}")
+    private String zaloQueryUrl;
+
     @Value("${zalopay.callback-url:http://localhost:8080/api/thanh-toan/zalopay/callback}")
     private String zaloCallbackUrl;
 
@@ -103,7 +106,7 @@ public class ThanhToanService {
     // ─────────────────────────────────────────────────────────────
     // VNPay: generate payment URL
     // ─────────────────────────────────────────────────────────────
-    public String createVNPayUrl(Long datVeId, String ipAddr) {
+    public String createVNPayUrl(Long datVeId, String ipAddr, String frontendOrigin) {
         DatVe datVe = datVeRepository.findById(datVeId)
                 .orElseThrow(() -> new IllegalArgumentException("Đơn đặt vé không tồn tại"));
 
@@ -121,7 +124,7 @@ public class ThanhToanService {
         vnpParams.put("vnp_OrderInfo", orderInfo);
         vnpParams.put("vnp_OrderType", "other");
         vnpParams.put("vnp_Locale",    "vn");
-        vnpParams.put("vnp_ReturnUrl", vnpReturnUrl + "/" + datVeId);
+        vnpParams.put("vnp_ReturnUrl", resolveFrontendUrl(frontendOrigin, vnpReturnUrl) + "/" + datVeId);
         vnpParams.put("vnp_IpAddr",    ipAddr != null ? ipAddr : "127.0.0.1");
         vnpParams.put("vnp_CreateDate", new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()));
 
@@ -174,8 +177,7 @@ public class ThanhToanService {
             markPaid(datVe, "VNPay", transactionNo);
             return true;
         } else {
-            datVe.setTrangThai("cancelled");
-            datVeRepository.save(datVe);
+            datVeService.performCancel(datVe);
             return false;
         }
     }
@@ -193,20 +195,23 @@ public class ThanhToanService {
      *
      * @return map containing { checkoutUrl, orderCode, datVeId }
      */
-    public Map<String, Object> createPayOSPayment(Long datVeId) {
+    public Map<String, Object> createPayOSPayment(Long datVeId, String frontendOrigin) {
         DatVe datVe = datVeRepository.findById(datVeId)
                 .orElseThrow(() -> new IllegalArgumentException("Đơn đặt vé không tồn tại"));
 
-        long   orderCode  = datVe.getId();
+        long   orderCode  = Math.abs(datVe.getId() * 1_000_000L + (System.currentTimeMillis() % 1_000_000L));
         long   amount     = datVe.getTongTienThanhToan().longValue();
 
         // PayOS spec: description max 25 characters
         String rawDesc    = "PolyCinema " + datVe.getMaDatVe();
         String description = rawDesc.length() > 25 ? rawDesc.substring(0, 25) : rawDesc;
 
-        String returnUrl  = payosReturnUrl + "/" + datVe.getMaDatVe();
-        // Append maDatVe to cancelUrl so /payment-cancel page knows which booking to cancel
-        String cancelUrl  = payosCancelUrl + "?maDatVe=" + datVe.getMaDatVe();
+        // returnUrl uses the numeric booking id — GET /api/dat-ve/{id} expects a Long,
+        // not the maDatVe string.
+        String returnUrl  = resolveFrontendUrl(frontendOrigin, payosReturnUrl) + "/" + datVe.getId();
+        // cancelUrl must be path-based (NOT a query param): PayOS appends its own
+        // query params when redirecting, which wipes ?maDatVe= and breaks cancellation.
+        String cancelUrl  = resolveFrontendUrl(frontendOrigin, payosCancelUrl) + "/" + datVe.getMaDatVe();
 
         log.debug("[PayOS] Creating payment link: orderCode={}, amount={}, description='{}'",
                 orderCode, amount, description);
@@ -228,6 +233,10 @@ public class ThanhToanService {
             CreatePaymentLinkResponse response = payOS.paymentRequests().create(paymentData);
 
             log.info("[PayOS] Payment link created: checkoutUrl={}", response.getCheckoutUrl());
+
+            // Store the unique orderCode so the webhook can map it back to this booking
+            datVe.setMaQR(String.valueOf(orderCode));
+            datVeRepository.save(datVe);
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("checkoutUrl", response.getCheckoutUrl());
@@ -300,9 +309,10 @@ public class ThanhToanService {
             // SDK verifies HMAC-SHA256 signature automatically
             WebhookData data = payOS.webhooks().verify(body);
 
-            DatVe datVe = datVeRepository.findById(data.getOrderCode()).orElse(null);
+            DatVe datVe = datVeRepository.findByMaQR(String.valueOf(data.getOrderCode()))
+                    .orElseGet(() -> datVeRepository.findById(data.getOrderCode()).orElse(null));
             if (datVe == null) {
-                log.error("[PayOS] Webhook: DatVe not found id={}", data.getOrderCode());
+                log.error("[PayOS] Webhook: DatVe not found orderCode={}", data.getOrderCode());
                 return false;
             }
 
@@ -313,8 +323,9 @@ public class ThanhToanService {
                 markPaid(datVe, "PayOS", data.getPaymentLinkId());
                 log.info("[PayOS] Payment confirmed for booking: {}", datVe.getMaDatVe());
             } else {
-                datVe.setTrangThai("cancelled");
-                datVeRepository.save(datVe);
+                // Payment failed / user cancelled — fully cancel the booking so
+                // seats are released and product inventory is restored (if paid).
+                datVeService.performCancel(datVe);
                 log.warn("[PayOS] Payment failed. orderCode={} code={}",
                         data.getOrderCode(), data.getCode());
             }
@@ -336,17 +347,20 @@ public class ThanhToanService {
      *
      * @return map containing { orderUrl, appTransId, datVeId }
      */
-    public Map<String, Object> createZaloPayOrder(Long datVeId) {
+    public Map<String, Object> createZaloPayOrder(Long datVeId, String frontendOrigin) {
         DatVe datVe = datVeRepository.findById(datVeId)
                 .orElseThrow(() -> new IllegalArgumentException("Đơn đặt vé không tồn tại"));
 
         long   amount     = datVe.getTongTienThanhToan().longValue();
         long   appTime    = System.currentTimeMillis();
+        // app_trans_id must be unique per merchant+day — include a millisecond
+        // suffix so retrying payment for the same booking creates a fresh order
+        // instead of ZaloPay rejecting the duplicate ("Giao dịch thất bại").
         String appTransId = new java.text.SimpleDateFormat("yyMMdd").format(new java.util.Date())
-                + "_" + datVe.getMaDatVe();
+                + "_" + datVe.getMaDatVe() + "_" + (appTime % 1_000_000_000L);
         String appUser    = datVe.getNguoiDung() != null ? datVe.getNguoiDung().getEmail() : "guest";
 
-        String embedData  = "{\"redirecturl\":\"" + zaloRedirectUrl + "/" + datVe.getMaDatVe() + "\"}";
+        String embedData  = "{\"redirecturl\":\"" + resolveFrontendUrl(frontendOrigin, zaloRedirectUrl) + "/" + datVe.getId() + "\"}";
         String items      = "[{\"itemid\":\"ve\",\"itemname\":\"Ve xem phim\","
                 + "\"itemprice\":" + amount + ",\"itemquantity\":1}]";
         String description = "PolyCinema - Thanh toan don hang #" + datVe.getMaDatVe();
@@ -479,6 +493,76 @@ public class ThanhToanService {
      * No logic is duplicated here.
      */
     @Transactional
+    public void cancelByPayOSOrderCode(Long orderCode) {
+        DatVe datVe = datVeRepository.findByMaQR(String.valueOf(orderCode)).orElse(null);
+        if (datVe == null) {
+            log.warn("[PayOS] cancelByPayOSOrderCode: booking not found orderCode={}", orderCode);
+            return;
+        }
+        cancelByPayOSCancel(datVe.getMaDatVe());
+    }
+
+    /**
+     * Called by /payment-result when PayOS redirects back after a payment attempt.
+     * PayOS appends orderCode to the returnUrl — we re-query PayOS for the link's
+     * real status (authoritative, works even when the webhook cannot reach the
+     * backend, e.g. local dev), then reconcile the booking accordingly.
+     *
+     * Lookup order: (1) by MaQR == orderCode; (2) by datVeId when MaQR was
+     * overwritten by a later gateway attempt on the same booking. For (2) we
+     * verify the orderCode belongs to that booking (orderCode = id*1_000_000
+     * + millis%1_000_000, so orderCode / 1_000_000 must equal the booking id).
+     */
+    @Transactional
+    public Map<String, Object> confirmPayOS(Long orderCode, Long datVeId) {
+        DatVe datVe = datVeRepository.findByMaQR(String.valueOf(orderCode)).orElse(null);
+        if (datVe == null && datVeId != null) {
+            DatVe byId = datVeRepository.findById(datVeId).orElse(null);
+            if (byId != null && orderCode / 1_000_000L == byId.getId()) {
+                datVe = byId;
+            }
+        }
+        if (datVe == null) {
+            throw new IllegalArgumentException("Không tìm thấy đơn đặt vé cho mã thanh toán này");
+        }
+        try {
+            vn.payos.model.v2.paymentRequests.PaymentLink link =
+                    payOS.paymentRequests().get(orderCode);
+            vn.payos.model.v2.paymentRequests.PaymentLinkStatus status = link.getStatus();
+            log.info("[PayOS] confirm: orderCode={} status={} booking={}",
+                    orderCode, status, datVe.getMaDatVe());
+
+            if (status == vn.payos.model.v2.paymentRequests.PaymentLinkStatus.PAID) {
+                markPaid(datVe, "PayOS", link.getId());
+            } else if (status == vn.payos.model.v2.paymentRequests.PaymentLinkStatus.CANCELLED
+                    || status == vn.payos.model.v2.paymentRequests.PaymentLinkStatus.EXPIRED
+                    || status == vn.payos.model.v2.paymentRequests.PaymentLinkStatus.FAILED) {
+                datVeService.performCancel(datVe);
+            }
+        } catch (Exception e) {
+            log.warn("[PayOS] confirm: failed to fetch link orderCode={}: {}", orderCode, e.getMessage());
+            // Non-fatal — fall through and report the current DB state.
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("datVeId",            datVe.getId());
+        result.put("maDatVe",            datVe.getMaDatVe());
+        result.put("trangThai",          datVe.getTrangThai());
+        result.put("trangThaiThanhToan", datVe.getTrangThaiThanhToan());
+        return result;
+    }
+
+    @Transactional
+    public void cancelByPayOSCancel(Long datVeId) {
+        DatVe datVe = datVeRepository.findById(datVeId).orElse(null);
+        if (datVe == null) {
+            log.warn("[PayOS] cancelByPayOSCancel: booking not found id={}", datVeId);
+            return;
+        }
+        cancelByPayOSCancel(datVe.getMaDatVe());
+    }
+
+    @Transactional
     public void cancelByPayOSCancel(String maDatVe) {
         DatVe datVe = datVeRepository.findByMaDatVe(maDatVe).orElse(null);
         if (datVe == null) {
@@ -548,10 +632,118 @@ public class ThanhToanService {
         if ("0".equals(resultCode)) {
             markPaid(datVe, "MoMo", transId);
         } else {
-            datVe.setTrangThai("cancelled");
-            datVeRepository.save(datVe);
+            datVeService.performCancel(datVe);
         }
         return true;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ZaloPay: verify gateway redirect (return/cancel) via checksum
+    // ─────────────────────────────────────────────────────────────
+    /**
+     * Called by /payment-result when ZaloPay redirects the browser back.
+     * The query params (appid|apptransid|pmcid|bankcode|amount|discountamount|status)
+     * carry a checksum, but sandbox traffic does not always reproduce it with the
+     * configured key2, so we log mismatches instead of blocking.
+     * Reconcile the booking from the redirect signal:
+     *   status = "-49" → user cancelled → release booking/seats
+     *   status =  "1"  → confirm via ZaloPay Query API (MAC with key1, the same
+     *                    key that successfully creates orders) → mark paid
+     */
+    @Transactional
+    public Map<String, Object> handleZaloPayRedirect(Map<String, Object> params, Long datVeId) {
+        String apptransid    = str(params, "apptransid");
+        String status        = str(params, "status");
+        String appid         = str(params, "appid");
+        String pmcid         = str(params, "pmcid");
+        String bankcode      = str(params, "bankcode");
+        String amount        = str(params, "amount");
+        String discountamount = str(params, "discountamount");
+        String checksum      = str(params, "checksum");
+
+        // Best-effort checksum check — non-blocking (see javadoc above)
+        String raw      = appid + "|" + apptransid + "|" + pmcid + "|" + bankcode
+                        + "|" + amount + "|" + discountamount + "|" + status;
+        String computed = hmacSHA256(zaloKey2, raw);
+        if (!computed.equalsIgnoreCase(checksum)) {
+            log.warn("[ZaloPay] Redirect checksum mismatch apptransid={} (proceeding)", apptransid);
+        }
+
+        DatVe datVe = datVeRepository.findByMaQR(apptransid).orElse(null);
+        if (datVe == null && datVeId != null) {
+            // MaQR may have been overwritten by a later gateway attempt on the same
+            // booking, so fall back to the booking id the frontend had in its path.
+            // apptransid is built as "<yyMMdd>_<maDatVe>_<millis>" — verify it really
+            // belongs to that booking before trusting it.
+            DatVe byId = datVeRepository.findById(datVeId).orElse(null);
+            if (byId != null && apptransid.contains(byId.getMaDatVe())) {
+                datVe = byId;
+            }
+        }
+        if (datVe == null) {
+            log.warn("[ZaloPay] Redirect: booking not found apptransid={}", apptransid);
+            throw new IllegalArgumentException("Không tìm thấy đơn đặt vé");
+        }
+
+        if ("1".equals(status)) {
+            String zpTransId = queryZaloPayOrder(apptransid);
+            if (zpTransId != null) {
+                markPaid(datVe, "ZaloPay", zpTransId);
+                log.info("[ZaloPay] Payment confirmed via redirect for booking: {}", datVe.getMaDatVe());
+            } else {
+                log.warn("[ZaloPay] Redirect status=1 but query returned non-success for {}", apptransid);
+            }
+        } else if ("-49".equals(status)) {
+            datVeService.performCancel(datVe);
+            log.info("[ZaloPay] Booking {} cancelled via gateway redirect", datVe.getMaDatVe());
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("datVeId",            datVe.getId());
+        result.put("maDatVe",            datVe.getMaDatVe());
+        result.put("status",             status);
+        result.put("trangThai",          datVe.getTrangThai());
+        result.put("trangThaiThanhToan", datVe.getTrangThaiThanhToan());
+        return result;
+    }
+
+    /**
+     * Queries ZaloPay for the real status of an order.
+     * POST form-urlencoded to the query URL with:
+     *   mac = HMAC-SHA256(key1, app_id|app_trans_id|key1)
+     * @return zp_trans_id when return_code == 1, otherwise null
+     */
+    private String queryZaloPayOrder(String appTransId) {
+        try {
+            String mac = hmacSHA256(zaloKey1,
+                    zaloAppId + "|" + appTransId + "|" + zaloKey1);
+
+            String formBody = "app_id=" + URLEncoder.encode(zaloAppId, StandardCharsets.UTF_8)
+                    + "&app_trans_id=" + URLEncoder.encode(appTransId, StandardCharsets.UTF_8)
+                    + "&mac=" + URLEncoder.encode(mac, StandardCharsets.UTF_8);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            HttpEntity<String> request = new HttpEntity<>(formBody, headers);
+
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    zaloQueryUrl, HttpMethod.POST, request, Map.class);
+            Map<String, Object> body = response.getBody();
+            if (body == null) return null;
+
+            int returnCode = ((Number) body.get("return_code")).intValue();
+            if (returnCode != 1) {
+                log.info("[ZaloPay] Query order {} return_code={} ({})",
+                        appTransId, returnCode, body.get("return_message"));
+                return null;
+            }
+            Object zpTransId = body.get("zp_trans_id");
+            return zpTransId == null ? appTransId : String.valueOf(zpTransId);
+        } catch (Exception e) {
+            log.error("[ZaloPay] Query order {} failed: {}", appTransId, e.getMessage());
+            return null;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -559,9 +751,21 @@ public class ThanhToanService {
     // ─────────────────────────────────────────────────────────────
     @Transactional
     public void markPaid(DatVe datVe, String method, String transactionNo) {
+        // Idempotency guard — a booking must only be marked paid once.
+        // Prevents duplicate stock deduction / duplicate ThanhToan rows
+        // when a payment gateway delivers the same callback multiple times.
+        if ("paid".equalsIgnoreCase(datVe.getTrangThaiThanhToan())) {
+            log.info("[ThanhToanService] Booking {} already paid — skipping markPaid", datVe.getMaDatVe());
+            return;
+        }
+
         datVe.setTrangThai("confirmed");
         datVe.setTrangThaiThanhToan("paid");
         datVeRepository.save(datVe);
+
+        // Deduct product inventory — combos/food/drinks bundled with the ticket
+        // are taken out of stock the moment the booking becomes paid.
+        datVeService.deductStock(datVe);
 
         ThanhToan tt = new ThanhToan();
         tt.setDatVe(datVe);
@@ -573,14 +777,20 @@ public class ThanhToanService {
         thanhToanRepository.save(tt);
 
         NguoiDung user = datVe.getNguoiDung();
-        long pointsEarned = datVe.getTongTienThanhToan().divide(BigDecimal.valueOf(1000)).longValue();
+        // Loyalty points [RQ]: earn 1 điểm / 1.000đ thực trả, chỉ khi đơn >= 100.000đ.
+        long pointsEarned = 0;
+        BigDecimal paid = datVe.getTongTienThanhToan();
+        if (paid != null && paid.compareTo(new BigDecimal("100000")) >= 0) {
+            pointsEarned = paid.divideToIntegralValue(BigDecimal.valueOf(1000)).longValue();
+        }
         user.setDiemTichLuy((user.getDiemTichLuy() == null ? 0 : user.getDiemTichLuy()) + (int) pointsEarned);
 
         BigDecimal currentSpent = user.getTongTienDaChi() == null ? BigDecimal.ZERO : user.getTongTienDaChi();
-        BigDecimal newSpent     = currentSpent.add(datVe.getTongTienThanhToan());
+        BigDecimal newSpent     = currentSpent.add(paid == null ? BigDecimal.ZERO : paid);
         user.setTongTienDaChi(newSpent);
         user.setCapDoThanhVien(calculateMemberLevel(newSpent));
 
+        // Deduct only the points actually redeemed (already capped at creation time)
         if (datVe.getDiemSuDung() != null && datVe.getDiemSuDung() > 0) {
             int remaining = user.getDiemTichLuy() - datVe.getDiemSuDung();
             user.setDiemTichLuy(Math.max(0, remaining));
@@ -634,5 +844,25 @@ public class ThanhToanService {
         } catch (Exception e) {
             throw new RuntimeException("HMAC-SHA256 error", e);
         }
+    }
+
+    /**
+     * Chọn frontend base URL để dựng return/cancel/redirect URL cho các cổng
+     * thanh toán. Ưu tiên origin thực tế do frontend gửi lên (giúp chạy đúng
+     * khi truy cập qua devtunnel / domain tùy chỉnh); fallback về config.
+     */
+    private String resolveFrontendUrl(String frontendOrigin, String configuredUrl) {
+        if (frontendOrigin != null && !frontendOrigin.isBlank()) {
+            String origin = frontendOrigin.replaceAll("/+$", "");
+            // Preserve the path of the configured URL (e.g. /payment-result, /payment-cancel)
+            // so redirects land on the right SPA route instead of the root → 404.
+            String path = "";
+            try {
+                java.net.URI uri = new java.net.URI(configuredUrl);
+                if (uri.getPath() != null) path = uri.getPath();
+            } catch (Exception ignored) { /* keep path empty */ }
+            return origin + path;
+        }
+        return configuredUrl;
     }
 }

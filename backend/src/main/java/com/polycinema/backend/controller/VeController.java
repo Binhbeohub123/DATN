@@ -83,26 +83,9 @@ public class VeController {
         }
     }
 
-    // ── Build human-readable QR content ──────────────────────────
+    // ── QR content: just the booking code — machine-parseable for check-in ──
     private String buildQrContent(DatVe datVe) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("POLYCINEMA TICKET\n");
-        sb.append("Mã đặt vé: ").append(datVe.getMaDatVe()).append("\n");
-
-        if (datVe.getLichChieu() != null) {
-            if (datVe.getLichChieu().getPhim() != null) {
-                sb.append("Phim: ").append(datVe.getLichChieu().getPhim().getTenPhim()).append("\n");
-            }
-            if (datVe.getLichChieu().getThoiGianBatDau() != null) {
-                sb.append("Suất: ").append(datVe.getLichChieu().getThoiGianBatDau()).append("\n");
-            }
-            if (datVe.getLichChieu().getPhongChieu() != null) {
-                sb.append("Phòng: ").append(datVe.getLichChieu().getPhongChieu().getTenPhong()).append("\n");
-            }
-        }
-
-        sb.append("Tổng tiền: ").append(datVe.getTongTienThanhToan()).append(" VND");
-        return sb.toString();
+        return datVe.getMaDatVe();
     }
 
     // ── JWT helpers (principal = email string) ────────────────────

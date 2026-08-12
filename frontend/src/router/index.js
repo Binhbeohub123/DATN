@@ -22,7 +22,7 @@ const routes = [
   { path: '/',        name: 'home',         component: () => import('@/view/home.vue'),                    meta: { requiresAuth: false } },
   { path: '/movies',  name: 'movies',       component: () => import('@/view/home.vue'),                    meta: { requiresAuth: false } },
   { path: '/phim/:id',name: 'movie-detail', component: () => import('@/view/MovieDetailPage.vue'),         meta: { requiresAuth: false }, props: true },
-  { path: '/rap-chieu/:id', name: 'cinema-detail', component: () => import('@/view/CinemaDetailPage.vue'), meta: { requiresAuth: false }, props: true },
+  { path: '/rap/:id', name: 'cinema-detail', component: () => import('@/view/CinemaDetailPage.vue'),        meta: { requiresAuth: false }, props: true },
   { path: '/auth',    name: 'auth',         component: () => import('@/Auth/AuthPage.vue'),                meta: { requiresAuth: false } },
   { path: '/seat-selection/:showtimeId', name: 'seat-selection', component: () => import('@/view/SeatSelectionPage.vue'), meta: { requiresAuth: true }, props: true },
   { path: '/combo',   name: 'combo',        component: () => import('@/view/ComboPage.vue'),               meta: { requiresAuth: true } },
@@ -46,7 +46,7 @@ const routes = [
     },
   },
   { path: '/payment-result/:bookingId', name: 'payment-result', component: () => import('@/view/PaymentResultPage.vue'), meta: { requiresAuth: true }, props: true },
-  { path: '/payment-cancel', name: 'payment-cancel', component: () => import('@/view/PaymentCancelPage.vue'), meta: { requiresAuth: false } },
+  { path: '/payment-cancel/:maDatVe?', name: 'payment-cancel', component: () => import('@/view/PaymentCancelPage.vue'), meta: { requiresAuth: false } },
   { path: '/profile', name: 'profile',      component: () => import('@/view/UserProfilePage.vue'),         meta: { requiresAuth: true } },
   { path: '/my-tickets', name: 'my-tickets', component: () => import('@/view/MyTicketsPage.vue'),          meta: { requiresAuth: true } },
   { path: '/transaction-history', name: 'transaction-history', component: () => import('@/view/TransactionHistoryPage.vue'), meta: { requiresAuth: true } },
@@ -57,6 +57,12 @@ const routes = [
     component: () => import('@/admin/AdminDashboard.vue'),
     meta: { requiresAuth: true, role: 'ADMIN' },
   },
+  // ── Staff routes ────────────────────────────────────────────
+  { path: '/staff', redirect: '/staff/dashboard' },
+  { path: '/staff/dashboard', name: 'staff-dashboard', component: () => import('@/view/StaffDashboardPage.vue'), meta: { requiresAuth: true, role: 'STAFF' } },
+  { path: '/staff/pos', name: 'staff-pos', component: () => import('@/view/StaffPosPage.vue'), meta: { requiresAuth: true, role: 'STAFF' } },
+  { path: '/staff/checkin', name: 'staff-checkin', component: () => import('@/view/StaffCheckinPage.vue'), meta: { requiresAuth: true, role: 'STAFF' } },
+  { path: '/staff/report', name: 'staff-report', component: () => import('@/view/StaffReportPage.vue'), meta: { requiresAuth: true, role: 'STAFF' } },
   // ── 404 catch-all ────────────────────────────────────────────
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/view/NotFoundPage.vue'), meta: { requiresAuth: false } },
 ]
@@ -78,7 +84,8 @@ router.beforeEach(async (to, from, next) => {
   if (oauthToken) {
     localStorage.setItem('token', oauthToken)
     const role = getUserRole()
-    next({ path: role === 'ADMIN' ? '/admin/dashboard' : '/', replace: true })
+    const dest = role === 'ADMIN' ? '/admin/dashboard' : role === 'STAFF' ? '/staff/dashboard' : '/'
+    next({ path: dest, replace: true })
     return
   }
 
@@ -102,6 +109,11 @@ router.beforeEach(async (to, from, next) => {
 
   // ── Unauthenticated user hitting a protected route ──
   if (requiresAuth && !localStorage.getItem('token')) {
+    // Staff routes redirect to shared /auth, not a staff-specific page
+    if (to.path.startsWith('/staff')) {
+      next('/auth')
+      return
+    }
     // Save intended destination so AuthPage can redirect back after login
     const { useAuthStore } = await import('@/stores/authStore')
     const authStore = useAuthStore()
@@ -111,18 +123,24 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // ── Wrong role for route (e.g. non-admin hitting /admin) ──
-  if (to.meta?.role && role !== to.meta.role) {
-    // Show toast then redirect home
-    import('@/composables/useToast.js').then(({ useToast }) => {
-      useToast().error('Bạn không có quyền truy cập trang này')
-    })
-    next('/')
-    return
+  if (to.meta?.role) {
+    const requiredRole = to.meta.role
+    const hasAccess = role === requiredRole || (requiredRole === 'STAFF' && role === 'ADMIN')
+    if (!hasAccess) {
+      // Show toast then redirect
+      import('@/composables/useToast.js').then(({ useToast }) => {
+        useToast().error('Bạn không có quyền truy cập trang này')
+      })
+      if (to.path.startsWith('/staff')) { next('/auth'); return }
+      next('/')
+      return
+    }
   }
 
   // ── Logged-in user hitting /auth ──
   if (!requiresAuth && localStorage.getItem('token') && to.path === '/auth') {
-    next(role === 'ADMIN' ? '/admin/dashboard' : '/')
+    const dest = role === 'ADMIN' ? '/admin/dashboard' : role === 'STAFF' ? '/staff/dashboard' : '/'
+    next(dest)
     return
   }
 

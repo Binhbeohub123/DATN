@@ -30,19 +30,26 @@ public interface LichChieuRepository
 
     // ── Admin paginated ───────────────────────────────────────────
     /**
-     * Returns active (non-deleted) schedules, optionally filtered by date range.
-     * dateFrom / dateTo = null → no date filter on that bound.
+     * Returns active (non-deleted) schedules, optionally filtered by date range,
+     * cinema (rapChieuId), and room (phongChieuId).
+     * All params are nullable — null means "no filter on that dimension".
      */
     @Query("""
            SELECT lc FROM LichChieu lc
+           LEFT JOIN lc.phongChieu pc
+           LEFT JOIN pc.rapChieu rc
            WHERE lc.isDeleted = false
-             AND (:dateFrom IS NULL OR lc.thoiGianBatDau >= :dateFrom)
-             AND (:dateTo   IS NULL OR lc.thoiGianBatDau <  :dateTo)
+             AND (:dateFrom    IS NULL OR lc.thoiGianBatDau >= :dateFrom)
+             AND (:dateTo      IS NULL OR lc.thoiGianBatDau <  :dateTo)
+             AND (:rapChieuId  IS NULL OR rc.id             =  :rapChieuId)
+             AND (:phongChieuId IS NULL OR pc.id            =  :phongChieuId)
            ORDER BY lc.thoiGianBatDau DESC
            """)
     Page<LichChieu> findAdminPage(
-            @Param("dateFrom") LocalDateTime dateFrom,
-            @Param("dateTo")   LocalDateTime dateTo,
+            @Param("dateFrom")     LocalDateTime dateFrom,
+            @Param("dateTo")       LocalDateTime dateTo,
+            @Param("rapChieuId")   Long rapChieuId,
+            @Param("phongChieuId") Long phongChieuId,
             Pageable pageable);
 
     // ── Public filtered search ────────────────────────────────────
@@ -70,6 +77,62 @@ public interface LichChieuRepository
             @Param("phimId")     Long phimId,
             @Param("thanhPho")   String thanhPho,
             @Param("dinhDangId") Long dinhDangId,
+            @Param("from")       LocalDateTime from,
+            @Param("to")         LocalDateTime to);
+
+    /**
+     * Returns min and max thoiGianBatDau per movie for efficient batch status computation.
+     * Each row: [phimId (Long), minDate (LocalDateTime), maxDate (LocalDateTime)]
+     * Used by PhimService.applyComputedStatus().
+     */
+    @Query("SELECT lc.phim.id, MIN(lc.thoiGianBatDau), MAX(lc.thoiGianBatDau) " +
+           "FROM LichChieu lc WHERE lc.isDeleted = false " +
+           "GROUP BY lc.phim.id")
+    List<Object[]> findMinMaxThoiGianBatDauByPhim();
+
+    /**
+     * POS: today's not-yet-started showtimes for a given cinema, ordered by start time.
+     * Used by GET /api/staff/pos/lich-chieu?rapChieuId=X
+     */
+    @Query("""
+           SELECT lc FROM LichChieu lc
+           LEFT JOIN FETCH lc.phongChieu pc
+           LEFT JOIN FETCH pc.rapChieu rc
+           LEFT JOIN FETCH lc.phim p
+           WHERE lc.isDeleted = false
+             AND pc.trangThai = true
+             AND rc.id = :rapChieuId
+             AND lc.thoiGianBatDau >= :from
+             AND lc.thoiGianBatDau <  :to
+           ORDER BY lc.thoiGianBatDau ASC
+           """)
+    List<LichChieu> findTodayByRapChieuId(
+            @Param("rapChieuId") Long rapChieuId,
+            @Param("from")       LocalDateTime from,
+            @Param("to")         LocalDateTime to);
+
+    // ── Public cinema schedule (30-day window) ────────────────────────────
+    /**
+     * GET /api/lich-chieu/rap/{rapChieuId}
+     * All showtimes for a given cinema within [from, to), enriched with the
+     * movie graph (phim eager-fetched so genre/format/posters are available
+     * without N+1). Only active rooms and active cinemas are included.
+     */
+    @Query("""
+           SELECT DISTINCT lc FROM LichChieu lc
+           LEFT JOIN FETCH lc.phongChieu pc
+           LEFT JOIN FETCH pc.rapChieu rc
+           LEFT JOIN FETCH lc.phim p
+           WHERE lc.isDeleted = false
+             AND pc.trangThai = true
+             AND rc.trangThai = true
+             AND rc.id = :rapChieuId
+             AND lc.thoiGianBatDau >= :from
+             AND lc.thoiGianBatDau <  :to
+           ORDER BY lc.thoiGianBatDau ASC
+           """)
+    List<LichChieu> findByRapChieuIdAndRange(
+            @Param("rapChieuId") Long rapChieuId,
             @Param("from")       LocalDateTime from,
             @Param("to")         LocalDateTime to);
 }

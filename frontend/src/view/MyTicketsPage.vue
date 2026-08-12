@@ -115,6 +115,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { fmtDateTimeFull12 } from '@/utils/homeHelpers'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -171,8 +172,7 @@ function seatList(tk) {
   return tk.chiTietDatGhe.map(c => `${(c.gheNgoi?.hangGhe || '').trim()}${c.gheNgoi?.soGhe}`).sort().join(', ')
 }
 function fmtDt(dt) {
-  if (!dt) return '-'
-  return new Date(dt).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  return fmtDateTimeFull12(dt, '-')
 }
 function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN', { style:'currency', currency:'VND' }).format(v || 0)

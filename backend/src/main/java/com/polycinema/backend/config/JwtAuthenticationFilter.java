@@ -1,5 +1,7 @@
 package com.polycinema.backend.config;
 
+import com.polycinema.backend.entity.NguoiDung;
+import com.polycinema.backend.repository.NguoiDungRepository;
 import com.polycinema.backend.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -13,6 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 
 @Component
@@ -20,6 +25,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final NguoiDungRepository nguoiDungRepository;
 
     /**
      * Chuẩn hóa role từ JWT sang Spring Security GrantedAuthority.
@@ -28,11 +34,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private String normalizeRole(String role) {
         if (role == null || role.isBlank()) return "ROLE_USER";
-
         String normalized = role.trim().toUpperCase();
         if (normalized.equals("CUSTOMER")) return "ROLE_USER";
         if (normalized.startsWith("ROLE_")) return normalized;
-
         return "ROLE_" + normalized;
     }
 
@@ -52,7 +56,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtUtil.isValid(token)) {
 
                 String email = jwtUtil.extractEmail(token);
-                String role = jwtUtil.extractRole(token);
+                String role  = jwtUtil.extractRole(token);
+
+                // ── Email-change session invalidation ─────────────────────────
+                // If the user's email was changed after this JWT was issued,
+                // the token is stale — skip authentication so the request is
+                // treated as unauthenticated. The user must log in again with
+                // the new email to get a fresh token.
+                if (email != null) {
+                    NguoiDung user = nguoiDungRepository.findByEmail(email).orElse(null);
+                    if (user != null && user.getEmailChangedAt() != null) {
+                        Date issuedAt = jwtUtil.extractIssuedAt(token);
+                        if (issuedAt != null) {
+                            LocalDateTime tokenIat = issuedAt.toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDateTime();
+                            if (tokenIat.isBefore(user.getEmailChangedAt())) {
+                                // Token predates the email change — reject
+                                filterChain.doFilter(request, response);
+                                return;
+                            }
+                        }
+                    }
+                }
+                // ──────────────────────────────────────────────────────────────
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -61,9 +88,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 List.of(new SimpleGrantedAuthority(normalizeRole(role)))
                         );
 
-                SecurityContextHolder
-                        .getContext()
-                        .setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
 

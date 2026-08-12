@@ -10,6 +10,8 @@ public interface PhongChieuRepository
 
     List<PhongChieu> findByRapChieuIdAndTrangThaiTrue(Long rapChieuId);
 
+    List<PhongChieu> findByRapChieuId(Long rapChieuId);
+
     /** Used by DinhDangController to guard DELETE — checks if any room references this format. */
     long countByDinhDangId(Long dinhDangId);
 }

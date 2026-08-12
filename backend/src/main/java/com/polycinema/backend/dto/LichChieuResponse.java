@@ -42,6 +42,7 @@ public class LichChieuResponse {
     // ── Schedule times & price ──
     private LocalDateTime thoiGianBatDau;
     private LocalDateTime thoiGianKetThuc;
+    private Integer       thoiGianNghi;
     private BigDecimal    giaCoBan;
     private String        trangThai;
     private Boolean       isDeleted;
@@ -74,6 +75,7 @@ public class LichChieuResponse {
 
                 lc.getThoiGianBatDau(),
                 lc.getThoiGianKetThuc(),
+                lc.getThoiGianNghi() != null ? lc.getThoiGianNghi() : 15,
                 lc.getGiaCoBan(),
                 lc.getTrangThai(),
                 lc.getIsDeleted()

@@ -116,6 +116,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useBookingStore } from '@/stores/bookingStore'
 import api from '@/services/api'
+import { fmtDateTime12 } from '@/utils/homeHelpers'
 
 const router       = useRouter()
 const route        = useRoute()
@@ -174,6 +175,56 @@ onMounted(async () => {
 async function processResult() {
   const q = route.query
   const bookingId = route.params.bookingId || q.bookingId
+
+  // ── PayOS callback ──────────────────────────────────────────
+  // PayOS appends orderCode (+code/status/id) to the returnUrl. Re-query PayOS
+  // for the authoritative status and reconcile the booking server-side.
+  if (q.orderCode !== undefined) {
+    try {
+      const res = await api.post('/thanh-toan/payos/confirm', { orderCode: q.orderCode, datVeId: bookingId })
+      await fetchBooking(res.data?.datVeId)
+    } catch (e) {
+      failMessage.value = e.response?.data?.message || 'Không xác nhận được thanh toán PayOS'
+      failCode.value    = e.response?.status ? String(e.response.status) : ''
+      phase.value = 'fail'
+    }
+    return
+  }
+
+  // ── ZaloPay callback ─────────────────────────────────────────
+  // ZaloPay redirects to /payment-result/{id}?apptransid=...&status=...&checksum=...
+  // Must be checked BEFORE the cash/direct path — ZaloPay redirects also carry
+  // the bookingId path param.
+  if (q.apptransid !== undefined) {
+    try {
+      const res = await api.post('/thanh-toan/zalopay/redirect', {
+        datVeId:        bookingId,
+        appid:          q.appid,
+        apptransid:     q.apptransid,
+        pmcid:          q.pmcid,
+        bankcode:       q.bankcode,
+        amount:         q.amount,
+        discountamount: q.discountamount,
+        status:         q.status,
+        checksum:       q.checksum,
+      })
+      if (String(q.status) === '1' || res.data?.trangThaiThanhToan === 'paid') {
+        await fetchBooking(res.data?.datVeId || bookingId)
+      } else if (String(q.status) === '-49') {
+        // User cancelled on the ZaloPay page — booking was released server-side
+        router.replace('/payment-cancel')
+      } else {
+        failCode.value    = q.status
+        failMessage.value = zaloStatusMessage(q.status)
+        phase.value = 'fail'
+      }
+    } catch (e) {
+      failMessage.value = e.response?.data?.message || 'Không xác nhận được thanh toán ZaloPay'
+      failCode.value    = e.response?.status ? String(e.response.status) : ''
+      phase.value = 'fail'
+    }
+    return
+  }
 
   // ── Cash / direct path ─────────────────────────────────────
   if (bookingId && !q.vnp_ResponseCode && !q.resultCode) {
@@ -262,8 +313,7 @@ function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN',{ style:'currency', currency:'VND' }).format(v)
 }
 function fmtDatetime(dt) {
-  if (!dt) return '-'
-  return new Date(dt).toLocaleString('vi-VN',{ day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  return fmtDateTime12(dt, '-')
 }
 function payStatusLabel(s) {
   if (s === 'paid') return 'Đã thanh toán'
@@ -293,6 +343,13 @@ function momoMessage(code) {
     '8':'Lỗi kết nối',
   }
   return map[code] || `Thanh toán MoMo thất bại (mã ${code})`
+}
+function zaloStatusMessage(code) {
+  const map = {
+    '1':'Giao dịch thành công', '0':'Giao dịch đang xử lý',
+    '-49':'Giao dịch bị hủy bởi người dùng',
+  }
+  return map[code] || `Thanh toán ZaloPay thất bại (mã ${code})`
 }
 </script>
 

@@ -20,8 +20,8 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 const route = useRoute()
 const showFabTheme = computed(() => {
   const path = route.path
-  if (path === '/' || path.startsWith('/admin')) return false
-  const withBar = ['/phim', '/seat-selection', '/combo', '/checkout', '/profile', '/transaction-history', '/my-tickets']
+  if (path === '/' || path.startsWith('/admin') || path.startsWith('/staff')) return false
+  const withBar = ['/phim', '/rap', '/seat-selection', '/combo', '/checkout', '/profile', '/transaction-history', '/my-tickets']
   return !withBar.some((p) => path.startsWith(p))
 })
 

@@ -115,7 +115,7 @@ class BookingFlowIntegrationTest {
                 .andExpect(jsonPath("$.trangThai").value("pending"));
 
         // Step 2: Request VNPay checkout URL
-        when(thanhToanService.createVNPayUrl(eq(500L), any()))
+        when(thanhToanService.createVNPayUrl(eq(500L), any(), any()))
                 .thenReturn("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?mock=1");
 
         Map<String, Object> payReq = Map.of("datVeId", 500L);

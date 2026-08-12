@@ -44,9 +44,16 @@ public class PhimController {
      */
     @GetMapping("/noi-bat")
     public ResponseEntity<List<Phim>> getNoiBat() {
-        return ResponseEntity.ok(
-                phimRepository.findTop10NowShowing(PageRequest.of(0, 10)).getContent()
-        );
+        List<Phim> all = phimRepository.findByIsDeletedFalse();
+        phimService.applyComputedStatus(all);
+        List<Phim> result = all.stream()
+                .filter(p -> "dang_chieu".equals(p.getTrangThai()))
+                .sorted(java.util.Comparator.comparing(
+                        p -> p.getDiemDanhGia() != null ? p.getDiemDanhGia() : java.math.BigDecimal.ZERO,
+                        java.util.Comparator.reverseOrder()))
+                .limit(10)
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
     // GET /api/phim/dang-chieu
@@ -74,10 +81,11 @@ public class PhimController {
     @GetMapping
     public ResponseEntity<List<Phim>> getPhim(
             @RequestParam(required = false) Long theLoaiId) {
-        if (theLoaiId != null) {
-            return ResponseEntity.ok(phimRepository.findByTheLoaiId(theLoaiId));
-        }
-        return ResponseEntity.ok(phimRepository.findByIsDeletedFalse());
+        List<Phim> movies = theLoaiId != null
+                ? phimRepository.findByTheLoaiId(theLoaiId)
+                : phimRepository.findByIsDeletedFalse();
+        phimService.applyComputedStatus(movies);
+        return ResponseEntity.ok(movies);
     }
 
     // GET /api/phim/{phimId}/lich-chieu
@@ -101,10 +109,10 @@ public class PhimController {
         return ResponseEntity.ok(response);
     }
 
-    // GET /api/phim/{id}
+    // GET /api/phim/{id} — trangThai is computed from showtimes by phimService.getPhimById
     @GetMapping("/{id}")
     public ResponseEntity<?> getPhimById(@PathVariable Long id) {
-        Phim phim = phimService.getPhimById(id);
+        Phim phim = phimService.getPhimById(id);  // applies computed status
         if (phim == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(phim);
     }

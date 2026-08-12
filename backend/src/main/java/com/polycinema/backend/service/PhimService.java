@@ -3,6 +3,7 @@ package com.polycinema.backend.service;
 import com.polycinema.backend.entity.Phim;
 import com.polycinema.backend.entity.DanhGiaPhim;
 import com.polycinema.backend.entity.NguoiDung;
+import com.polycinema.backend.repository.LichChieuRepository;
 import com.polycinema.backend.repository.PhimRepository;
 import com.polycinema.backend.repository.DanhGiaPhimRepository;
 import com.polycinema.backend.repository.NguoiDungRepository;
@@ -10,39 +11,95 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class PhimService {
 
     private final PhimRepository phimRepository;
+    private final LichChieuRepository lichChieuRepository;
     private final DanhGiaPhimRepository danhGiaPhimRepository;
     private final NguoiDungRepository nguoiDungRepository;
 
+    // ── Computed status rules (compare DATE only, never time) ──────────────
+    // chua_chieu   — no showtimes at all
+    // sap_chieu    — has showtimes, ALL dates in the future (min > today)
+    // dang_chieu   — has showtimes, min <= today AND max >= today
+    // da_ket_thuc  — has showtimes, ALL dates in the past (max < today)
+
+    /** Compute status from min/max showtime date for a single movie. */
+    public static String computeStatus(LocalDateTime minDt, LocalDateTime maxDt) {
+        if (minDt == null) return "chua_chieu";
+        LocalDate today = LocalDate.now();
+        LocalDate minDate = minDt.toLocalDate();
+        LocalDate maxDate = maxDt.toLocalDate();
+        if (minDate.isAfter(today))  return "sap_chieu";
+        if (maxDate.isBefore(today)) return "da_ket_thuc";
+        return "dang_chieu";
+    }
+
+    /**
+     * Apply computed trangThai to every movie in the list using ONE grouped query.
+     * Modifies each Phim object in-place (does NOT persist — read-time decoration only).
+     */
+    public void applyComputedStatus(List<Phim> movies) {
+        if (movies == null || movies.isEmpty()) return;
+        List<Object[]> rows = lichChieuRepository.findMinMaxThoiGianBatDauByPhim();
+        // Build a map: phimId → [minDt, maxDt]
+        Map<Long, LocalDateTime[]> minMax = new HashMap<>();
+        for (Object[] row : rows) {
+            Long phimId = ((Number) row[0]).longValue();
+            LocalDateTime minDt = (LocalDateTime) row[1];
+            LocalDateTime maxDt = (LocalDateTime) row[2];
+            minMax.put(phimId, new LocalDateTime[]{minDt, maxDt});
+        }
+        for (Phim p : movies) {
+            LocalDateTime[] mm = minMax.get(p.getId());
+            p.setTrangThai(mm != null
+                    ? computeStatus(mm[0], mm[1])
+                    : "chua_chieu");
+        }
+    }
+
+    /** Single-movie variant */
+    public void applyComputedStatus(Phim phim) {
+        if (phim == null) return;
+        applyComputedStatus(java.util.List.of(phim));
+    }
+
     public List<Phim> getDangChieu() {
-        return phimRepository.findByTrangThaiAndIsDeletedFalse("dang_chieu");
+        List<Phim> all = phimRepository.findByIsDeletedFalse();
+        applyComputedStatus(all);
+        return all.stream().filter(p -> "dang_chieu".equals(p.getTrangThai())).collect(Collectors.toList());
     }
 
     public List<Phim> getSapChieu() {
-        return phimRepository.findByTrangThaiAndIsDeletedFalse("sap_chieu");
+        List<Phim> all = phimRepository.findByIsDeletedFalse();
+        applyComputedStatus(all);
+        return all.stream().filter(p -> "sap_chieu".equals(p.getTrangThai())).collect(Collectors.toList());
     }
 
     public List<Phim> getBanner() {
-        // Banner hiển thị phim đang chiếu (tối đa 5 phim)
-        List<Phim> dangChieu = phimRepository.findByTrangThaiAndIsDeletedFalse("dang_chieu");
-        if (dangChieu.size() > 5) {
-            return dangChieu.subList(0, 5);
-        }
-        return dangChieu;
+        List<Phim> dang = getDangChieu();
+        return dang.size() > 5 ? dang.subList(0, 5) : dang;
     }
 
     public List<Phim> timKiem(String tenPhim) {
-        return phimRepository.findByTenPhimContainingIgnoreCaseAndIsDeletedFalse(tenPhim);
+        List<Phim> list = phimRepository.findByTenPhimContainingIgnoreCaseAndIsDeletedFalse(tenPhim);
+        applyComputedStatus(list);
+        return list;
     }
 
     public Phim getPhimById(Long id) {
-        return phimRepository.findById(id).orElse(null);
+        Phim phim = phimRepository.findById(id).orElse(null);
+        applyComputedStatus(phim);
+        return phim;
     }
 
     // ================= ADD/UPDATE RATING =================

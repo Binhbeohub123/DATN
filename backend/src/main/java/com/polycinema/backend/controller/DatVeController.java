@@ -50,13 +50,23 @@ public class DatVeController {
                         .body("Vui lòng đăng nhập");
             }
 
-            Long lichChieuId = ((Number) req.get("lichChieuId")).longValue();
+            // Null-check required fields before casting
+            Object lichChieuRaw = req.get("lichChieuId");
+            if (lichChieuRaw == null) {
+                return ResponseEntity.badRequest().body("Thiếu trường lichChieuId");
+            }
+            Long lichChieuId = ((Number) lichChieuRaw).longValue();
 
             // Safe conversion: Jackson deserialises small JSON integers as Integer, not Long
             @SuppressWarnings("unchecked")
             List<Long> gheIds = req.get("gheIds") == null ? java.util.Collections.emptyList()
                     : ((List<?>) req.get("gheIds")).stream()
-                        .map(n -> ((Number) n).longValue())
+                        .map(n -> {
+                            if (n == null) {
+                                throw new IllegalArgumentException("Danh sách gheIds có phần tử null");
+                            }
+                            return ((Number) n).longValue();
+                        })
                         .collect(java.util.stream.Collectors.toList());
 
             List<Map<String, Object>> comboData = (List<Map<String, Object>>) req.get("comboData");
@@ -181,8 +191,12 @@ public class DatVeController {
         try {
             Long userId = getUserIdFromToken();
             if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
-            Long gheNgoiId  = ((Number) req.get("gheNgoiId")).longValue();
-            Long lichChieuId = ((Number) req.get("lichChieuId")).longValue();
+            Object gheNgoiRaw   = req.get("gheNgoiId");
+            Object lichChieuRaw = req.get("lichChieuId");
+            if (gheNgoiRaw == null) return ResponseEntity.badRequest().body("Thiếu trường gheNgoiId");
+            if (lichChieuRaw == null) return ResponseEntity.badRequest().body("Thiếu trường lichChieuId");
+            Long gheNgoiId   = ((Number) gheNgoiRaw).longValue();
+            Long lichChieuId = ((Number) lichChieuRaw).longValue();
             SeatLock lock = seatLockService.lockSeat(gheNgoiId, lichChieuId, userId);
             int lockMins  = seatLockService.getSeatLockDuration();
             return ResponseEntity.ok(Map.of(
@@ -205,8 +219,12 @@ public class DatVeController {
         try {
             Long userId = getUserIdFromToken();
             if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập");
-            Long gheNgoiId  = ((Number) req.get("gheNgoiId")).longValue();
-            Long lichChieuId = ((Number) req.get("lichChieuId")).longValue();
+            Object gheNgoiRaw   = req.get("gheNgoiId");
+            Object lichChieuRaw = req.get("lichChieuId");
+            if (gheNgoiRaw == null) return ResponseEntity.badRequest().body("Thiếu trường gheNgoiId");
+            if (lichChieuRaw == null) return ResponseEntity.badRequest().body("Thiếu trường lichChieuId");
+            Long gheNgoiId   = ((Number) gheNgoiRaw).longValue();
+            Long lichChieuId = ((Number) lichChieuRaw).longValue();
             seatLockService.releaseSeat(gheNgoiId, lichChieuId);
             return ResponseEntity.ok(Map.of("message", "Đã giải phóng ghế"));
         } catch (Exception e) {

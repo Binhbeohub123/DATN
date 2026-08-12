@@ -71,8 +71,8 @@
           </div>
           <div class="meta-cell">
             <span class="meta-label">Trạng thái</span>
-            <span class="meta-value" :class="movie.status === 'dang_chieu' ? 'text-green' : 'text-yellow'">
-              {{ movie.status === 'dang_chieu' ? 'Đang chiếu' : movie.status === 'sap_chieu' ? 'Sắp chiếu' : movie.status }}
+            <span class="meta-value" :class="movie.status === 'dang_chieu' ? 'text-green' : movie.status === 'sap_chieu' ? 'text-yellow' : 'text-muted'">
+              {{ movie.status === 'dang_chieu' ? 'Đang chiếu' : movie.status === 'sap_chieu' ? 'Sắp chiếu' : movie.status === 'chua_chieu' ? 'Chưa chiếu' : movie.status === 'da_ket_thuc' ? 'Đã kết thúc' : movie.status }}
             </span>
           </div>
         </div>
@@ -135,17 +135,15 @@
 
         <!-- Date tabs -->
         <div class="date-scroll" role="tablist" aria-label="Chọn ngày">
-          <button
+          <DayChip
             v-for="d in days"
             :key="d.iso"
-            :class="['date-btn', { 'date-btn--active': selectedDate === d.iso }]"
-            @click="selectDate(d.iso)"
-            role="tab"
-            :aria-selected="selectedDate === d.iso"
-          >
-            <span class="date-btn__num">{{ d.num }}</span>
-            <span class="date-btn__dow">{{ d.dow }}</span>
-          </button>
+            :num="d.num"
+            :mo="d.mo"
+            :dow="d.dow"
+            :active="selectedDate === d.iso"
+            @select="selectDate(d.iso)"
+          />
         </div>
 
         <!-- Loading showtimes -->
@@ -174,20 +172,23 @@
             </div>
 
             <!-- Showtime buttons for this cinema -->
-            <div class="show-grid">
-              <button
-                v-for="s in group.showtimes"
-                :key="s.id"
-                :class="['show-card', { 'show-card--selected': selectedShowtime?.id === s.id }]"
-                @click="pickShowtime(s)"
-              >
-                <span class="show-time">{{ fmtTime(s.thoiGianBatDau) }}</span>
-                <span class="show-room">{{ s.tenPhong }}</span>
-                <span class="show-type" :class="typeClass(s.tenDinhDang || s.loaiPhong)">
-                  {{ s.tenDinhDang || s.loaiPhong }}
-                </span>
-                <span class="show-price">{{ fmtPrice(s.giaCoBan) }}</span>
-              </button>
+            <div v-for="g in groupByBuoi(group.showtimes)" :key="g.label" class="show-buoi">
+              <div class="show-buoi__label">{{ g.label }}</div>
+              <div class="show-grid">
+                <button
+                  v-for="s in g.list"
+                  :key="s.id"
+                  :class="['show-card', { 'show-card--selected': selectedShowtime?.id === s.id }]"
+                  @click="pickShowtime(s)"
+                >
+                  <span class="show-time">{{ fmtTime(s.thoiGianBatDau) }}</span>
+                  <span class="show-room">{{ s.tenPhong }}</span>
+                  <span class="show-type" :class="typeClass(s.tenDinhDang || s.loaiPhong)">
+                    {{ s.tenDinhDang || s.loaiPhong }}
+                  </span>
+                  <span class="show-price">{{ fmtPrice(s.giaCoBan) }}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -224,7 +225,9 @@ import { useMovieStore } from '@/stores/movieStore'
 import { useBookingStore } from '@/stores/bookingStore'
 import { useAuthStore } from '@/stores/authStore'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import DayChip from '@/components/DayChip.vue'
 import api from '@/services/api'
+import { fmtTime12 } from '@/utils/homeHelpers'
 
 const router = useRouter()
 const route  = useRoute()
@@ -268,6 +271,7 @@ const days = computed(() => {
     out.push({
       iso: `${y}-${mo}-${dy}`,   // "YYYY-MM-DD" in local time
       num: d.getDate(),
+      mo: Number(mo),
       dow: DOW[d.getDay()],
     })
   }
@@ -431,8 +435,20 @@ function goBook() {
 
 // ── formatting helpers ──────────────────────────────────────
 function fmtTime(dt) {
-  if (!dt) return '—'
-  return new Date(dt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+  return fmtTime12(dt)
+}
+function groupByBuoi(list) {
+  const morning = []
+  const evening = []
+  for (const s of list || []) {
+    const h = new Date(s.thoiGianBatDau).getHours()
+    if (h >= 1 && h <= 12) morning.push(s)
+    else evening.push(s)
+  }
+  return [
+    { label: 'Buổi sáng', list: morning },
+    { label: 'Buổi chiều / tối', list: evening },
+  ].filter(g => g.list.length)
 }
 function fmtDate(d) {
   if (!d) return '—'
@@ -737,6 +753,13 @@ watch(() => route.params.id, async (id) => {
 }
 
 .cinema-group .show-grid { padding: 12px; }
+.show-buoi {}
+.show-buoi__label {
+  font-size: 12px; font-weight: 700;
+  color: var(--electric, #29bcea);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 12px 12px 0;
+}
 .date-scroll {
   display: flex; gap: 10px; overflow-x: auto;
   padding-bottom: 12px; margin-bottom: 20px;
@@ -744,18 +767,6 @@ watch(() => route.params.id, async (id) => {
 }
 .date-scroll::-webkit-scrollbar { height: 4px; }
 .date-scroll::-webkit-scrollbar-thumb { background: var(--electric-soft, rgba(41,188,234,0.08)); border-radius: 2px; }
-.date-btn {
-  flex-shrink: 0; width: 56px; padding: 10px 6px;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  border-radius: var(--radius-md, 12px);
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  background: var(--glass-bg, rgba(255,255,255,0.04));
-  color: var(--text-secondary, #94a3b8); cursor: pointer;
-  transition: all 0.2s;
-}
-.date-btn:hover { border-color: var(--electric, #29bcea); color: var(--electric, #29bcea); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); }
-.date-btn--active { background: var(--electric, #29bcea); border-color: var(--electric, #29bcea); color: var(--on-accent, #ffffff); }
-.date-btn__num { font-size: 18px; font-weight: 900; line-height: 1; }
 .date-btn__dow { font-size: 10px; font-weight: 700; text-transform: uppercase; }
 
 .no-show { text-align: center; padding: 32px; color: var(--text-ghost, rgba(241,245,249,0.45)); font-size: 14px; }

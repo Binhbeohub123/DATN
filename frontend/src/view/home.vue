@@ -8,10 +8,78 @@
           <span class="logo-text">Poly<span class="logo-accent">Cinema</span></span>
         </router-link>
 
+        <!-- Desktop tabs -->
+        <nav class="nav-tabs" aria-label="Chọn nội dung" role="tablist">
+          <button
+            :class="['main-tab', { active: mainTab === 'phim' }]"
+            @click="mainTab = 'phim'"
+            :aria-selected="mainTab === 'phim'"
+            role="tab"
+            aria-controls="main-panel-phim"
+            id="main-tab-phim"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+            <span class="main-tab-label">{{ t('tabPhim') }}</span>
+          </button>
+          <button
+            :class="['main-tab', { active: mainTab === 'rap_chieu' }]"
+            @click="mainTab = 'rap_chieu'"
+            :aria-selected="mainTab === 'rap_chieu'"
+            role="tab"
+            aria-controls="main-panel-rap"
+            id="main-tab-rap"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="main-tab-label">{{ t('tabRap') }}</span>
+          </button>
+          <button
+            :class="['main-tab', { active: mainTab === 'khuyen_mai' }]"
+            @click="mainTab = 'khuyen_mai'"
+            :aria-selected="mainTab === 'khuyen_mai'"
+            role="tab"
+            aria-controls="main-panel-khuyen-mai"
+            id="main-tab-khuyen-mai"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span class="main-tab-label">{{ t('tabKhuyenMai') }}</span>
+          </button>
+          <button
+            :class="['main-tab', { active: mainTab === 'gioi_thieu' }]"
+            @click="mainTab = 'gioi_thieu'"
+            :aria-selected="mainTab === 'gioi_thieu'"
+            role="tab"
+            aria-controls="main-panel-gioi-thieu"
+            id="main-tab-gioi-thieu"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="main-tab-label">{{ t('tabGioiThieu') }}</span>
+          </button>
+        </nav>
+
         <!-- Desktop nav-actions -->
         <div class="nav-actions">
           <ThemeToggle />
-          <button class="icon-btn" @click="toggleLang">{{ lang === 'vi' ? 'EN' : 'VI' }}</button>
+          <!-- Global search trigger -->
+          <button class="icon-btn gs-trigger" @click="openGlobalSearch" :aria-label="t('searchPlaceholder')" title="Tìm kiếm (/)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+          <button class="icon-btn lang-toggle" @click="toggleLang" :aria-label="lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'" :title="lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'">
+            <span class="lang-flag" v-if="lang === 'vi'">
+              <svg width="22" height="15" viewBox="0 0 60 40" aria-hidden="true">
+                <rect width="60" height="40" fill="#FFFFFF"/>
+                <rect y="0" width="60" height="4" fill="#B22234"/><rect y="8" width="60" height="4" fill="#B22234"/>
+                <rect y="16" width="60" height="4" fill="#B22234"/><rect y="24" width="60" height="4" fill="#B22234"/>
+                <rect y="32" width="60" height="4" fill="#B22234"/>
+                <rect width="26" height="22" fill="#3C3B6E"/>
+              </svg>
+            </span>
+            <span class="lang-flag" v-else>
+              <svg width="22" height="15" viewBox="0 0 30 20" aria-hidden="true">
+                <rect width="30" height="20" fill="#DA251D"/>
+                <path d="M15 3.2l1.5 4.6h4.9l-4 2.9 1.5 4.6L15 12.4l-4 2.9 1.5-4.6-4-2.9h4.9z" fill="#FFD200"/>
+              </svg>
+            </span>
+          </button>
           <template v-if="!authStore.isLoggedIn">
             <router-link to="/auth" class="btn btn-ghost">{{ t('login') }}</router-link>
             <router-link to="/auth?mode=register" class="btn btn-primary btn-bib">{{ t('register') }}</router-link>
@@ -27,15 +95,15 @@
                 <span class="chevron" aria-hidden="true">{{ showDropdown ? '▲' : '▼' }}</span>
               </button>
               <div v-if="showDropdown" class="dropdown glass-card" role="menu">
-                <router-link to="/profile" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                <router-link v-if="authStore.userRole !== 'STAFF'" to="/profile" class="dropdown-item" @click="showDropdown=false" role="menuitem">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   {{ t('profile') }}
                 </router-link>
-                <router-link to="/my-tickets" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                <router-link v-if="authStore.userRole !== 'STAFF'" to="/my-tickets" class="dropdown-item" @click="showDropdown=false" role="menuitem">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
                   {{ t('tickets') }}
                 </router-link>
-                <router-link to="/transaction-history" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                <router-link v-if="authStore.userRole !== 'STAFF'" to="/transaction-history" class="dropdown-item" @click="showDropdown=false" role="menuitem">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><path d="M9 12h6M9 16h4"/></svg>
                   Lịch sử GD
                 </router-link>
@@ -43,6 +111,10 @@
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><circle cx="12" cy="12" r="8"/></svg>
                   Admin Panel
                 </a>
+                <router-link v-if="authStore.userRole === 'STAFF' || authStore.isAdmin" to="/staff/dashboard" class="dropdown-item" @click="showDropdown=false" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
+                  Khu vực nhân viên
+                </router-link>
                 <hr class="dropdown-hr" />
                 <a href="#" @click.prevent="authStore.logout(); showDropdown=false" class="dropdown-item logout" role="menuitem">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -79,6 +151,52 @@
             </div>
             <button class="icon-btn drawer-theme-btn" @click="toggleLang">🌐 {{ lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt' }}</button>
           </div>
+          <div class="drawer-tabs">
+            <button
+              :class="['drawer-item', { active: mainTab === 'phim' }]"
+              @click="mainTab = 'phim'; showMobileMenu = false"
+              role="tab"
+              aria-selected="mainTab === 'phim'"
+              aria-controls="main-panel-phim"
+              id="drawer-tab-phim"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+              {{ t('tabPhim') }}
+            </button>
+            <button
+              :class="['drawer-item', { active: mainTab === 'rap_chieu' }]"
+              @click="mainTab = 'rap_chieu'; showMobileMenu = false"
+              role="tab"
+              aria-selected="mainTab === 'rap_chieu'"
+              aria-controls="main-panel-rap"
+              id="drawer-tab-rap"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              {{ t('tabRap') }}
+            </button>
+            <button
+              :class="['drawer-item', { active: mainTab === 'khuyen_mai' }]"
+              @click="mainTab = 'khuyen_mai'; showMobileMenu = false"
+              role="tab"
+              aria-selected="mainTab === 'khuyen_mai'"
+              aria-controls="main-panel-khuyen-mai"
+              id="drawer-tab-khuyen-mai"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              {{ t('tabKhuyenMai') }}
+            </button>
+            <button
+              :class="['drawer-item', { active: mainTab === 'gioi_thieu' }]"
+              @click="mainTab = 'gioi_thieu'; showMobileMenu = false"
+              role="tab"
+              aria-selected="mainTab === 'gioi_thieu'"
+              aria-controls="main-panel-gioi-thieu"
+              id="drawer-tab-gioi-thieu"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ t('tabGioiThieu') }}
+            </button>
+          </div>
           <hr class="drawer-hr" />
           <template v-if="!authStore.isLoggedIn">
             <router-link to="/auth" class="drawer-item" @click="showMobileMenu=false">
@@ -91,15 +209,15 @@
             </router-link>
           </template>
           <template v-else>
-            <router-link to="/profile" class="drawer-item" @click="showMobileMenu=false">
+            <router-link v-if="authStore.userRole !== 'STAFF'" to="/profile" class="drawer-item" @click="showMobileMenu=false">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               Hồ sơ
             </router-link>
-            <router-link to="/my-tickets" class="drawer-item" @click="showMobileMenu=false">
+            <router-link v-if="authStore.userRole !== 'STAFF'" to="/my-tickets" class="drawer-item" @click="showMobileMenu=false">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
               Vé của tôi
             </router-link>
-            <router-link to="/transaction-history" class="drawer-item" @click="showMobileMenu=false">
+            <router-link v-if="authStore.userRole !== 'STAFF'" to="/transaction-history" class="drawer-item" @click="showMobileMenu=false">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><path d="M9 12h6M9 16h4"/></svg>
               Lịch sử GD
             </router-link>
@@ -107,12 +225,83 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><circle cx="12" cy="12" r="8"/></svg>
               Admin Panel
             </a>
+            <router-link v-if="authStore.userRole === 'STAFF' || authStore.isAdmin" to="/staff/dashboard" class="drawer-item" @click="showMobileMenu=false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
+              Khu vực nhân viên
+            </router-link>
             <hr class="drawer-hr" />
             <a href="#" @click.prevent="authStore.logout(); showMobileMenu=false" class="drawer-item drawer-item--danger">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               Đăng xuất
             </a>
           </template>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ── Global Search Overlay ───────────────────────────────────── -->
+    <transition name="gs-fade">
+      <div v-if="gsOpen" class="gs-overlay" role="dialog" aria-modal="true" aria-label="Tìm kiếm toàn cục" @click.self="closeGlobalSearch">
+        <div class="gs-panel">
+          <!-- Input row -->
+          <div class="gs-input-row">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="gs-icon" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              ref="gsInputRef"
+              v-model="gsQuery"
+              type="search"
+              class="gs-input"
+              placeholder="Tìm phim, rạp chiếu, khuyến mãi, giới thiệu..."
+              autocomplete="off"
+              @input="onGsInput"
+              @keydown.escape="closeGlobalSearch"
+              @keydown.down.prevent="gsMoveDown"
+              @keydown.up.prevent="gsMoveUp"
+              @keydown.enter.prevent="gsSelectActive"
+            />
+            <button class="gs-close" @click="closeGlobalSearch" aria-label="Đóng tìm kiếm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <kbd>Esc</kbd>
+            </button>
+          </div>
+
+          <!-- Results -->
+          <div class="gs-body" role="listbox">
+            <div v-if="gsLoading" class="gs-state">
+              <div class="gs-spinner"></div>
+              <span>Đang tìm...</span>
+            </div>
+            <div v-else-if="gsQuery.trim() && gsAllResults.length === 0" class="gs-state gs-empty">
+              Không tìm thấy kết quả cho "<strong>{{ gsQuery }}</strong>"
+            </div>
+            <template v-else-if="gsAllResults.length > 0">
+              <!-- Movies-only toggle -->
+              <div class="gs-filter-row" v-if="gsMovieResults.length > 0">
+                <button :class="['gs-filter-btn', { active: gsOnlyMovies }]" @click="gsOnlyMovies = !gsOnlyMovies">
+                  🎬 Chỉ xem phim ({{ gsMovieResults.length }})
+                </button>
+              </div>
+
+              <div
+                v-for="(item, idx) in gsDisplayResults"
+                :key="item._key"
+                :class="['gs-item', { 'gs-item--active': idx === gsActiveIdx }]"
+                role="option"
+                :aria-selected="idx === gsActiveIdx"
+                @click="gsSelectItem(item)"
+                @mouseenter="gsActiveIdx = idx"
+              >
+                <span class="gs-item__section" :class="`gs-section--${item._section}`">{{ item._label }}</span>
+                <span class="gs-item__title">{{ item._title }}</span>
+                <span v-if="item._sub" class="gs-item__sub">{{ item._sub }}</span>
+                <svg v-if="item._section === 'phim'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="gs-item__go" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </template>
+            <div v-else-if="!gsQuery.trim()" class="gs-state gs-hint">
+              Gõ để tìm phim, rạp chiếu, khuyến mãi...
+              <span class="gs-kbd-hint"><kbd>/</kbd> để mở · <kbd>Esc</kbd> để đóng</span>
+            </div>
+          </div>
         </div>
       </div>
     </transition>
@@ -139,128 +328,98 @@
         <p v-if="bannerDateRange" class="hero-date-range" aria-label="Thời gian diễn ra">{{ bannerDateRange }}</p>
         <p class="hero-desc">{{ currentBanner.moTa }}</p>
         <button
+          v-if="bannerShowCta"
           class="btn-bib btn-hero"
           @click="onBannerCta"
-        >{{ t('bookNow') }}</button>
+        >{{ bannerCtaLabel }}</button>
       </div>
       <div class="hero-content" v-else>
         <p class="hero-loading">{{ t('loading') }}...</p>
       </div>
+      <button
+        v-if="movieStore.banners.length > 1"
+        class="banner-arrow banner-arrow--left"
+        @click.stop="prevBanner"
+        :aria-label="'Banner trước'"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button
+        v-if="movieStore.banners.length > 1"
+        class="banner-arrow banner-arrow--right"
+        @click.stop="nextBanner"
+        :aria-label="'Banner tiếp theo'"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
       <div v-if="movieStore.banners.length > 1" class="banner-dots">
-        <button
-          class="banner-arrow banner-arrow--left"
-          @click.stop="prevBanner"
-          :aria-label="'Banner trước'"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
         <button v-for="(_, i) in movieStore.banners" :key="i" :class="['dot', { active: bannerIndex === i }]" @click.stop="bannerIndex = i; resetBannerTimer()"></button>
-        <button
-          class="banner-arrow banner-arrow--right"
-          @click.stop="nextBanner"
-          :aria-label="'Banner tiếp theo'"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
       </div>
     </div>
-
-    <!-- TOP-LEVEL TAB SWITCHER -->
-    <nav class="main-tabs-bar" aria-label="Chọn nội dung">
-      <div class="main-tabs">
-        <button
-          :class="['main-tab', { active: mainTab === 'phim' }]"
-          @click="mainTab = 'phim'"
-          :aria-selected="mainTab === 'phim'"
-          role="tab"
-          aria-controls="main-panel-phim"
-          id="main-tab-phim"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-          {{ t('tabPhim') }}
-        </button>
-        <button
-          :class="['main-tab', { active: mainTab === 'rap_chieu' }]"
-          @click="mainTab = 'rap_chieu'"
-          :aria-selected="mainTab === 'rap_chieu'"
-          role="tab"
-          aria-controls="main-panel-rap"
-          id="main-tab-rap"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          {{ t('tabRap') }}
-        </button>
-        <button
-          :class="['main-tab', { active: mainTab === 'khuyen_mai' }]"
-          @click="mainTab = 'khuyen_mai'"
-          :aria-selected="mainTab === 'khuyen_mai'"
-          role="tab"
-          aria-controls="main-panel-khuyen-mai"
-          id="main-tab-khuyen-mai"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          {{ t('tabKhuyenMai') }}
-        </button>
-        <button
-          :class="['main-tab', { active: mainTab === 'gioi_thieu' }]"
-          @click="mainTab = 'gioi_thieu'"
-          :aria-selected="mainTab === 'gioi_thieu'"
-          role="tab"
-          aria-controls="main-panel-gioi-thieu"
-          id="main-tab-gioi-thieu"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          {{ t('tabGioiThieu') }}
-        </button>
-      </div>
-    </nav>
 
     <!-- PANEL: PHIM -->
     <div v-show="mainTab === 'phim'" id="main-panel-phim" role="tabpanel" aria-labelledby="main-tab-phim">
 
-    <!-- FEATURED MOVIES -->
-    <section class="section section--featured" aria-labelledby="featured-title">
-      <h2 class="section-title" id="featured-title">{{ t('featured') }} <span>{{ t('topRated') }}</span></h2>
-      <div v-if="movieStore.loading.noiBat" class="loading" role="status">{{ t('loading') }}...</div>
-      <div v-else-if="movieStore.error.noiBat" class="error" role="alert">{{ movieStore.error.noiBat }}</div>
-      <div v-else-if="movieStore.phimNoiBat.length === 0" class="loading">{{ t('noMovies') }}</div>
-      <div v-else class="carousel" ref="featuredCarouselRef" role="list" aria-label="Phim nổi bật">
-        <div
-          v-for="(movie, index) in movieStore.phimNoiBat"
-          :key="movie.id"
-          class="carousel-item movie-card"
-          :style="{ '--card-index': index }"
-          role="listitem"
-          @click="goToMovie(movie.id)"
-          tabindex="0"
-          @keypress.enter="goToMovie(movie.id)"
-          @mousemove="tiltCard"
-          @mouseleave="resetTilt"
-        >
-          <div class="featured-rank" aria-hidden="true">{{ index + 1 }}</div>
-          <div class="movie-poster">
-            <img
-              v-if="movie.poster"
-              :src="movie.poster"
-              :alt="movie.title"
-              loading="lazy"
-              @error="(e) => { e.target.style.display='none'; e.target.nextElementSibling.style.display='flex' }"
-            />
-            <div class="poster-placeholder" :style="movie.poster ? 'display:none' : ''">
-              <div class="poster-gradient">
-                <span class="poster-icon" aria-hidden="true">🎬</span>
-                <span class="poster-title">{{ movie.title }}</span>
-              </div>
-            </div>
-            <div class="movie-overlay" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48"><path d="M8 5v14l11-7z"/></svg>
+    <!-- QUICK BOOKING -->
+    <section class="quickbook" aria-labelledby="quickbook-title">
+      <div class="quickbook__inner">
+        <h2 class="quickbook__title" id="quickbook-title">Đặt vé nhanh</h2>
+
+        <div class="quickbook__row">
+          <div class="quickbook__field">
+            <label class="quickbook__label" for="qb-cinema">Chọn rạp</label>
+            <select id="qb-cinema" v-model="qbCinemaId" class="quickbook__select" @change="onQbCinemaChange">
+              <option value="">-- Chọn rạp --</option>
+              <option v-for="c in movieStore.cinemas" :key="c.id" :value="c.id">{{ c.tenRap }}</option>
+            </select>
+          </div>
+          <div class="quickbook__field">
+            <label class="quickbook__label" for="qb-movie">Chọn phim</label>
+            <select id="qb-movie" v-model="qbMovieId" class="quickbook__select" :disabled="!qbCinemaId || qbLoading || qbMovies.length === 0" @change="onQbMovieChange">
+              <option value="">-- Chọn phim --</option>
+              <option v-for="m in qbMovies" :key="m.phimId" :value="m.phimId">{{ m.tenPhim }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div v-if="qbError" class="quickbook__error" role="alert">{{ qbError }}</div>
+
+        <div v-if="qbDays.length" class="quickbook__days" role="tablist" aria-label="Chọn ngày có suất chiếu">
+          <DayChip
+            v-for="d in qbDays"
+            :key="d.iso"
+            :num="d.num"
+            :mo="d.mo"
+            :dow="d.dow"
+            :active="qbDate === d.iso"
+            @select="qbDate = d.iso; qbSelected = null"
+          />
+        </div>
+
+        <template v-if="qbShowtimesForDate.length">
+          <div v-for="g in qbShowtimesByBuoi" :key="g.label" class="qb-buoi">
+            <div v-if="g.list.length" class="qb-buoi__label">{{ g.label }}</div>
+            <div class="quickbook__shows">
+              <button
+                v-for="s in g.list"
+                :key="s.lichChieuId"
+                :class="['qb-show', { 'qb-show--active': qbSelected?.lichChieuId === s.lichChieuId }]"
+                @click="qbSelected = s"
+              >
+                <span class="qb-show__time">{{ fmtQbTime(s.thoiGianBatDau) }}</span>
+                <span class="qb-show__room">{{ s.tenPhong }}</span>
+                <span class="qb-show__format">{{ s.tenDinhDang || s.loaiPhong }}</span>
+                <span class="qb-show__price">{{ fmtQbPrice(s.giaCoBan) }}</span>
+              </button>
             </div>
           </div>
-          <div class="movie-info">
-            <h3>{{ movie.title }}</h3>
-            <p class="movie-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {{ movie.duration }} phút</p>
-            <p class="movie-meta rating"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> {{ movie.rating ? Number(movie.rating).toFixed(1) : 'Chưa có' }}</p>
-          </div>
+        </template>
+        <div v-else-if="qbMovieId && !qbLoading" class="quickbook__empty">Không có suất chiếu</div>
+
+        <div class="quickbook__bar">
+          <span v-if="qbSelected" class="quickbook__hint">{{ qbSelected.tenPhong }} · {{ fmtQbTime(qbSelected.thoiGianBatDau) }}</span>
+          <span v-else class="quickbook__hint">Vui lòng chọn suất chiếu</span>
+          <button class="qb-book-btn" :disabled="!qbSelected" @click="qbBook">Đặt vé</button>
         </div>
       </div>
     </section>
@@ -269,52 +428,37 @@
     <section class="section" aria-labelledby="movies-title">
       <div class="section-header">
         <h2 class="section-title" id="movies-title">{{ t('movies') }} <span>{{ t('schedule') }}</span></h2>
-        <!-- Search bar -->
-        <div class="search-bar" role="search">
-          <label for="movie-search" class="sr-only">{{ t('searchPlaceholder') }}</label>
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input
-            id="movie-search"
-            type="search"
-            class="search-input"
-            :placeholder="t('searchPlaceholder')"
-            v-model="searchQuery"
-            @input="onSearch"
-            autocomplete="off"
-          />
-          <button v-if="searchQuery" class="search-clear" @click="clearSearch" :aria-label="t('clearSearch')">✕</button>
-        </div>
       </div>
 
-      <div v-if="searchQuery && searchLoading" class="loading" role="status">{{ t('loading') }}...</div>
-      <div v-else-if="searchQuery && searchResults.length === 0 && !searchLoading" class="error" role="alert">{{ t('noResults') }}</div>
+      <!-- Tab bar always visible, regardless of search state -->
+      <div class="tabs" role="tablist" :aria-label="t('movieTabs')">
+        <button
+          :class="['tab', { active: activeTab === 'dang_chieu' }]"
+          @click="activeTab = 'dang_chieu'"
+          role="tab"
+          :aria-selected="activeTab === 'dang_chieu'"
+          id="tab-dang-chieu"
+          aria-controls="panel-dang-chieu"
+        >{{ t('nowShowing') }}</button>
+        <button
+          :class="['tab', { active: activeTab === 'sap_chieu' }]"
+          @click="activeTab = 'sap_chieu'"
+          role="tab"
+          :aria-selected="activeTab === 'sap_chieu'"
+          id="tab-sap-chieu"
+          aria-controls="panel-sap-chieu"
+        >{{ t('comingSoon') }}</button>
+      </div>
 
+      <!-- Default grid (no search) -->
       <template v-if="!searchQuery">
-        <div class="tabs" role="tablist" :aria-label="t('movieTabs')">
-          <button
-            :class="['tab', { active: activeTab === 'dang_chieu' }]"
-            @click="activeTab = 'dang_chieu'"
-            role="tab"
-            :aria-selected="activeTab === 'dang_chieu'"
-            id="tab-dang-chieu"
-            aria-controls="panel-dang-chieu"
-          >{{ t('nowShowing') }}</button>
-          <button
-            :class="['tab', { active: activeTab === 'sap_chieu' }]"
-            @click="activeTab = 'sap_chieu'"
-            role="tab"
-            :aria-selected="activeTab === 'sap_chieu'"
-            id="tab-sap-chieu"
-            aria-controls="panel-sap-chieu"
-          >{{ t('comingSoon') }}</button>
-        </div>
         <div v-if="isLoading" class="loading" role="status">{{ t('loading') }}...</div>
         <div v-else-if="isError" class="error" role="alert">{{ isError }}</div>
         <div v-else-if="displayMovies.length === 0" class="error">{{ t('noMovies') }}</div>
         <div v-else class="carousel-wrapper">
           <button
             class="carousel-arrow carousel-arrow--left"
-            @click="scrollCarousel('main', -1)"
+            @click="scrollCarousel(-1)"
             :aria-label="t('scrollLeft')"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
@@ -352,20 +496,37 @@
                     <span class="poster-title">{{ movie.title }}</span>
                   </div>
                 </div>
-                <div class="movie-overlay" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48"><path d="M8 5v14l11-7z"/></svg>
+                <div class="format-badges">
+                  <span v-for="f in movie.formats" :key="f.id" class="format-badge">{{ f.tenDinhDang }}</span>
+                </div>
+                <div class="movie-overlay">
+                  <div class="overlay-inner">
+                    <h3 class="overlay-title">{{ movie.title }}</h3>
+                    <p class="overlay-meta">
+                      <span v-if="movie.duration" class="ov-chip">{{ movie.duration }} phút</span>
+                      <span v-if="movie.genre" class="ov-genre">{{ movie.genre }}</span>
+                    </p>
+                    <p v-if="movie.rating" class="overlay-rating">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      {{ Number(movie.rating).toFixed(1) }}
+                    </p>
+                    <p v-if="movie.language" class="overlay-lang">🌐 {{ movie.language }}</p>
+                    <div class="overlay-actions">
+                      <button class="ov-btn ov-btn--detail" @click.stop="goToMovie(movie.id)">{{ t('viewDetail') }}</button>
+                      <button v-if="isBookable(movie)" class="ov-btn ov-btn--book" @click.stop="goToMovie(movie.id)">{{ t('bookNow') }}</button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="movie-info">
-                <h3>{{ movie.title }}</h3>
-                <p class="movie-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {{ movie.duration }} phút</p>
-                <p class="movie-meta rating"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> {{ movie.rating ? Number(movie.rating).toFixed(1) : 'Chưa có' }}</p>
+                <span class="age-badge" :class="'age-badge--' + ageClass(movie.ageRating)">{{ movie.ageRating }}</span>
+                <h3 class="movie-info-title">{{ movie.title }}</h3>
               </div>
             </div>
           </div>
           <button
             class="carousel-arrow carousel-arrow--right"
-            @click="scrollCarousel('main', 1)"
+            @click="scrollCarousel(1)"
             :aria-label="t('scrollRight')"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
@@ -402,14 +563,31 @@
                   <span class="poster-title">{{ movie.title }}</span>
                 </div>
               </div>
-              <div class="movie-overlay" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48"><path d="M8 5v14l11-7z"/></svg>
+              <div class="format-badges">
+                <span v-for="f in movie.formats" :key="f.id" class="format-badge">{{ f.tenDinhDang }}</span>
+              </div>
+              <div class="movie-overlay">
+                <div class="overlay-inner">
+                  <h3 class="overlay-title">{{ movie.title }}</h3>
+                  <p class="overlay-meta">
+                    <span v-if="movie.duration" class="ov-chip">{{ movie.duration }} phút</span>
+                    <span v-if="movie.genre" class="ov-genre">{{ movie.genre }}</span>
+                  </p>
+                  <p v-if="movie.rating" class="overlay-rating">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    {{ Number(movie.rating).toFixed(1) }}
+                  </p>
+                  <p v-if="movie.language" class="overlay-lang">🌐 {{ movie.language }}</p>
+                  <div class="overlay-actions">
+                    <button class="ov-btn ov-btn--detail" @click.stop="goToMovie(movie.id)">{{ t('viewDetail') }}</button>
+                    <button v-if="isBookable(movie)" class="ov-btn ov-btn--book" @click.stop="goToMovie(movie.id)">{{ t('bookNow') }}</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="movie-info">
-              <h3>{{ movie.title }}</h3>
-              <p class="movie-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {{ movie.duration }} phút</p>
-              <p class="movie-meta rating"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> {{ movie.rating ? Number(movie.rating).toFixed(1) : 'Chưa có' }}</p>
+              <span class="age-badge" :class="'age-badge--' + ageClass(movie.ageRating)">{{ movie.ageRating }}</span>
+              <h3 class="movie-info-title">{{ movie.title }}</h3>
             </div>
           </div>
         </div>
@@ -438,12 +616,11 @@
         <article
           v-for="cinema in movieStore.cinemas"
           :key="cinema.id"
-          class="cinema-card cinema-card--clickable"
-          role="button"
+          class="cinema-card"
+          role="link"
           tabindex="0"
-          :aria-label="`Xem chi tiết rạp ${cinema.tenRap}`"
-          @click="router.push({ name: 'cinema-detail', params: { id: cinema.id } })"
-          @keypress.enter="router.push({ name: 'cinema-detail', params: { id: cinema.id } })"
+          @click="router.push('/rap/' + cinema.id)"
+          @keypress.enter="router.push('/rap/' + cinema.id)"
         >
           <div class="cinema-img-wrap">
             <img
@@ -465,6 +642,7 @@
               {{ cinema.thanhPho }}
             </p>
             <p class="cinema-address">{{ cinema.diaChi }}</p>
+            <p class="cinema-schedule-hint">📅 Xem lịch chiếu</p>
             <div class="cinema-card-actions">
               <a
                 v-if="cinema.latitude != null && cinema.longitude != null"
@@ -506,58 +684,98 @@
             class="promo-card"
             role="listitem"
           >
-            <!-- Header: name + discount badge -->
-            <div class="promo-card__header">
-              <h3 class="promo-card__name">{{ promo.tenKhuyenMai }}</h3>
+            <!-- Banner: poster phim + badge giảm giá + tên phim -->
+            <div class="promo-card__banner">
+              <img
+                v-if="bannerPoster(promo)"
+                :src="bannerPoster(promo)"
+                :alt="promo.tenKhuyenMai"
+                class="promo-card__banner-img"
+                loading="lazy"
+                @error="(e) => e.target.style.display='none'"
+              />
+              <div v-else class="promo-card__banner-fallback">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
+              </div>
+              <div class="promo-card__banner-overlay"></div>
               <span class="promo-card__badge" :class="promo.loaiGiamGia === 'percent' ? 'badge--percent' : 'badge--fixed'">
                 <template v-if="promo.loaiGiamGia === 'percent'">-{{ promo.giaTriGiam }}%</template>
                 <template v-else>-{{ formatCurrency(promo.giaTriGiam) }}₫</template>
               </span>
-            </div>
-            <!-- Promo code -->
-            <p class="promo-card__code">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              {{ promo.maKhuyenMai }}
-            </p>
-            <!-- Description -->
-            <p v-if="promo.moTa" class="promo-card__desc">{{ promo.moTa }}</p>
-            <!-- Date range -->
-            <p class="promo-card__dates">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              {{ formatDate(promo.ngayBatDau) }} – {{ formatDate(promo.ngayKetThuc) }}
-            </p>
-            <!-- Min order -->
-            <p v-if="promo.donHangToiThieu" class="promo-card__min">
-              {{ t('promoMin') }}: {{ formatCurrency(promo.donHangToiThieu) }}₫
-            </p>
-            <!-- Applicable movies or system-wide CTA -->
-            <div class="promo-card__movies" v-if="promo.phims && promo.phims.length > 0">
-              <p class="promo-card__movies-label">{{ t('promoAppliesTo') }}:</p>
-              <div class="promo-movies-list">
-                <button
-                  v-for="phim in promo.phims"
-                  :key="phim.id"
-                  class="promo-movie-chip"
-                  @click="goToMovie(phim.id)"
-                  :title="phim.tenPhim"
-                >
-                  <img
-                    v-if="phim.posterUrl"
-                    :src="phim.posterUrl"
-                    :alt="phim.tenPhim"
-                    class="promo-movie-chip__poster"
-                    loading="lazy"
-                    @error="(e) => e.target.style.display='none'"
-                  />
-                  <span class="promo-movie-chip__name">{{ phim.tenPhim }}</span>
-                </button>
+              <div class="promo-card__banner-movies">
+                <template v-if="promo.phims && promo.phims.length > 0">
+                  <span v-for="(phim, i) in promo.phims.slice(0, 2)" :key="phim.id" class="promo-card__banner-movie">
+                    {{ phim.tenPhim }}<template v-if="i < Math.min(promo.phims.length, 2) - 1">, </template>
+                  </span>
+                  <span v-if="promo.phims.length > 2" class="promo-card__banner-movie">+{{ promo.phims.length - 2 }} phim khác</span>
+                </template>
+                <span v-else class="promo-card__banner-movie">{{ t('promoSystemWide') }}</span>
               </div>
             </div>
-            <div v-else class="promo-card__cta">
-              <router-link to="/" @click="mainTab = 'phim'" class="promo-card__btn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-                {{ t('chooseMovie') }}
-              </router-link>
+
+            <!-- Body -->
+            <div class="promo-card__body">
+              <h3 class="promo-card__name">{{ promo.tenKhuyenMai }}</h3>
+
+              <!-- Mã + nút copy -->
+              <div class="promo-card__code-row">
+                <span class="promo-card__code">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  {{ promo.maKhuyenMai }}
+                </span>
+                <button
+                  class="promo-card__copy"
+                  :class="{ copied: copiedCode === promo.maKhuyenMai }"
+                  @click="copyPromo(promo)"
+                >
+                  <svg v-if="copiedCode !== promo.maKhuyenMai" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                  {{ copiedCode === promo.maKhuyenMai ? 'Đã sao chép!' : 'Copy' }}
+                </button>
+              </div>
+
+              <p v-if="promo.moTa" class="promo-card__desc">{{ promo.moTa }}</p>
+
+              <div class="promo-card__meta">
+                <span v-if="promo.donHangToiThieu" class="promo-card__meta-item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                  {{ t('promoMin') }}: {{ formatCurrency(promo.donHangToiThieu) }}₫
+                </span>
+                <span class="promo-card__meta-item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {{ formatDate(promo.ngayBatDau) }} – {{ formatDate(promo.ngayKetThuc) }}
+                </span>
+              </div>
+
+              <!-- Phim áp dụng / CTA toàn hệ thống -->
+              <div v-if="promo.phims && promo.phims.length > 0" class="promo-card__movies">
+                <p class="promo-card__movies-label">{{ t('promoAppliesTo') }}:</p>
+                <div class="promo-movies-list">
+                  <button
+                    v-for="phim in promo.phims"
+                    :key="phim.id"
+                    class="promo-movie-chip"
+                    @click="goToMovie(phim.id)"
+                    :title="phim.tenPhim"
+                  >
+                    <img
+                      v-if="phim.posterUrl"
+                      :src="phim.posterUrl"
+                      :alt="phim.tenPhim"
+                      class="promo-movie-chip__poster"
+                      loading="lazy"
+                      @error="(e) => e.target.style.display='none'"
+                    />
+                    <span class="promo-movie-chip__name">{{ phim.tenPhim }}</span>
+                  </button>
+                </div>
+              </div>
+              <div v-else class="promo-card__cta">
+                <router-link to="/" @click="mainTab = 'phim'" class="promo-card__btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                  {{ t('chooseMovie') }}
+                </router-link>
+              </div>
             </div>
           </article>
         </div>
@@ -597,17 +815,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useMovieStore } from '@/stores/movieStore'
+import { useBookingStore } from '@/stores/bookingStore'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import DayChip from '@/components/DayChip.vue'
 import { useConfirmModal } from '@/composables/useConfirmModal'
+import { fmtTime12 } from '@/utils/homeHelpers'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const movieStore = useMovieStore()
+const bookingStore = useBookingStore()
 const { open: openConfirmModal } = useConfirmModal()
 
 const lang = ref(localStorage.getItem('poly_lang') || 'vi')
@@ -629,8 +851,8 @@ const closeDropdown = (e) => {
 }
 
 const translations = {
-  vi: { login: 'Đăng nhập', register: 'Đăng ký', profile: 'Hồ sơ', tickets: 'Vé của tôi', logout: 'Đăng xuất', movies: 'Lịch Chiếu', schedule: 'Phim', now: 'Nổi Bật', nowShowing: 'Đang chiếu', comingSoon: 'Sắp chiếu', bookNow: 'Đặt vé ngay', loading: 'Đang tải', promoTitle: 'Ưu Đãi Thứ 3', promoDesc: 'Giảm 30% vé xem phim vào thứ 3', joinNow: 'Tham Gia', allRights: 'All rights reserved.', featured: 'Phim', topRated: 'Đánh Giá Cao', noMovies: 'Không có phim', searchPlaceholder: 'Tìm phim...', clearSearch: 'Xóa tìm kiếm', noResults: 'Không tìm thấy phim phù hợp', searchResults: 'Kết quả tìm kiếm', movieTabs: 'Danh mục phim', cinemaSystem: 'Hệ Thống', cinemaNetwork: 'Rạp Chiếu', noCinemas: 'Chưa có thông tin rạp', viewMap: 'Xem bản đồ', scrollLeft: 'Cuộn trái', scrollRight: 'Cuộn phải', tabPhim: 'Phim', tabRap: 'Rạp Chiếu', tabKhuyenMai: 'Khuyến Mãi', promoActive: 'Đang Áp Dụng', noPromos: 'Hiện không có khuyến mãi', promoAppliesTo: 'Áp dụng cho phim', promoMin: 'Đơn hàng tối thiểu', chooseMovie: 'Chọn phim', tabGioiThieu: 'Giới Thiệu' },
-  en: { login: 'Login', register: 'Register', profile: 'Profile', tickets: 'My Tickets', logout: 'Logout', movies: 'Movie', schedule: 'Schedule', now: 'Featured', nowShowing: 'Now Showing', comingSoon: 'Coming Soon', bookNow: 'Book Now', loading: 'Loading', promoTitle: 'Tuesday Offer', promoDesc: '30% off all tickets on Tuesday', joinNow: 'Join Now', allRights: 'All rights reserved.', featured: 'Top', topRated: 'Rated Movies', noMovies: 'No movies available', searchPlaceholder: 'Search movies...', clearSearch: 'Clear search', noResults: 'No movies found', searchResults: 'Search results', movieTabs: 'Movie categories', cinemaSystem: 'Cinema', cinemaNetwork: 'Network', noCinemas: 'No cinemas available', viewMap: 'View map', scrollLeft: 'Scroll left', scrollRight: 'Scroll right', tabPhim: 'Movies', tabRap: 'Cinemas', tabKhuyenMai: 'Promotions', promoActive: 'Active', noPromos: 'No active promotions', promoAppliesTo: 'Applies to', promoMin: 'Min. order', chooseMovie: 'Browse movies', tabGioiThieu: 'About Us' }
+  vi: { login: 'Đăng nhập', register: 'Đăng ký', profile: 'Hồ sơ', tickets: 'Vé của tôi', logout: 'Đăng xuất', movies: 'Lịch Chiếu', schedule: 'Phim', now: 'Nổi Bật', nowShowing: 'Đang chiếu', comingSoon: 'Sắp chiếu', bookNow: 'Đặt vé', bookNowCta: 'Đặt vé ngay', viewDetail: 'Xem chi tiết', loading: 'Đang tải', promoTitle: 'Ưu Đãi Thứ 3', promoDesc: 'Giảm 30% vé xem phim vào thứ 3', joinNow: 'Tham Gia', allRights: 'All rights reserved.', featured: 'Phim', topRated: 'Đánh Giá Cao', noMovies: 'Không có phim', searchPlaceholder: 'Tìm phim...', clearSearch: 'Xóa tìm kiếm', noResults: 'Không tìm thấy phim phù hợp', searchResults: 'Kết quả tìm kiếm', movieTabs: 'Danh mục phim', cinemaSystem: 'Hệ Thống', cinemaNetwork: 'Rạp Chiếu', noCinemas: 'Chưa có thông tin rạp', viewMap: 'Xem bản đồ', scrollLeft: 'Cuộn trái', scrollRight: 'Cuộn phải', tabPhim: 'Phim', tabRap: 'Rạp Chiếu', tabKhuyenMai: 'Khuyến Mãi', promoActive: 'Đang Áp Dụng', noPromos: 'Hiện không có khuyến mãi', promoAppliesTo: 'Áp dụng cho phim', promoMin: 'Đơn hàng tối thiểu', promoSystemWide: 'Áp dụng toàn hệ thống', chooseMovie: 'Chọn phim', tabGioiThieu: 'Giới Thiệu' },
+  en: { login: 'Login', register: 'Register', profile: 'Profile', tickets: 'My Tickets', logout: 'Logout', movies: 'Movie', schedule: 'Schedule', now: 'Featured', nowShowing: 'Now Showing', comingSoon: 'Coming Soon', bookNow: 'Book Now', bookNowCta: 'Book Now', viewDetail: 'View Details', loading: 'Loading', promoTitle: 'Tuesday Offer', promoDesc: '30% off all tickets on Tuesday', joinNow: 'Join Now', allRights: 'All rights reserved.', featured: 'Top', topRated: 'Rated Movies', noMovies: 'No movies available', searchPlaceholder: 'Search movies...', clearSearch: 'Clear search', noResults: 'No movies found', searchResults: 'Search results', movieTabs: 'Movie categories', cinemaSystem: 'Cinema', cinemaNetwork: 'Network', noCinemas: 'No cinemas available', viewMap: 'View map', scrollLeft: 'Scroll left', scrollRight: 'Scroll right', tabPhim: 'Movies', tabRap: 'Cinemas', tabKhuyenMai: 'Promotions', promoActive: 'Active', noPromos: 'No active promotions', promoAppliesTo: 'Applies to', promoMin: 'Min. order', promoSystemWide: 'System-wide', chooseMovie: 'Browse movies', tabGioiThieu: 'About Us' }
 }
 
 const t = (key) => translations[lang.value][key] || key
@@ -638,6 +860,10 @@ const displayMovies = computed(() => activeTab.value === 'dang_chieu' ? movieSto
 const isLoading = computed(() => activeTab.value === 'dang_chieu' ? movieStore.loading.dangChieu : movieStore.loading.sapChieu)
 const isError = computed(() => activeTab.value === 'dang_chieu' ? movieStore.error.dangChieu : movieStore.error.sapChieu)
 const currentBanner = computed(() => movieStore.banners[bannerIndex.value])
+
+// CTA button only for movie banners; combo & promotion banners show no button
+const bannerShowCta = computed(() => currentBanner.value?.loaiBanner === 'Phim')
+const bannerCtaLabel = computed(() => t('bookNowCta'))
 
 /**
  * Formatted date-range string for the current hero banner.
@@ -689,6 +915,17 @@ const toggleLang = () => { lang.value = lang.value === 'vi' ? 'en' : 'vi'; local
 const bookNow = () => { if (!authStore.isLoggedIn) router.push('/auth'); else router.push('/') }
 const goToMovie = (id) => router.push({ name: 'movie-detail', params: { id } })
 
+// Card age-rating badge → color class
+function ageClass(a) {
+  const map = { P: 'p', K: 'k', T13: 't13', T16: 't16', T18: 't18' }
+  return map[a] || 'na'
+}
+// "Đặt vé" only for movies whose tickets are on sale
+function isBookable(m) {
+  if (!m) return false
+  return m.status === 'dang_chieu' || m.status === 'sap_chieu'
+}
+
 function handleDirectionsCard(cinema) {
   openConfirmModal({
     title: 'Mở đường đi?',
@@ -700,15 +937,15 @@ function handleDirectionsCard(cinema) {
 }
 
 /**
- * Navigate using the current banner's linkUrl (internal router path like "/phim/1").
- * Falls back to bookNow() if linkUrl is absent.
+ * Navigate based on the current banner's typed target (loaiBanner).
+ * - Phim → movie detail page /phim/:id
+ * - Khac → no button / no navigation (plain banner)
  */
 function onBannerClick() {
-  const url = currentBanner.value?.linkUrl
-  if (url && url.trim()) {
-    router.push(url.trim())
-  } else {
-    bookNow()
+  const b = currentBanner.value
+  if (!b) return
+  if (b.loaiBanner === 'Phim' && b.phimId) {
+    router.push('/phim/' + b.phimId)
   }
 }
 
@@ -716,25 +953,185 @@ function onBannerCta() {
   onBannerClick()
 }
 
-// ── Search ────────────────────────────────────────────────────
-const searchQuery   = ref('')
-const searchResults = ref([])
-const searchLoading = ref(false)
-let   searchTimer   = null
+// ── Global Search ─────────────────────────────────────────────
+const gsOpen      = ref(false)
+const gsQuery     = ref('')
+const gsLoading   = ref(false)
+const gsOnlyMovies = ref(false)
+const gsActiveIdx = ref(0)
+const gsInputRef  = ref(null)
+const gsMovieResults  = ref([])   // from API
+const gsCinemaResults = ref([])   // client-side from movieStore.cinemas
+const gsPromoResults  = ref([])   // client-side from promos ref
+const gsAboutResult   = ref(null) // static match
+let   gsTimer = null
 
-function onSearch() {
-  clearTimeout(searchTimer)
-  if (!searchQuery.value.trim()) { searchResults.value = []; return }
-  searchLoading.value = true
-  searchTimer = setTimeout(async () => {
-    searchResults.value = await movieStore.searchMovies(searchQuery.value.trim())
-    searchLoading.value = false
+const gsAllResults = computed(() => {
+  if (!gsQuery.value.trim()) return []
+  const results = []
+  const q = gsQuery.value.trim().toLowerCase()
+
+  // Movies (from API, already filtered)
+  gsMovieResults.value.forEach(m => {
+    results.push({
+      _key:     'phim-' + m.id,
+      _section: 'phim',
+      _label:   '🎬 Phim',
+      _title:   m.tenPhim || m.title || '',
+      _sub:     m.trangThai === 'dang_chieu' ? 'Đang chiếu' : m.trangThai === 'sap_chieu' ? 'Sắp chiếu' : '',
+      _data:    m,
+    })
+  })
+
+  // Cinemas (client-side)
+  gsCinemaResults.value.forEach(c => {
+    results.push({
+      _key:     'rap-' + c.id,
+      _section: 'rap',
+      _label:   '🏠 Rạp Chiếu',
+      _title:   c.tenRap || '',
+      _sub:     c.diaChi || c.thanhPho || '',
+      _data:    c,
+    })
+  })
+
+  // Promos (client-side)
+  gsPromoResults.value.forEach(p => {
+    results.push({
+      _key:     'km-' + p.id,
+      _section: 'km',
+      _label:   '🎁 Khuyến Mãi',
+      _title:   p.tenKhuyenMai || '',
+      _sub:     p.maKhuyenMai ? `Mã: ${p.maKhuyenMai}` : '',
+      _data:    p,
+    })
+  })
+
+  // About (static)
+  if (gsAboutResult.value) {
+    results.push({
+      _key:     'about',
+      _section: 'about',
+      _label:   'ℹ️ Giới Thiệu',
+      _title:   gsAboutResult.value,
+      _sub:     '',
+      _data:    null,
+    })
+  }
+
+  return results
+})
+
+const gsDisplayResults = computed(() =>
+  gsOnlyMovies.value
+    ? gsAllResults.value.filter(r => r._section === 'phim')
+    : gsAllResults.value
+)
+
+function openGlobalSearch() {
+  gsOpen.value = true
+  gsQuery.value = ''
+  gsMovieResults.value = []
+  gsCinemaResults.value = []
+  gsPromoResults.value = []
+  gsAboutResult.value = null
+  gsOnlyMovies.value = false
+  gsActiveIdx.value = 0
+  nextTick(() => gsInputRef.value?.focus())
+}
+
+function closeGlobalSearch() {
+  gsOpen.value = false
+  gsQuery.value = ''
+}
+
+function onGsInput() {
+  clearTimeout(gsTimer)
+  gsActiveIdx.value = 0
+  const q = gsQuery.value.trim()
+  if (!q) {
+    gsMovieResults.value = []
+    gsCinemaResults.value = []
+    gsPromoResults.value = []
+    gsAboutResult.value = null
+    return
+  }
+  gsLoading.value = true
+  gsTimer = setTimeout(async () => {
+    const ql = q.toLowerCase()
+    try {
+      // Movies: use existing API
+      const [moviesRes] = await Promise.allSettled([
+        movieStore.searchMovies(q)
+      ])
+      gsMovieResults.value = moviesRes.status === 'fulfilled' ? (moviesRes.value || []) : []
+
+      // Cinemas: client-side filter from already-loaded store data
+      gsCinemaResults.value = (movieStore.cinemas || []).filter(c =>
+        (c.tenRap || '').toLowerCase().includes(ql) ||
+        (c.diaChi || '').toLowerCase().includes(ql) ||
+        (c.thanhPho || '').toLowerCase().includes(ql)
+      )
+
+      // Promos: client-side filter from local promos ref
+      gsPromoResults.value = promos.value.filter(p =>
+        (p.tenKhuyenMai || '').toLowerCase().includes(ql) ||
+        (p.maKhuyenMai || '').toLowerCase().includes(ql) ||
+        (p.moTa || '').toLowerCase().includes(ql)
+      )
+
+      // About: static keyword match
+      const aboutKw = ['giới thiệu', 'about', 'gioi thieu', 'liên hệ', 'lien he', 'polycinema', 'hệ thống', 'he thong', 'thông tin']
+      gsAboutResult.value = aboutKw.some(kw => ql.includes(kw) || kw.includes(ql))
+        ? 'Trang Giới Thiệu PolyCinema' : null
+    } catch {}
+    gsLoading.value = false
   }, 300)
 }
 
-function clearSearch() {
-  searchQuery.value = ''
-  searchResults.value = []
+function gsMoveDown() {
+  if (gsDisplayResults.value.length === 0) return
+  gsActiveIdx.value = (gsActiveIdx.value + 1) % gsDisplayResults.value.length
+}
+
+function gsMoveUp() {
+  if (gsDisplayResults.value.length === 0) return
+  gsActiveIdx.value = (gsActiveIdx.value - 1 + gsDisplayResults.value.length) % gsDisplayResults.value.length
+}
+
+function gsSelectActive() {
+  const item = gsDisplayResults.value[gsActiveIdx.value]
+  if (item) gsSelectItem(item)
+}
+
+function gsSelectItem(item) {
+  closeGlobalSearch()
+  switch (item._section) {
+    case 'phim':
+      if (item._data?.id) {
+        router.push(`/phim/${item._data.id}`)
+      } else {
+        mainTab.value = 'phim'
+      }
+      break
+    case 'rap':
+      mainTab.value = 'rap_chieu'
+      break
+    case 'km':
+      mainTab.value = 'khuyen_mai'
+      break
+    case 'about':
+      mainTab.value = 'gioi_thieu'
+      break
+  }
+}
+
+// Keyboard shortcut: "/" opens global search when not already in an input
+function onKeySlash(e) {
+  if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) {
+    e.preventDefault()
+    openGlobalSearch()
+  }
 }
 
 // ── Card tilt ─────────────────────────────────────────────────
@@ -747,14 +1144,15 @@ function tiltCard(e) {
 function resetTilt(e) { e.currentTarget.style.transform = '' }
 
 // ── Carousel arrow scroll + wheel-to-horizontal ───────────────
-const mainCarouselRef     = ref(null)
-const featuredCarouselRef = ref(null)
+const mainCarouselRef = ref(null)
 
-function scrollCarousel(which, direction) {
-  const el = which === 'main' ? mainCarouselRef.value : featuredCarouselRef.value
+function scrollCarousel(direction) {
+  const el = mainCarouselRef.value
   if (!el) return
-  // Scroll by the width of one card (200px) plus the gap (20px)
-  el.scrollBy({ left: direction * 220, behavior: 'smooth' })
+  // Scroll by one card width plus the gap (matches .carousel-item width)
+  const card = el.querySelector('.carousel-item')
+  const step = card ? card.getBoundingClientRect().width + 20 : 240
+  el.scrollBy({ left: direction * step, behavior: 'smooth' })
 }
 
 /** Non-passive wheel handler: converts vertical scroll into horizontal scroll.
@@ -824,31 +1222,170 @@ function formatDate(d) {
   return `${day}/${m}/${y}`
 }
 
+// ── Promo card: banner + copy code ────────────────────────────
+const copiedCode = ref('')
+
+function bannerPoster(promo) {
+  return promo?.phims?.length ? (promo.phims[0].posterUrl || '') : ''
+}
+
+async function copyPromo(promo) {
+  try {
+    await navigator.clipboard.writeText(promo.maKhuyenMai)
+    copiedCode.value = promo.maKhuyenMai
+    setTimeout(() => { if (copiedCode.value === promo.maKhuyenMai) copiedCode.value = '' }, 2000)
+  } catch (e) {
+    /* clipboard bị chặn — bỏ qua */
+  }
+}
+
+// ── Quick booking ───────────────────────────────────────────
+const qbCinemaId = ref('')
+const qbMovieId = ref('')
+const qbDate = ref('')
+const qbSelected = ref(null)
+const qbShowtimes = ref([])
+const qbLoading = ref(false)
+const qbError = ref('')
+
+const DOW = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+
+const qbDays = computed(() => {
+  if (!qbMovieId.value) return []
+  const now = Date.now()
+  const set = new Set()
+  for (const s of qbShowtimes.value) {
+    if (String(s.phimId) !== String(qbMovieId.value)) continue
+    if (new Date(s.thoiGianBatDau).getTime() <= now) continue
+    const iso = String(s.thoiGianBatDau || '').slice(0, 10)
+    if (iso) set.add(iso)
+  }
+  return [...set].sort().map(iso => {
+    const d = new Date(iso + 'T00:00:00')
+    return { iso, num: d.getDate(), mo: d.getMonth() + 1, dow: DOW[d.getDay()] }
+  })
+})
+
+const qbMovies = computed(() => {
+  const map = new Map()
+  for (const s of qbShowtimes.value) {
+    if (!map.has(String(s.phimId))) {
+      map.set(String(s.phimId), { phimId: s.phimId, tenPhim: s.tenPhim })
+    }
+  }
+  return [...map.values()].sort((a, b) => a.tenPhim.localeCompare(b.tenPhim))
+})
+
+const qbShowtimesForDate = computed(() => {
+  if (!qbMovieId.value || !qbDate.value) return []
+  const now = Date.now()
+  return qbShowtimes.value.filter(s =>
+    String(s.phimId) === String(qbMovieId.value) &&
+    String(s.thoiGianBatDau || '').slice(0, 10) === qbDate.value &&
+    new Date(s.thoiGianBatDau).getTime() > now
+  )
+})
+
+const qbShowtimesByBuoi = computed(() => {
+  const morning = []
+  const evening = []
+  for (const s of qbShowtimesForDate.value) {
+    const h = new Date(s.thoiGianBatDau).getHours()
+    if (h >= 1 && h <= 12) morning.push(s)
+    else evening.push(s)
+  }
+  return [
+    { label: 'Buổi sáng', list: morning },
+    { label: 'Buổi chiều / tối', list: evening },
+  ].filter(g => g.list.length)
+})
+
+async function onQbCinemaChange() {
+  qbMovieId.value = ''
+  qbDate.value = ''
+  qbSelected.value = null
+  qbShowtimes.value = []
+  qbError.value = ''
+  if (!qbCinemaId.value) return
+  qbLoading.value = true
+  try {
+    const res = await api.get(`/lich-chieu/rap/${qbCinemaId.value}`)
+    qbShowtimes.value = Array.isArray(res.data) ? res.data : []
+    if (qbMovies.value.length) {
+      qbMovieId.value = qbMovies.value[0].phimId
+      qbDate.value = qbDays.value[0]?.iso || ''
+    }
+  } catch {
+    qbError.value = 'Không tải được lịch chiếu'
+  } finally {
+    qbLoading.value = false
+  }
+}
+
+function onQbMovieChange() {
+  qbDate.value = qbDays.value[0]?.iso || ''
+  qbSelected.value = null
+}
+
+function fmtQbTime(dt) {
+  return fmtTime12(dt)
+}
+
+function fmtQbPrice(v) {
+  if (v == null) return '—'
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v)
+}
+
+function qbBook() {
+  const s = qbSelected.value
+  if (!s) return
+  const cinema = movieStore.cinemas.find(c => String(c.id) === String(qbCinemaId.value))
+  if (!authStore.isLoggedIn) {
+    authStore.setRedirectPath(`/seat-selection/${s.lichChieuId}`)
+    router.push('/auth')
+    return
+  }
+  bookingStore.setMovie({
+    id: s.phimId, title: s.tenPhim, poster: s.posterUrl,
+    duration: s.thoiLuong, ageRating: s.phanLoaiDoTuoi, language: s.ngonNgu,
+  })
+  bookingStore.setShowtime({
+    id: s.lichChieuId, phimId: s.phimId,
+    phongChieuId: s.phongChieuId, tenPhong: s.tenPhong, loaiPhong: s.loaiPhong,
+    rapChieuId: cinema?.id, tenRap: cinema?.tenRap, thanhPho: cinema?.thanhPho,
+    tenDinhDang: s.tenDinhDang,
+    thoiGianBatDau: s.thoiGianBatDau, thoiGianKetThuc: s.thoiGianKetThuc,
+    giaCoBan: s.giaCoBan,
+    phongChieu: { id: s.phongChieuId, tenPhong: s.tenPhong, loaiPhong: s.loaiPhong },
+  })
+  router.push(`/seat-selection/${s.lichChieuId}`)
+}
+
+watch(() => qbDate.value, () => { qbSelected.value = null })
+
 onMounted(() => {
   movieStore.fetchDangChieu()
   movieStore.fetchSapChieu()
-  movieStore.fetchNoiBat()
   movieStore.fetchCinemas()
   movieStore.fetchBanners()
   fetchPromos()
   fetchGioiThieu()
   document.addEventListener('click', closeDropdown)
+  document.addEventListener('keydown', onKeySlash)
   // Attempt immediate attach (works if data was already cached)
   setTimeout(() => {
     attachWheelScroll(mainCarouselRef.value)
-    attachWheelScroll(featuredCarouselRef.value)
   }, 0)
 })
 
 // Re-attach whenever the ref element appears (data loads asynchronously)
-watch(mainCarouselRef,     (el) => attachWheelScroll(el))
-watch(featuredCarouselRef, (el) => attachWheelScroll(el))
+watch(mainCarouselRef, (el) => attachWheelScroll(el))
 
 onUnmounted(() => {
   if (bannerTimer) clearInterval(bannerTimer)
   document.removeEventListener('click', closeDropdown)
+  document.removeEventListener('keydown', onKeySlash)
   detachWheelScroll(mainCarouselRef.value)
-  detachWheelScroll(featuredCarouselRef.value)
 })
 </script>
 
@@ -929,6 +1466,10 @@ onUnmounted(() => {
 }
 
 .icon-btn:hover { border-color: var(--electric, #29bcea); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); }
+
+.lang-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; }
+.lang-flag { display: inline-flex; border-radius: 3px; overflow: hidden; }
+.lang-flag svg { display: block; }
 
 .btn {
   min-height: 44px;
@@ -1154,6 +1695,18 @@ onUnmounted(() => {
 .drawer-level { font-size: 11px; color: var(--text-secondary, #94a3b8); margin: 0; }
 .drawer-links { display: flex; flex-direction: column; gap: 4px; }
 
+.drawer-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.drawer-tabs .drawer-item.active {
+  background: rgba(41,188,234,0.12);
+  color: var(--electric, #29bcea);
+}
+
 .drawer-theme-btn {
   width: 100%;
   text-align: left;
@@ -1204,8 +1757,8 @@ onUnmounted(() => {
 
 .hero-stage {
   position: relative;
-  height: 100svh;
-  min-height: 600px;
+  height: 50svh;
+  min-height: 300px;
   overflow: hidden;
 }
 
@@ -1261,18 +1814,18 @@ onUnmounted(() => {
 
 .hero-title {
   font-family: var(--font-display, 'Playfair Display', Georgia, serif);
-  font-size: clamp(40px, 7vw, 88px);
+  font-size: clamp(30px, 5.25vw, 66px);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.1;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   color: var(--text-primary, #f1f5f9);
 }
 
 .hero-desc {
-  font-size: clamp(14px, 1.5vw, 18px);
+  font-size: clamp(10.5px, 1.125vw, 13.5px);
   color: var(--text-secondary, #94a3b8);
-  margin-bottom: 28px;
+  margin-bottom: 21px;
   line-height: 1.6;
   max-width: 480px;
 }
@@ -1291,12 +1844,12 @@ onUnmounted(() => {
 
 .hero-loading {
   color: var(--text-ghost, rgba(241,245,249,0.45));
-  font-size: 18px;
+  font-size: 13.5px;
 }
 
 .btn-hero {
-  padding: 14px 36px;
-  font-size: 15px;
+  padding: 10.5px 27px;
+  font-size: 11.25px;
 }
 
 .banner-dots {
@@ -1310,10 +1863,14 @@ onUnmounted(() => {
   z-index: 10;
 }
 
-/* Prev / next arrows in banner dot bar */
+/* Prev / next arrows on left/right edges */
 .banner-arrow {
-  width: 32px;
-  height: 32px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 11;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.25);
   background: rgba(5,5,8,0.55);
@@ -1324,12 +1881,13 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, transform 0.15s;
-  flex-shrink: 0;
 }
+.banner-arrow--left  { left: 16px; }
+.banner-arrow--right { right: 16px; }
 .banner-arrow:hover {
   background: rgba(41,188,234,0.45);
   border-color: var(--electric, #29bcea);
-  transform: scale(1.08);
+  transform: translateY(-50%) scale(1.08);
 }
 
 .dot {
@@ -1354,49 +1912,36 @@ onUnmounted(() => {
 
 .section { padding: 60px 40px; max-width: 1400px; margin: 0 auto; }
 
-/* ── Top-level tab bar (Phim | Rạp Chiếu) ─────────────────── */
-.main-tabs-bar {
+/* ── Top-level tabs inside the nav bar (Phim | Rạp Chiếu | ...) ── */
+.nav-tabs {
   display: flex;
-  justify-content: center;
-  padding: 0 40px;
-  border-bottom: 2px solid var(--glass-border, rgba(255,255,255,0.08));
-  background: var(--void, #050508);
-  position: sticky;
-  top: 64px;   /* sits just below the sticky nav (~64px tall) */
-  z-index: 50;
+  align-items: center;
+  gap: 4px;
+  margin-left: 20px;
 }
 
-.main-tabs {
-  display: flex;
-  gap: 0;
-  max-width: 1400px;
-  width: 100%;
-}
-
-.main-tab {
+.nav-tabs .main-tab {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 28px;
+  padding: 10px 16px;
   background: none;
   border: none;
-  border-bottom: 3px solid transparent;
+  border-radius: var(--radius-pill, 999px);
   color: var(--text-secondary, #94a3b8);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   font-family: var(--font-ui, 'Inter', sans-serif);
   cursor: pointer;
-  margin-bottom: -2px;   /* overlap the bar's border-bottom */
-  transition: color 0.2s, border-color 0.2s;
-  min-height: 52px;
   white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
 }
 
-.main-tab:hover { color: var(--text-primary, #f1f5f9); }
+.nav-tabs .main-tab:hover { color: var(--text-primary, #f1f5f9); background: var(--glass-bg, rgba(255,255,255,0.06)); }
 
-.main-tab.active {
+.nav-tabs .main-tab.active {
   color: var(--electric, #29bcea);
-  border-bottom-color: var(--electric, #29bcea);
+  background: rgba(41,188,234,0.12);
 }
 
 .section-header {
@@ -1524,7 +2069,7 @@ onUnmounted(() => {
 
 .carousel {
   display: flex;
-  gap: 20px;
+  gap: 28px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
@@ -1545,7 +2090,7 @@ onUnmounted(() => {
 }
 
 .carousel-item {
-  flex: 0 0 200px;
+  flex: 0 0 330px;
   scroll-snap-align: start;
 }
 
@@ -1584,26 +2129,6 @@ onUnmounted(() => {
 
 .carousel-arrow--left  { left:  -20px; }
 .carousel-arrow--right { right: -20px; }
-
-/* Featured rank badge */
-.featured-rank {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 5;
-  width: 28px;
-  height: 28px;
-  background: var(--electric, #29bcea);
-  color: #fff;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  box-shadow: 0 2px 8px rgba(41,188,234,0.45);
-}
 
 .movie-card {
   background: var(--glass-bg, rgba(255,255,255,0.04));
@@ -1658,41 +2183,181 @@ onUnmounted(() => {
 
 .movie-card:hover .movie-poster img { transform: scale(1.05); }
 
+/* ── Age rating badge (P, K, T13, T16, T18) ───────────────── */
+.age-badge {
+  flex: 0 0 auto;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.age-badge--p    { background: #16a34a; }
+.age-badge--k    { background: #2563eb; }
+.age-badge--t13  { background: #d97706; }
+.age-badge--t16  { background: #ea580c; }
+.age-badge--t18  { background: #dc2626; }
+.age-badge--na   { background: #475569; }
+
+/* ── Title bar under poster: age badge + movie name ────────── */
+.movie-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface-2, #14141f);
+  border-top: 1px solid var(--glass-border, rgba(255,255,255,0.06));
+}
+.movie-info-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Format badges (2D, 3D, IMAX…) ─────────────────────────── */
+.format-badges {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+}
+.format-badge {
+  background: rgba(5,5,8,0.72);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+  backdrop-filter: blur(3px);
+}
+
+/* ── Hover overlay: quick info + actions ───────────────────── */
 .movie-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(5,5,8,0.92) 0%, rgba(5,5,8,0.4) 50%, transparent 100%);
-  backdrop-filter: blur(4px);
+  z-index: 5;
+  background: linear-gradient(to top, rgba(5,5,8,0.95) 0%, rgba(5,5,8,0.72) 45%, rgba(5,5,8,0.45) 100%);
+  backdrop-filter: blur(2px);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  padding: 12px;
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.3s var(--ease-out, cubic-bezier(0.4,0,0.2,1)), transform 0.3s var(--ease-out);
-  color: #ffffff;
+  transform: translateY(10px);
+  transition: opacity 0.32s var(--ease-out, cubic-bezier(0.4,0,0.2,1)), transform 0.32s var(--ease-out);
+  color: #fff;
 }
 .movie-card:hover .movie-overlay { opacity: 1; transform: translateY(0); }
 
-.movie-info { padding: 16px; background: var(--surface-2, #14141f); }
-
-.movie-info h3 {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 8px;
-  line-height: 1.3;
-  color: var(--text-primary);
+.overlay-inner {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 100%;
+  overflow: hidden;
 }
-
-.movie-info p { font-size: 12px; color: var(--text-tertiary); margin: 4px 0; }
-.movie-meta {
+.overlay-title {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.overlay-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.ov-chip {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.14);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.ov-genre {
+  font-size: 11px;
+  color: rgba(255,255,255,0.82);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+.overlay-rating {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  margin: 0;
+  color: var(--gold-bright, #F5D17E);
   font-size: 12px;
-  color: var(--text-secondary, #94a3b8);
-  margin: 3px 0;
+  font-weight: 800;
 }
-.rating { color: var(--gold-bright, #F5D17E); font-weight: 700; }
+.overlay-lang {
+  align-self: flex-start;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(41,188,234,0.22);
+  border: 1px solid rgba(41,188,234,0.45);
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+}
+.overlay-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.ov-btn {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 6px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+.ov-btn:active { transform: scale(0.97); }
+.ov-btn--detail {
+  background: rgba(255,255,255,0.16);
+  color: #fff;
+}
+.ov-btn--detail:hover { background: rgba(255,255,255,0.28); }
+.ov-btn--book {
+  background: var(--electric, #29bcea);
+  color: #fff;
+}
+.ov-btn--book:hover { background: #21a9d3; }
 
 .loading, .error { text-align: center; padding: 40px; color: #767676; }
 .error { color: #dc2626; }
@@ -1711,15 +2376,8 @@ onUnmounted(() => {
   border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
   border-radius: var(--radius-md, 12px);
   overflow: hidden;
-  transition: box-shadow 0.25s;
-}
-
-.cinema-card--clickable {
   cursor: pointer;
-}
-.cinema-card--clickable:focus-visible {
-  outline: 2px solid rgba(255,255,255,0.5);
-  outline-offset: 2px;
+  transition: box-shadow 0.25s;
 }
 
 .cinema-card:hover { box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.45)); }
@@ -1826,6 +2484,90 @@ onUnmounted(() => {
 .promo h2 { font-size: 32px; font-weight: 700; margin-bottom: 16px; }
 .promo p { font-size: 16px; margin-bottom: 24px; opacity: 0.95; }
 
+.quickbook { padding: 0 40px; margin: 8px auto 8px; max-width: 1400px; }
+.quickbook__inner {
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-md, 14px);
+  padding: 20px;
+}
+.quickbook__title {
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  margin: 0 0 16px;
+}
+.quickbook__row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.quickbook__field { display: flex; flex-direction: column; gap: 6px; }
+.quickbook__label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-ghost, rgba(241,245,249,0.45)); }
+.quickbook__select {
+  padding: 10px 14px;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  background: var(--surface-1, #0f0f17);
+  color: var(--text-primary, #f1f5f9);
+  font-size: 14px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  outline: none;
+  min-height: 42px;
+}
+.quickbook__select:focus { border-color: var(--electric, #29bcea); }
+.quickbook__select:disabled { opacity: 0.5; cursor: not-allowed; }
+.quickbook__error { margin-top: 12px; font-size: 13px; color: #fca5a5; }
+.quickbook__days { display: flex; gap: 10px; overflow-x: auto; margin-top: 16px; padding-bottom: 12px; scrollbar-width: thin; scrollbar-color: var(--electric-soft, rgba(41,188,234,0.08)) transparent; }
+.quickbook__days::-webkit-scrollbar { height: 4px; }
+.quickbook__days::-webkit-scrollbar-thumb { background: var(--electric-soft, rgba(41,188,234,0.08)); border-radius: 2px; }
+.qb-buoi { margin-top: 16px; }
+.qb-buoi__label { font-size: 12px; font-weight: 700; color: var(--electric, #29bcea); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.quickbook__shows { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 16px; }
+.qb-show {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  padding: 14px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+}
+.qb-show:hover { border-color: var(--electric, #29bcea); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); transform: translateY(-3px); }
+.qb-show--active { border-color: var(--electric, #29bcea); background: rgba(41,188,234,0.08); }
+.qb-show__time { font-size: 22px; font-weight: 900; color: var(--electric, #29bcea); }
+.qb-show__room { font-size: 11px; color: var(--text-ghost, rgba(241,245,249,0.45)); }
+.qb-show__format { font-size: 11px; font-weight: 700; color: var(--text-secondary, #94a3b8); }
+.qb-show__price { font-size: 13px; font-weight: 800; color: var(--gold-bright, #F5D17E); }
+.quickbook__empty { margin-top: 16px; padding: 20px; text-align: center; color: var(--text-ghost, rgba(241,245,249,0.45)); font-size: 14px; }
+.quickbook__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px 18px;
+  background: rgba(41,188,234,0.06);
+  border: 1px solid rgba(41,188,234,0.18);
+  border-radius: 10px;
+}
+.quickbook__hint { font-size: 13px; color: var(--text-secondary, #94a3b8); }
+.qb-book-btn {
+  padding: 10px 24px;
+  background: var(--electric, #29bcea);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.qb-book-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.qb-book-btn:hover:not(:disabled) { background: var(--electric-hover, #1a9fbd); }
+
 .footer {
   background: #f7f7f7;
   border-top: 1px solid #efefef;
@@ -1838,120 +2580,193 @@ onUnmounted(() => {
   .nav { padding: 8px 16px; }
   .nav-island { padding: 6px 14px; border-radius: var(--radius-lg, 20px); }
   .nav-actions { display: none; }
+  .nav-tabs { margin-left: 8px; gap: 2px; }
+  .nav-tabs .main-tab { padding: 8px 12px; font-size: 13px; gap: 6px; }
   .hamburger { display: flex; }
-  .hero-stage { min-height: 480px; }
+  .hero-stage { min-height: 280px; }
   .hero-content { left: 5%; right: 5%; max-width: 100%; }
-  .main-tabs-bar { padding: 0 16px; top: 56px; }
-  .main-tab { padding: 12px 16px; font-size: 14px; }
   .section { padding: 40px 20px; }
   .section--cinemas { padding: 40px 20px; }
   .section-header { flex-direction: column; align-items: flex-start; }
   .search-bar { max-width: 100%; min-width: 0; width: 100%; }
-  .carousel-item { flex: 0 0 160px; }
+  .carousel-item { flex: 0 0 270px; }
   /* Always show arrows on touch devices */
   .carousel-arrow { opacity: 1; }
   .carousel-arrow--left  { left:  -12px; }
   .carousel-arrow--right { right: -12px; }
   .cinema-grid { grid-template-columns: 1fr; }
   .promo { margin: 40px 20px; }
+  .quickbook { padding: 0 20px; }
+  .quickbook__row { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
-  .carousel-item { flex: 0 0 140px; }
+  .carousel-item { flex: 0 0 225px; }
   .section-title { font-size: 24px; }
 }/* ── Promotions section ─────────────────────────────────────── */
 .section--promos { max-width: 1400px; margin: 0 auto; padding: 60px 40px; }
 
 .promo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 22px;
 }
 
 .promo-card {
   background: var(--glass-bg, rgba(255,255,255,0.04));
   border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
   border-radius: var(--radius-md, 12px);
-  padding: 20px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: box-shadow 0.25s;
+  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
 }
 
-.promo-card:hover { box-shadow: var(--shadow-md, 0 4px 16px rgba(0,0,0,0.45)); }
+.promo-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(41,188,234,0.35);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,0.45));
+}
 
-.promo-card__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+/* ── Banner ──────────────────────────────────────────────── */
+.promo-card__banner {
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #0b1a26 0%, #10202e 55%, #0a1420 100%);
+}
+.promo-card__banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.45s var(--ease-out, cubic-bezier(0.4,0,0.2,1));
+}
+.promo-card:hover .promo-card__banner-img { transform: scale(1.06); }
+.promo-card__banner-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(41,188,234,0.55);
+  background:
+    radial-gradient(circle at 22% 18%, rgba(41,188,234,0.18), transparent 42%),
+    radial-gradient(circle at 80% 75%, rgba(201,168,76,0.16), transparent 45%),
+    linear-gradient(135deg, #0b1a26 0%, #10202e 55%, #0a1420 100%);
+}
+.promo-card__banner-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(5,5,8,0.10) 0%, rgba(5,5,8,0.55) 62%, rgba(5,5,8,0.88) 100%);
+}
+
+.promo-card__badge {
+  position: absolute; top: 12px; left: 12px;
+  z-index: 1;
+  padding: 5px 13px;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 14px; font-weight: 800;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(4px);
+}
+
+.badge--percent {
+  background: rgba(41,188,234,0.22);
+  color: #7ee0ff;
+  border: 1px solid rgba(41,188,234,0.5);
+  box-shadow: 0 2px 12px rgba(41,188,234,0.25);
+}
+
+.badge--fixed {
+  background: rgba(201,168,76,0.22);
+  color: #e6c56f;
+  border: 1px solid rgba(201,168,76,0.5);
+  box-shadow: 0 2px 12px rgba(201,168,76,0.25);
+}
+
+.promo-card__banner-movies {
+  position: absolute; left: 12px; right: 12px; bottom: 10px;
+  z-index: 1;
+  display: flex; flex-wrap: wrap; gap: 3px 8px;
+}
+.promo-card__banner-movie {
+  font-size: 12.5px; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+}
+
+/* ── Body ────────────────────────────────────────────────── */
+.promo-card__body {
+  padding: 16px 18px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  flex: 1;
 }
 
 .promo-card__name {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px; font-weight: 800;
   color: var(--text-primary, #f1f5f9);
   line-height: 1.3;
   margin: 0;
 }
 
-.promo-card__badge {
-  flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill, 999px);
-  font-size: 13px;
-  font-weight: 800;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  white-space: nowrap;
-}
-
-.badge--percent {
-  background: rgba(41,188,234,0.15);
-  color: var(--electric, #29bcea);
-  border: 1px solid rgba(41,188,234,0.3);
-}
-
-.badge--fixed {
-  background: rgba(201,168,76,0.15);
-  color: var(--gold, #C9A84C);
-  border: 1px solid rgba(201,168,76,0.3);
+.promo-card__code-row {
+  display: flex; align-items: stretch; gap: 8px;
 }
 
 .promo-card__code {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: monospace;
+  flex: 1;
+  display: inline-flex; align-items: center; gap: 7px;
+  min-width: 0;
+  font-size: 13px; font-weight: 800; font-family: monospace;
+  letter-spacing: 1px;
   color: var(--electric, #29bcea);
-  background: rgba(41,188,234,0.07);
-  border: 1px dashed rgba(41,188,234,0.3);
+  background: rgba(41,188,234,0.08);
+  border: 1px dashed rgba(41,188,234,0.35);
   border-radius: var(--radius-sm, 6px);
-  padding: 5px 10px;
-  width: fit-content;
-  margin: 0;
+  padding: 8px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.promo-card__copy {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  flex-shrink: 0;
+  padding: 0 13px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.15));
+  background: var(--glass-bg, rgba(255,255,255,0.05));
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px; font-weight: 700;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.promo-card__copy:hover { border-color: var(--electric, #29bcea); color: var(--electric, #29bcea); }
+.promo-card__copy:active { transform: scale(0.97); }
+.promo-card__copy.copied {
+  border-color: rgba(74,222,128,0.5);
+  color: #4ade80;
+  background: rgba(74,222,128,0.1);
 }
 
 .promo-card__desc {
   font-size: 13px;
   color: var(--text-secondary, #94a3b8);
-  line-height: 1.5;
+  line-height: 1.55;
   margin: 0;
 }
 
-.promo-card__dates,
-.promo-card__min {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.promo-card__meta {
+  display: flex; flex-wrap: wrap; gap: 8px 14px;
+}
+
+.promo-card__meta-item {
+  display: inline-flex; align-items: center; gap: 5px;
   font-size: 12px;
   color: var(--text-secondary, #94a3b8);
-  margin: 0;
 }
 
-.promo-card__movies { margin-top: 4px; }
+.promo-card__movies { margin-top: 2px; }
 
 .promo-card__movies-label {
   font-size: 11px;
@@ -2007,13 +2822,13 @@ onUnmounted(() => {
 }
 
 /* System-wide promo CTA */
-.promo-card__cta { margin-top: 4px; }
+.promo-card__cta { margin-top: auto; padding-top: 4px; }
 
 .promo-card__btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 16px;
+  padding: 9px 18px;
   background: var(--electric, #29bcea);
   color: #fff;
   border-radius: var(--radius-pill, 999px);
@@ -2084,6 +2899,199 @@ onUnmounted(() => {
 
 @media (max-width: 640px) {
   .gioi-thieu-body { padding: 60px 20px; }
+}
+
+/* ── Nav: global search trigger button ── */
+.gs-trigger {
+  flex-shrink: 0;
+}
+
+/* ── Global Search Overlay ── */
+.gs-fade-enter-active, .gs-fade-leave-active { transition: opacity 0.18s ease; }
+.gs-fade-enter-from, .gs-fade-leave-to { opacity: 0; }
+
+.gs-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 80px 20px 20px;
+}
+
+.gs-panel {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface-2, #14141f);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
+  border-radius: var(--radius-lg, 20px);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+.gs-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  flex-shrink: 0;
+}
+
+.gs-icon {
+  color: var(--text-secondary, #94a3b8);
+  flex-shrink: 0;
+}
+
+.gs-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 16px;
+  color: var(--text-primary, #f1f5f9);
+  caret-color: var(--electric, #29bcea);
+}
+.gs-input::placeholder { color: var(--text-secondary, #94a3b8); }
+
+.gs-close {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 11px;
+  transition: color 150ms, border-color 150ms;
+  white-space: nowrap;
+}
+.gs-close:hover { color: var(--text-primary, #f1f5f9); border-color: var(--text-secondary, #94a3b8); }
+kbd {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.gs-body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-border) transparent;
+}
+
+.gs-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 14px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  text-align: center;
+}
+.gs-empty strong { color: var(--electric, #29bcea); }
+.gs-hint { font-size: 13px; }
+.gs-kbd-hint { display: flex; gap: 8px; margin-top: 6px; color: var(--text-ghost, rgba(241,245,249,0.45)); font-size: 12px; }
+.gs-kbd-hint kbd { background: var(--surface-3, #1a1a28); padding: 2px 6px; border-radius: 4px; opacity: 1; font-size: 11px; }
+
+.gs-spinner {
+  width: 24px; height: 24px;
+  border: 2px solid var(--glass-border, rgba(255,255,255,0.1));
+  border-top-color: var(--electric, #29bcea);
+  border-radius: 50%;
+  animation: gs-spin 0.7s linear infinite;
+}
+@keyframes gs-spin { to { transform: rotate(360deg); } }
+
+.gs-filter-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.06));
+}
+.gs-filter-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+}
+.gs-filter-btn:hover,
+.gs-filter-btn.active {
+  background: var(--electric-soft, rgba(41,188,234,0.08));
+  border-color: var(--electric, #29bcea);
+  color: var(--electric, #29bcea);
+}
+
+.gs-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  cursor: pointer;
+  transition: background 120ms;
+  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.04));
+  font-family: var(--font-ui, 'Inter', sans-serif);
+}
+.gs-item:last-child { border-bottom: none; }
+.gs-item--active,
+.gs-item:hover { background: var(--surface-3, #1a1a28); }
+
+.gs-item__section {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  white-space: nowrap;
+}
+.gs-section--phim  { background: rgba(41,188,234,0.12); color: #29bcea; }
+.gs-section--rap   { background: rgba(201,168,76,0.12);  color: #C9A84C; }
+.gs-section--km    { background: rgba(16,185,129,0.12);  color: #10B981; }
+.gs-section--about { background: rgba(156,163,175,0.12); color: #9CA3AF; }
+
+.gs-item__title {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary, #f1f5f9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gs-item__sub {
+  font-size: 12px;
+  color: var(--text-secondary, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.gs-item__go {
+  color: var(--text-ghost, rgba(241,245,249,0.45));
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .gs-overlay { padding: 60px 12px 12px; }
+  .gs-panel { max-height: 80vh; }
 }
 
 </style>

@@ -34,7 +34,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   })
 
-  const isAdmin = computed(() => userRole.value === 'ADMIN')
+  const isAdmin  = computed(() => userRole.value === 'ADMIN')
+  const isStaff  = computed(() => userRole.value === 'STAFF')
 
   const memberLevel = computed(() => user.value?.capDoThanhVien || 'Thường')
 
@@ -128,7 +129,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     token, user, loading, error, redirectPath,
-    isLoggedIn, userRole, isAdmin, memberLevel, userInitials,
+    isLoggedIn, userRole, isAdmin, isStaff, memberLevel, userInitials,
     fetchProfile, setToken, logout, setRedirectPath, popRedirectPath,
     login, register,
   }

@@ -22,11 +22,16 @@ public class Banner {
     @Column(name = "HinhAnh", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String hinhAnh;
 
-    @Column(name = "LinkUrl", columnDefinition = "NVARCHAR(MAX)")
-    private String linkUrl;
-
     @Column(name = "ThuTu")
     private Integer thuTu;
+
+    /** Typed banner target: "Phim" | "Khac" */
+    @Column(name = "LoaiBanner", length = 20)
+    private String loaiBanner;
+
+    /** FK to Phim.Id — set when loaiBanner = "Phim" */
+    @Column(name = "PhimId")
+    private Long phimId;
 
     @Column(name = "NgayBatDau")
     private LocalDate ngayBatDau;
@@ -36,6 +41,9 @@ public class Banner {
 
     @Column(name = "DangHoatDong")
     private Boolean dangHoatDong;
+
+    @Column(name = "MoTa", columnDefinition = "NVARCHAR(500)")
+    private String moTa;
 
     @Column(name = "NgayTao")
     private LocalDateTime ngayTao;

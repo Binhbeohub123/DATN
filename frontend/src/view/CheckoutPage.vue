@@ -144,30 +144,34 @@
           <p class="promo-hint">Mã thử: <strong>POLY10</strong> (−10%), <strong>WELCOME50K</strong> (−50.000đ)</p>
         </section>
 
-        <!-- Loyalty points -->
-        <section class="card">
-          <h2 class="card__title">⭐ Điểm tích lũy</h2>
-          <div class="loyalty-info">
-            <span>Số dư: <strong class="gold">{{ authStore.user?.diemTichLuy || 0 }} điểm</strong></span>
-            <span class="loyalty-eq">(= {{ fmtPrice((authStore.user?.diemTichLuy || 0) * 1000) }})</span>
-          </div>
-          <label class="toggle-row">
-            <span class="toggle-wrap">
-              <input type="checkbox" v-model="useLoyalty" class="toggle-cb" @change="onLoyaltyToggle" />
-              <span class="toggle-slider"></span>
-            </span>
-            <span class="toggle-label">Dùng điểm tích lũy để giảm giá</span>
-          </label>
-          <div v-if="useLoyalty" class="loyalty-ctrl">
-            <input
-              type="number" v-model.number="loyaltyPoints"
-              :max="maxLoyaltyPoints" min="0"
-              class="loyalty-input"
-              @change="onLoyaltyToggle"
-            />
-            <span class="loyalty-eq-inline">= {{ fmtPrice(loyaltyPoints * 1000) }}</span>
-          </div>
-        </section>
+          <!-- Loyalty points -->
+          <section class="card">
+            <h2 class="card__title">⭐ Điểm tích lũy</h2>
+            <div class="loyalty-info">
+              <span>Số dư: <strong class="gold">{{ authStore.user?.diemTichLuy || 0 }} điểm</strong></span>
+              <span class="loyalty-eq">(= {{ fmtPrice((authStore.user?.diemTichLuy || 0) * 100) }})</span>
+            </div>
+            <label class="toggle-row">
+              <span class="toggle-wrap">
+                <input type="checkbox" v-model="useLoyalty" class="toggle-cb" @change="onLoyaltyToggle" :disabled="maxLoyaltyPoints <= 0" />
+                <span class="toggle-slider"></span>
+              </span>
+              <span class="toggle-label">Dùng điểm tích lũy để giảm giá</span>
+            </label>
+            <p v-if="maxLoyaltyPoints <= 0" class="loyalty-hint">
+              Cần đơn từ 100.000đ và tối thiểu 100 điểm mới được dùng điểm (1 điểm = 100đ, giảm tối đa 30% đơn).
+            </p>
+            <div v-if="useLoyalty && maxLoyaltyPoints > 0" class="loyalty-ctrl">
+              <input
+                type="number" v-model.number="loyaltyPoints"
+                :max="maxLoyaltyPoints" min="0"
+                class="loyalty-input"
+                @change="onLoyaltyToggle"
+              />
+              <span class="loyalty-eq-inline">= {{ fmtPrice(loyaltyPoints * 100) }}</span>
+              <span class="loyalty-max">(tối đa {{ maxLoyaltyPoints }} điểm = 30% đơn)</span>
+            </div>
+          </section>
 
         <!-- Payment method -->
         <section class="card">
@@ -247,16 +251,22 @@ import { useAuthStore } from '@/stores/authStore'
 import { useBookingStore } from '@/stores/bookingStore'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { fmtDateTime12 } from '@/utils/homeHelpers'
 
 const router       = useRouter()
 const route        = useRoute()
 const authStore    = useAuthStore()
 const bookingStore = useBookingStore()
 
-// ── Back navigation — always go somewhere safe ───────────────
+// ── Back navigation — follow booking steps in order ───────────
 function goBack() {
+  // Retry-payment mode (coming from MyTicketsPage) — no combo step to return to
+  if (route.query?.bookingId) {
+    router.push('/my-tickets')
+    return
+  }
   if (bookingStore.selectedShowtime?.id) {
-    router.push(`/seat-selection/${bookingStore.selectedShowtime.id}`)
+    router.replace('/combo')
   } else {
     router.push('/movies')
   }
@@ -402,8 +412,12 @@ const useLoyalty    = ref(bookingStore.useLoyaltyPoints)
 const loyaltyPoints = ref(bookingStore.loyaltyPointsToUse)
 
 const maxLoyaltyPoints = computed(() => {
-  const userPts     = authStore.user?.diemTichLuy || 0
-  const maxFromOrder = Math.floor(bookingStore.subtotal / 1000)
+  // Chính sách điểm: 1 điểm = 100đ; cần đơn >= 100.000đ và tối thiểu 100 điểm;
+  // giảm tối đa 30% giá trị đơn.
+  const userPts = authStore.user?.diemTichLuy || 0
+  if (bookingStore.subtotal < 100000) return 0
+  if (userPts < 100) return 0
+  const maxFromOrder = Math.floor((bookingStore.subtotal * 0.30) / 100)
   return Math.min(userPts, maxFromOrder)
 })
 
@@ -418,12 +432,10 @@ function onLoyaltyToggle() {
 }
 
 // ── payment method ───────────────────────────────────────────
-const payMethod = ref(bookingStore.paymentMethod || 'VNPay')
+const payMethod = ref(bookingStore.paymentMethod || 'PayOS')
 const methods = [
-  { value: 'VNPay',   icon: '🏦', name: 'VNPay',   desc: 'Thanh toán qua cổng VNPay' },
   { value: 'PayOS',   icon: '💳', name: 'PayOS',    desc: 'Thanh toán qua PayOS' },
   { value: 'ZaloPay', icon: '💚', name: 'ZaloPay',  desc: 'Thanh toán qua ZaloPay' },
-  { value: 'Cash',    icon: '💵', name: 'Tiền mặt', desc: 'Thanh toán tại quầy' },
 ]
 
 // ── confirm ──────────────────────────────────────────────────
@@ -446,7 +458,7 @@ async function confirm() {
   if (useLoyalty.value) bookingStore.setUseLoyaltyPoints(true, loyaltyPoints.value)
 
   try {
-    let bookingId, ngayTao
+    let bookingId, ngayTao, bookingMaDatVe
 
     if (retryBookingId.value) {
       // ── Retry mode: validate the loaded booking, then use its ID ──
@@ -459,8 +471,9 @@ async function confirm() {
         confirmError.value = 'Không thể thanh toán: tổng tiền không hợp lệ'
         return
       }
-      bookingId = retryBookingId.value
-      ngayTao   = retryBooking.value?.ngayTao
+      bookingId     = retryBookingId.value
+      ngayTao       = retryBooking.value?.ngayTao
+      bookingMaDatVe = retryBooking.value?.maDatVe || null
     } else {
       // ── Normal mode: create a new booking ──
       const booking = await bookingStore.createBooking()
@@ -468,8 +481,9 @@ async function confirm() {
         confirmError.value = bookingStore.error.booking || 'Không tạo được đơn đặt vé'
         return
       }
-      bookingId = booking.id
-      ngayTao   = booking.ngayTao
+      bookingId      = booking.id
+      ngayTao        = booking.ngayTao
+      bookingMaDatVe = booking.maDatVe || null
 
       // Zero-total: backend already confirmed/paid — skip gateway
       if (booking.trangThaiThanhToan === 'paid'
@@ -482,16 +496,8 @@ async function confirm() {
     // Start countdown from booking creation time
     if (ngayTao) startBookingCountdown(ngayTao)
 
-    if (payMethod.value === 'Cash') {
-      router.push({ name: 'payment-result', params: { bookingId: String(bookingId) } })
-      return
-    }
-
     let endpoint, urlField
-    if (payMethod.value === 'VNPay') {
-      endpoint = '/thanh-toan/vnpay'
-      urlField  = 'paymentUrl'
-    } else if (payMethod.value === 'ZaloPay') {
+    if (payMethod.value === 'ZaloPay') {
       endpoint = '/thanh-toan/zalopay/create'
       urlField  = 'orderUrl'
     } else {
@@ -500,9 +506,17 @@ async function confirm() {
       urlField  = 'checkoutUrl'
     }
 
-    const payRes = await api.post(endpoint, { datVeId: bookingId })
+    const payRes = await api.post(endpoint, { datVeId: bookingId, frontendOrigin: window.location.origin })
     const url = payRes.data?.[urlField] || payRes.data?.paymentUrl || payRes.data?.orderUrl || payRes.data?.checkoutUrl
     if (url) {
+      // Remember the booking so /payment-cancel can cancel it even if PayOS's
+      // redirect wipes all query params. Only PayOS has a cancel redirect flow.
+      if (payMethod.value === 'PayOS') {
+        sessionStorage.setItem('pendingPayOSCancel', JSON.stringify({
+          maDatVe: bookingMaDatVe,
+          datVeId: bookingId
+        }))
+      }
       paymentInitiated.value = true   // do NOT release seats on unmount
       window.location.href = url
     } else {
@@ -525,8 +539,7 @@ function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN', { style:'currency', currency:'VND' }).format(Number(v))
 }
 function fmtDatetime(dt) {
-  if (!dt) return '-'
-  return new Date(dt).toLocaleString('vi-VN',{ day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+  return fmtDateTime12(dt, '-')
 }
 function typeClass(t) {
   if (!t) return ''
@@ -788,6 +801,8 @@ onUnmounted(() => {
   font-size: 14px;
 }
 .loyalty-eq-inline { font-size: 13px; color: var(--text-ghost, rgba(241,245,249,0.45)); }
+.loyalty-max { font-size: 11px; color: var(--text-ghost, rgba(241,245,249,0.45)); }
+.loyalty-hint { font-size: 12px; color: var(--text-ghost, rgba(241,245,249,0.45)); line-height: 1.5; margin: 0 0 6px; }
 
 /* ── payment methods ──────────────────────────────────────── */
 .pay-methods { display: flex; flex-direction: column; gap: 10px; }

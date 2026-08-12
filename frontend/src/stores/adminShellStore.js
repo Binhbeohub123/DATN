@@ -16,6 +16,10 @@ export const useAdminShellStore = defineStore('adminShell', () => {
   const searchTick = ref(0)
   const ticketStatusFilter = ref('')
 
+  /** Settings sub-tab to auto-select when the palette targets Settings.
+   *  One of 'banners' | 'products' | 'gioi_thieu' | null. */
+  const settingsSubTab = ref(null)
+
   const formattedFilterDate = computed(() => {
     try {
       const [y, m, d] = filterDate.value.split('-').map(Number)
@@ -98,8 +102,12 @@ export const useAdminShellStore = defineStore('adminShell', () => {
     }
   }
 
-  /** Pick admin page + bump tick so children apply search */
-  function applyGlobalSearch() {
+  /** Apply search: only navigate to a different page on strong pattern signals.
+   *  Weak/ambiguous queries stay on the CURRENT page and just bump searchTick
+   *  so the current page's own syncFromShell() re-applies the filter.
+   *  This prevents "HELLO" from force-navigating to an empty Movies page.
+   */
+  function applyGlobalSearch(currentPage) {
     const q = searchQuery.value.trim()
     if (!q) {
       searchTargetPage.value = null
@@ -107,18 +115,26 @@ export const useAdminShellStore = defineStore('adminShell', () => {
       return null
     }
 
-    let page = 'movies'
-    if (q.includes('@')) page = 'customers'
-    else if (/^dv|pc|ticket/i.test(q) || /^[A-Z0-9-]{6,}$/i.test(q)) page = 'tickets'
-    else if (/^\d{4}-\d{2}-\d{2}$/.test(q)) {
+    let page = null  // null = stay on current page
+
+    if (q.includes('@')) {
+      // Email pattern → Customers
+      page = 'customers'
+    } else if (/^(DV|PC|BK|VE)[A-Z0-9]{4,}/i.test(q) || /^[A-Z]{2}\d{6,}/i.test(q)) {
+      // Ticket/booking code pattern → Tickets
+      page = 'tickets'
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(q)) {
+      // ISO date → Schedule
       filterDate.value = q
       page = 'schedule'
     }
+    // Anything else: stay on the current page (null)
+    // currentPage is passed in from the caller (AdminDashboard knows active tab)
 
     if (page !== 'tickets') ticketStatusFilter.value = ''
-    searchTargetPage.value = page
+    searchTargetPage.value = page || currentPage || 'movies'
     searchTick.value += 1
-    return page
+    return page  // null means "stay put"
   }
 
   function applyFilterDate(dateStr) {
@@ -157,6 +173,7 @@ export const useAdminShellStore = defineStore('adminShell', () => {
     searchTargetPage,
     searchTick,
     ticketStatusFilter,
+    settingsSubTab,
     openTicketFromNotif,
     goToPendingTickets,
     closePanels,

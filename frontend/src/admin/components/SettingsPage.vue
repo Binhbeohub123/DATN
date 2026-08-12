@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="settings-page">
     <transition name="toast"><div v-if="toast.show" :class="['toast',`toast--${toast.type}`]">{{ toast.msg }}</div></transition>
 
@@ -20,7 +20,8 @@
         <div v-if="loadingB" class="state-center"><div class="spinner"></div></div>
         <div v-else-if="banners.length===0" class="state-center empty-text">Chưa có banner</div>
         <div v-else class="banner-list">
-          <div v-for="b in banners" :key="b.id" class="banner-row">
+          <div v-if="filteredBanners.length === 0" class="state-center empty-text">Không tìm thấy banner phù hợp</div>
+          <div v-for="b in filteredBanners" :key="b.id" class="banner-row" :data-row-id="b.id">
             <div class="banner-preview">
               <img v-if="b.hinhAnh" :src="b.hinhAnh" :alt="b.tieuDe" class="banner-thumb" @error="e=>e.target.style.opacity='.3'" />
               <div v-else class="banner-no-img">
@@ -30,7 +31,11 @@
             <div class="banner-info">
               <p class="banner-title">{{ b.tieuDe }}</p>
               <p class="banner-meta">Thứ tự: {{ b.thuTu }} &nbsp;|&nbsp; {{ b.ngayBatDau||'—' }} → {{ b.ngayKetThuc||'—' }}</p>
-              <p class="banner-url">{{ b.linkUrl }}</p>
+              <p class="banner-url">
+                <span v-if="b.loaiBanner === 'Phim'">🎬 Phim #{{ b.phimId }}</span>
+                <span v-else-if="b.loaiBanner === 'Khac'">🖼️ Banner đơn thuần</span>
+                <span v-else style="opacity:.5">—</span>
+              </p>
             </div>
             <div class="banner-actions">
               <button :class="['toggle-btn', b.dangHoatDong?'toggle-btn--on':'toggle-btn--off']" @click="toggleBanner(b)">
@@ -59,15 +64,30 @@
             <div class="field field-full"><label>URL hình ảnh *</label><input v-model="bForm.hinhAnh" placeholder="https://..."/>
               <img v-if="bForm.hinhAnh" :src="bForm.hinhAnh" class="preview-img" @error="e=>e.target.style.display='none'" />
             </div>
+
+            <!-- Loại banner — segmented control -->
             <div class="field field-full">
-              <label>Phim liên kết <span class="field-optional">(tuỳ chọn)</span></label>
-              <select v-model="selectedMovieId">
-                <option value="">— Không chọn phim / nhập link thủ công —</option>
-                <option v-for="m in movies" :key="m.id" :value="String(m.id)">{{ m.tenPhim }}</option>
-              </select>
-              <p class="field-hint">Chọn phim để tự điền link bên dưới. Hoặc để trống và nhập link tuỳ ý.</p>
+              <label>Loại banner *</label>
+              <div class="banner-type-row">
+                <button type="button"
+                  :class="['banner-type-btn', bForm.loaiBanner==='Phim' ? 'banner-type-btn--active' : '']"
+                  @click="setBannerType('Phim')">🎬 Phim</button>
+                <button type="button"
+                  :class="['banner-type-btn', bForm.loaiBanner==='Khac' ? 'banner-type-btn--active' : '']"
+                  @click="setBannerType('Khac')">🖼️ Khác</button>
+              </div>
             </div>
-            <div class="field field-full"><label>Link khi click</label><input v-model="bForm.linkUrl" placeholder="/phim/1"/></div>
+
+            <!-- Dependent combobox -->
+            <div class="field field-full" v-if="bForm.loaiBanner === 'Phim'">
+              <label>Chọn phim *</label>
+              <select v-model="bForm.phimId">
+                <option :value="null">— Chọn phim —</option>
+                <option v-for="m in movies" :key="m.id" :value="m.id">{{ m.tenPhim }}</option>
+              </select>
+            </div>
+            <p v-if="bForm.loaiBanner === 'Khac'" class="field-note">Banner đơn thuần — hiển thị hình ảnh quảng cáo không có nút đặt vé.</p>
+
             <div class="field"><label>Ngày bắt đầu</label><input v-model="bForm.ngayBatDau" type="date"/></div>
             <div class="field"><label>Ngày kết thúc</label><input v-model="bForm.ngayKetThuc" type="date"/></div>
             <div class="field"><label>Thứ tự hiển thị</label><input v-model.number="bForm.thuTu" type="number" min="0"/></div>
@@ -96,7 +116,8 @@
           <table class="data-table">
             <thead><tr><th>Tên</th><th>Loại</th><th>Giá</th><th>Tồn kho</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>
-              <tr v-for="p in products" :key="p.id">
+              <tr v-if="filteredProducts.length === 0"><td colspan="6" class="empty-text">Không tìm thấy sản phẩm phù hợp</td></tr>
+              <tr v-for="p in filteredProducts" :key="p.id" :data-row-id="p.id">
                 <td class="td-name">
                   <div class="prod-name-wrap">
                     <img v-if="p.anhUrl" :src="p.anhUrl" class="prod-thumb" :alt="p.tenSanPham" @error="e=>e.target.style.opacity='.2'" />
@@ -199,8 +220,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, watch } from 'vue'
+import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
 import api from '@/services/api'
+import { useAdminShellStore } from '@/stores/adminShellStore'
+import { flashRow } from '@/utils/flashRow'
+
+const shell = useAdminShellStore()
 
 const toast = reactive({ show:false, msg:'', type:'success' })
 let toastTimer = null
@@ -219,53 +244,68 @@ const editingBanner = ref(null)
 const bSaving      = ref(false)
 const bFormErr     = ref('')
 
-// Movies for the banner link picker
+// Movies for Phim-type banner picker
 const movies = ref([])
 async function loadMovies() {
-  if (movies.value.length > 0) return  // already loaded
+  if (movies.value.length > 0) return
   try {
     const r = await api.get('/admin/phim')
     movies.value = (r.data || []).filter(m => !m.isDeleted)
-  } catch { /* non-critical — picker will be empty, text input still works */ }
+  } catch {}
 }
 
-// Tracks which movie is selected in the picker (null = none / custom URL)
-const selectedMovieId = ref('')
-
-const blankBanner = () => ({ tieuDe:'', hinhAnh:'', linkUrl:'', ngayBatDau:'', ngayKetThuc:'', thuTu:0, moTa:'', dangHoatDong:true })
+const blankBanner = () => ({
+  tieuDe: '', hinhAnh: '', moTa: '', thuTu: 0,
+  ngayBatDau: '', ngayKetThuc: '', dangHoatDong: true,
+  loaiBanner: null, phimId: null,
+})
 const bForm = ref(blankBanner())
+
+function setBannerType(type) {
+  bForm.value.loaiBanner = type
+  bForm.value.phimId = null
+  if (type === 'Phim') loadMovies()
+}
 
 function openBannerAdd() {
   editingBanner.value = null
   bForm.value = blankBanner()
-  selectedMovieId.value = ''
   bFormErr.value = ''
-  loadMovies()
   bannerModal.value = true
 }
 
 function openBannerEdit(b) {
   editingBanner.value = b
-  bForm.value = { ...b }
+  bForm.value = {
+    tieuDe: b.tieuDe || '', hinhAnh: b.hinhAnh || '', moTa: b.moTa || '',
+    thuTu: b.thuTu ?? 0, ngayBatDau: b.ngayBatDau || '', ngayKetThuc: b.ngayKetThuc || '',
+    dangHoatDong: b.dangHoatDong ?? true,
+    loaiBanner: b.loaiBanner || null,
+    phimId: b.phimId ?? null,
+  }
   bFormErr.value = ''
-  // Pre-select movie dropdown if linkUrl matches /phim/<id>
-  const match = /^\/phim\/(\d+)$/.exec(b.linkUrl || '')
-  selectedMovieId.value = match ? match[1] : ''
-  loadMovies()
+  // Pre-load the relevant picker list
+  if (b.loaiBanner === 'Phim') loadMovies()
   bannerModal.value = true
 }
 
 async function saveBanner() {
-  if (!bForm.value.tieuDe.trim() || !bForm.value.hinhAnh.trim()) { bFormErr.value='Tiêu đề và URL hình ảnh là bắt buộc'; return }
-  bSaving.value=true; bFormErr.value=''
+  if (!bForm.value.tieuDe.trim() || !bForm.value.hinhAnh.trim()) {
+    bFormErr.value = 'Tiêu đề và URL hình ảnh là bắt buộc'; return
+  }
+  if (!bForm.value.loaiBanner) {
+    bFormErr.value = 'Vui lòng chọn loại banner'; return
+  }
+  bSaving.value = true; bFormErr.value = ''
   try {
-    if (editingBanner.value) { await api.put(`/admin/banner/${editingBanner.value.id}`, bForm.value) }
-    else                     { await api.post('/admin/banner', bForm.value) }
+    const payload = { ...bForm.value }
+    if (editingBanner.value) { await api.put(`/admin/banner/${editingBanner.value.id}`, payload) }
+    else                     { await api.post('/admin/banner', payload) }
     showToast('Đã lưu banner', 'success')
-    bannerModal.value=false
+    bannerModal.value = false
     await loadBanners()
   } catch(e) { bFormErr.value = e.response?.data?.message || 'Lỗi lưu banner' }
-  finally { bSaving.value=false }
+  finally { bSaving.value = false }
 }
 
 async function toggleBanner(b) {
@@ -344,15 +384,64 @@ async function loadProducts() {
   finally { loadingP.value=false }
 }
 
-// load data when switching tabs
-watch(tab, t => { if (t==='banners') loadBanners(); else if (t==='products') loadProducts() })
+// ── Command-palette targeting ─────────────────────────────────
+// Declared AFTER banners/products refs to avoid TDZ (computed reads .value at registration)
+const bannerSearch  = ref('')
+const productSearch = ref('')
+const flashQueued   = ref(false)
 
-// When movie picker selection changes → push linkUrl into bForm
-watch(selectedMovieId, id => {
-  if (id) bForm.value.linkUrl = '/phim/' + id
+const filteredBanners = computed(() => {
+  const q = bannerSearch.value.toLowerCase()
+  if (!q) return banners.value
+  return banners.value.filter(b =>
+    b.tieuDe?.toLowerCase().includes(q) || b.moTa?.toLowerCase().includes(q)
+  )
 })
 
-onMounted(() => { loadBanners() })
+const filteredProducts = computed(() => {
+  const q = productSearch.value.toLowerCase()
+  if (!q) return products.value
+  return products.value.filter(p =>
+    p.tenSanPham?.toLowerCase().includes(q) || p.moTa?.toLowerCase().includes(q)
+  )
+})
+
+function syncFromShell() {
+  if (shell.searchTargetPage !== 'settings') return
+  if (shell.settingsSubTab) tab.value = shell.settingsSubTab
+  const q = shell.searchQuery
+  if (q && tab.value === 'banners')  { bannerSearch.value = q; flashQueued.value = true }
+  if (q && tab.value === 'products') { productSearch.value = q; flashQueued.value = true }
+}
+
+watch(() => shell.searchTick, syncFromShell)
+
+watch(filteredBanners, (list) => {
+  if (flashQueued.value && tab.value === 'banners' && list.length > 0) {
+    flashQueued.value = false
+    nextTick(() => flashRow(document.querySelector(`[data-row-id="${list[0].id}"]`)))
+  }
+})
+watch(filteredProducts, (list) => {
+  if (flashQueued.value && tab.value === 'products' && list.length > 0) {
+    flashQueued.value = false
+    nextTick(() => flashRow(document.querySelector(`[data-row-id="${list[0].id}"]`)))
+  }
+})
+
+// load data when switching tabs
+watch(tab, t => {
+  if (t==='banners') loadBanners()
+  else if (t==='products') loadProducts()
+  else if (t==='gioi_thieu') loadGioiThieu()
+})
+
+
+
+onMounted(() => {
+  syncFromShell()
+  if (tab.value === 'banners') loadBanners()
+})
 
 // ── GIỚI THIỆU ──────────────────────────────────────────────────
 const gtForm    = ref({ tieuDe: '', noiDung: '', hinhAnhUrl: '' })
@@ -392,15 +481,15 @@ async function saveGioiThieu() {
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: #0D0D0D;
-  color: #E5E5E5;
+  background: var(--admin-bg);
+  color: var(--admin-text);
 }
 
 /* ── Tab bar ── */
 .tab-bar {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid #374151;
+  border-bottom: 1px solid var(--admin-border);
   margin-bottom: 20px;
 }
 .tab {
@@ -412,12 +501,12 @@ async function saveGioiThieu() {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   font-weight: 600;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
   cursor: pointer;
   transition: color 150ms ease, border-color 150ms ease;
 }
-.tab:hover { color: #E5E5E5; }
-.tab--active { color: #FFFFFF; border-bottom-color: #FFFFFF; }
+.tab:hover { color: var(--admin-text); }
+.tab--active { color: var(--admin-accent); border-bottom-color: var(--admin-accent); }
 
 /* ── Toolbar ── */
 .toolbar {
@@ -434,10 +523,10 @@ async function saveGioiThieu() {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--admin-accent);
   margin: 0;
   padding-left: 12px;
-  border-left: 3px solid #FFFFFF;
+  border-left: 3px solid var(--admin-accent);
 }
 
 /* ── Buttons ── */
@@ -449,8 +538,8 @@ async function saveGioiThieu() {
   padding: 9px 18px;
   border-radius: 8px;
   border: none;
-  background: #FFFFFF;
-  color: #0D0D0D;
+  background: var(--admin-accent);
+  color: var(--admin-bg);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 600;
   font-size: 13px;
@@ -468,21 +557,21 @@ async function saveGioiThieu() {
   min-height: 40px;
   padding: 9px 18px;
   border-radius: 8px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   background: transparent;
-  color: #E5E5E5;
+  color: var(--admin-text);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
   transition: border-color 150ms ease, color 150ms ease;
 }
-.btn-ghost:hover { border-color: #FFFFFF; color: #FFFFFF; }
+.btn-ghost:hover { border-color: var(--admin-accent); color: var(--admin-accent); }
 
 /* ── Card / table card ── */
 .card, .table-card {
-  background: #111827;
-  border: 1px solid #374151;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -490,7 +579,7 @@ async function saveGioiThieu() {
 /* ── Table ── */
 .data-table { width: 100%; border-collapse: collapse; }
 .table-scroll { overflow-x: auto; }
-.data-table thead tr { background: #0D0D0D; }
+.data-table thead tr { background: var(--admin-bg); }
 .data-table th {
   padding: 12px 16px;
   text-align: left;
@@ -499,22 +588,22 @@ async function saveGioiThieu() {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9CA3AF;
-  border-bottom: 2px solid #374151;
+  color: var(--admin-text-muted);
+  border-bottom: 2px solid var(--admin-border);
   white-space: nowrap;
 }
-.data-table tbody tr { border-bottom: 1px solid #1F2937; transition: background 150ms ease; }
+.data-table tbody tr { border-bottom: 1px solid var(--admin-divider); transition: background 150ms ease; }
 .data-table tbody tr:last-child { border-bottom: none; }
-.data-table tbody tr:hover { background: #1F2937; }
+.data-table tbody tr:hover { background: var(--admin-surface-hover); }
 .data-table td {
   padding: 14px 16px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
-  color: #E5E5E5;
+  color: var(--admin-text);
   vertical-align: middle;
 }
 .td-name { font-weight: 600; }
-.td-price { font-weight: 700; color: #FFFFFF; }
+.td-price { font-weight: 700; color: var(--admin-accent); }
 
 /* ── Action buttons ── */
 .act-btns { display: flex; gap: 4px; align-items: center; }
@@ -530,7 +619,7 @@ async function saveGioiThieu() {
   justify-content: center;
   transition: color 150ms ease, background 150ms ease;
 }
-.btn-edit:hover  { color: #FFFFFF; background: rgba(255,255,255,0.10); }
+.btn-edit:hover  { color: var(--admin-accent); background: rgba(255,255,255,0.10); }
 .btn-del:hover   { color: #EF4444; background: rgba(239,68,68,0.1); }
 
 /* ── Badges ── */
@@ -546,10 +635,10 @@ async function saveGioiThieu() {
   min-width: fit-content;
 }
 .sbadge--green { background: rgba(16,185,129,0.15); color: #10B981; }
-.sbadge--gray  { background: rgba(156,163,175,0.15); color: #9CA3AF; }
-.tbadge--orange { background: rgba(255,255,255,0.10); color: #FFFFFF; }
+.sbadge--gray  { background: rgba(156,163,175,0.15); color: var(--admin-text-muted); }
+.tbadge--orange { background: rgba(255,255,255,0.10); color: var(--admin-accent); }
 .tbadge--green  { background: rgba(16,185,129,0.15); color: #10B981; }
-.tbadge--blue   { background: rgba(255,255,255,0.10); color: #FFFFFF; }
+.tbadge--blue   { background: rgba(255,255,255,0.10); color: var(--admin-accent); }
 
 /* ── Toggle button ── */
 .toggle-btn {
@@ -575,30 +664,30 @@ async function saveGioiThieu() {
   align-items: center;
   gap: 14px;
   padding: 14px 20px;
-  border-bottom: 1px solid #1F2937;
+  border-bottom: 1px solid var(--admin-divider);
   transition: background 150ms ease;
 }
 .banner-row:last-child { border-bottom: none; }
-.banner-row:hover { background: #1F2937; }
+.banner-row:hover { background: var(--admin-surface-hover); }
 .banner-preview {
   width: 80px; height: 50px;
   flex-shrink: 0;
   border-radius: 6px;
   overflow: hidden;
-  background: #1F2937;
-  border: 1px solid #374151;
+  background: var(--admin-surface-hover);
+  border: 1px solid var(--admin-border);
 }
 .banner-thumb { width: 100%; height: 100%; object-fit: cover; }
 .banner-no-img {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px; color: #9CA3AF;
+  font-size: 20px; color: var(--admin-text-muted);
 }
 .banner-info { flex: 1; min-width: 0; }
-.banner-title { font-family: var(--font-ui, 'Inter', sans-serif); font-weight: 600; color: #E5E5E5; margin: 0 0 3px; font-size: 14px; }
+.banner-title { font-family: var(--font-ui, 'Inter', sans-serif); font-weight: 600; color: var(--admin-text); margin: 0 0 3px; font-size: 14px; }
 .banner-meta, .banner-url {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12px; color: #9CA3AF; margin: 0;
+  font-size: 12px; color: var(--admin-text-muted); margin: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .banner-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -609,11 +698,11 @@ async function saveGioiThieu() {
   font-family: var(--font-ui, 'Inter', sans-serif);
 }
 .field-hint {
-  font-size: 11px; color: #6B7280; margin: 4px 0 0;
+  font-size: 11px; color: var(--admin-text-muted); margin: 4px 0 0;
   font-family: var(--font-ui, 'Inter', sans-serif);
 }
 .field-optional {
-  font-size: 10px; color: #6B7280; font-weight: 400;
+  font-size: 10px; color: var(--admin-text-muted); font-weight: 400;
   text-transform: none; letter-spacing: 0; margin-left: 4px;
 }
 
@@ -623,12 +712,12 @@ async function saveGioiThieu() {
   width: 36px; height: 36px;
   object-fit: cover;
   border-radius: 6px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   flex-shrink: 0;
 }
 .prod-no-img {
   width: 36px; height: 36px;
-  background: #1F2937; border-radius: 6px;
+  background: var(--admin-surface-hover); border-radius: 6px;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 16px; flex-shrink: 0;
 }
@@ -646,12 +735,12 @@ async function saveGioiThieu() {
   width: min(560px, 100%);
   max-height: 90vh;
   overflow-y: auto;
-  background: #1F2937;
-  border: 1px solid #374151;
+  background: var(--admin-surface-hover);
+  border: 1px solid var(--admin-border);
   border-radius: 16px;
   padding: 28px;
   box-shadow: 0 24px 48px rgba(0,0,0,0.5);
-  color: #E5E5E5;
+  color: var(--admin-text);
 }
 .modal-head {
   display: flex;
@@ -663,19 +752,19 @@ async function saveGioiThieu() {
   font-family: var(--font-display, 'Playfair Display', serif);
   font-size: 18px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--admin-accent);
   margin: 0;
   padding-left: 12px;
-  border-left: 3px solid #FFFFFF;
+  border-left: 3px solid var(--admin-accent);
 }
 .modal-close {
   width: 32px; height: 32px;
-  background: #374151; border: none; border-radius: 50%;
-  color: #9CA3AF; cursor: pointer; font-size: 14px;
+  background: var(--admin-surface-hover); border: none; border-radius: 50%;
+  color: var(--admin-text-muted); cursor: pointer; font-size: 14px;
   display: grid; place-items: center;
   transition: color 150ms ease;
 }
-.modal-close:hover { color: #E5E5E5; }
+.modal-close:hover { color: var(--admin-text); }
 .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
 /* ── Form grid ── */
@@ -684,16 +773,17 @@ async function saveGioiThieu() {
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px; font-weight: 600; color: #9CA3AF;
+  font-size: 11px; font-weight: 600; color: var(--admin-text-muted);
   text-transform: uppercase; letter-spacing: 0.06em;
 }
+.field-note { font-size: 12px; color: var(--admin-text-muted); margin: 0; line-height: 1.5; }
 .field input, .field select, .field textarea {
   min-height: 40px;
   padding: 9px 14px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #111827;
-  color: #E5E5E5;
+  background: var(--admin-surface);
+  color: var(--admin-text);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   -webkit-appearance: none;
@@ -701,10 +791,10 @@ async function saveGioiThieu() {
   transition: border-color 150ms ease;
 }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: none; border-color: #FFFFFF;
+  outline: none; border-color: var(--admin-accent);
   box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
 }
-.field input::placeholder, .field textarea::placeholder { color: #9CA3AF; }
+.field input::placeholder, .field textarea::placeholder { color: var(--admin-text-muted); }
 
 /* Preview image in modal ── */
 .preview-img {
@@ -712,34 +802,61 @@ async function saveGioiThieu() {
   object-fit: cover;
   border-radius: 6px;
   margin-top: 6px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
 }
 .form-err { color: #EF4444; font-size: 13px; margin-top: 4px; }
 
 /* ── Switch toggle ── */
-.switch-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: #E5E5E5; }
+.switch-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--admin-text); }
 .switch-cb { display: none; }
 .switch-slider {
   position: relative; width: 40px; height: 22px;
-  background: #374151; border-radius: 11px;
+  background: var(--admin-border); border-radius: 11px;
   flex-shrink: 0; transition: background 200ms ease;
 }
 .switch-slider::after {
   content: ''; position: absolute;
   width: 16px; height: 16px; border-radius: 50%;
-  background: #E5E5E5; top: 3px; left: 3px;
+  background: var(--admin-bg); top: 3px; left: 3px;
   transition: transform 200ms ease;
 }
-.switch-cb:checked ~ .switch-slider { background: #FFFFFF; }
-.switch-cb:checked ~ .switch-slider::after { transform: translateX(18px); background: #0D0D0D; }
+.switch-cb:checked ~ .switch-slider { background: var(--admin-accent); }
+.switch-cb:checked ~ .switch-slider::after { transform: translateX(18px); background: var(--admin-bg); }
 
 /* ── Loading / empty ── */
 .state-center { display: flex; justify-content: center; align-items: center; padding: 40px; }
-.empty-text, .loading-text { text-align: center; padding: 24px; color: #9CA3AF; font-size: 14px; }
+.empty-text, .loading-text { text-align: center; padding: 24px; color: var(--admin-text-muted); font-size: 14px; }
 .spinner {
   width: 32px; height: 32px;
-  border: 3px solid #374151; border-top-color: #FFFFFF;
+  border: 3px solid var(--admin-border); border-top-color: var(--admin-accent);
   border-radius: 50%; animation: sp-spin 0.8s linear infinite;
 }
 @keyframes sp-spin { to { transform: rotate(360deg); } }
+
+/* ── Palette target row flash ── */
+.row-flash {
+  animation: row-flash-pop 1.6s ease;
+}
+@keyframes row-flash-pop {
+  0%, 100% { background-color: transparent; }
+  20%, 60% { background-color: rgba(41, 188, 234, 0.18); }
+}
+
+/* ── Banner type segmented control ── */
+.banner-type-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.banner-type-btn {
+  flex: 1; min-width: 90px; padding: 8px 12px;
+  border: 1px solid var(--admin-border); border-radius: 8px;
+  background: transparent; color: var(--admin-text-muted);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 150ms;
+}
+.banner-type-btn:hover { border-color: var(--admin-accent); color: var(--admin-text); }
+.banner-type-btn--active {
+  border-color: var(--admin-accent);
+  background: var(--admin-accent-muted);
+  color: var(--admin-accent);
+}
 </style>

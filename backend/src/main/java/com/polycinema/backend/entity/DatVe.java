@@ -76,6 +76,23 @@ public class DatVe {
     @Column(name = "HetHanGiuGhe")
     private LocalDateTime hetHanGiuGhe;
 
+    // ── Staff / check-in fields ──────────────────────────────────
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "NhanVienId")
+    @JsonIgnoreProperties({"matKhauHash", "hibernateLazyInitializer", "handler"})
+    private NguoiDung nhanVien;
+
+    @Column(name = "TrangThaiCheckIn", length = 20)
+    private String trangThaiCheckIn;
+
+    @Column(name = "ThoiGianCheckIn")
+    private LocalDateTime thoiGianCheckIn;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "NhanVienCheckInId")
+    @JsonIgnoreProperties({"matKhauHash", "hibernateLazyInitializer", "handler"})
+    private NguoiDung nhanVienCheckIn;
+
     @PrePersist
     protected void onCreate() {
         if (tongTienGoc == null) tongTienGoc = BigDecimal.ZERO;
@@ -85,5 +102,6 @@ public class DatVe {
         if (trangThai == null) trangThai = "pending";
         if (trangThaiThanhToan == null) trangThaiThanhToan = "unpaid";
         if (ngayTao == null) ngayTao = LocalDateTime.now();
+        if (trangThaiCheckIn == null) trangThaiCheckIn = "chưa sử dụng";
     }
 }

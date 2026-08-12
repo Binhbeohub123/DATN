@@ -1,7 +1,6 @@
-<template>
+﻿<template>
   <div class="tickets-page">
     <div class="toolbar">
-      <input v-model="search" class="search-input" placeholder="Tìm theo mã vé, email..." @input="debouncedLoad" />
       <select v-model="statusFilter" class="filter-select" @change="load">
         <option value="">Tất cả trạng thái</option>
         <option value="confirmed">Đã xác nhận</option>
@@ -144,6 +143,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
+import { fmtTime12, fmtDateTime12 } from '@/utils/homeHelpers'
 
 const shell = useAdminShellStore()
 
@@ -302,7 +302,7 @@ function mapBooking(b) {
     tenPhim: b.lichChieu?.phim?.tenPhim,
     ngayChieu: start,
     gioChieu: start
-      ? new Date(start).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      ? fmtTime12(start, '')
       : '',
     tongTien: b.tongTienThanhToan,
     trangThai: b.trangThai,
@@ -401,13 +401,13 @@ async function forceRelease(lockId) {
 function fmtLichChieu(lc) {
   if (!lc) return ''
   const phim  = lc.phim?.tenPhim || ''
-  const start = lc.thoiGianBatDau ? new Date(lc.thoiGianBatDau).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''
+  const start = lc.thoiGianBatDau ? fmtDateTime12(lc.thoiGianBatDau, '') : ''
   return `${phim} — ${start}`
 }
 
 function fmtDt(dt) {
   if (!dt) return '—'
-  return new Date(dt).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+  return fmtDateTime12(dt)
 }
 
 function timeLeft(expiresAt) {
@@ -439,8 +439,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: #0D0D0D;
-  color: #E5E5E5;
+  background: var(--admin-bg);
+  color: var(--admin-text);
 }
 
 /* ── Toolbar row ── */
@@ -456,10 +456,10 @@ onUnmounted(() => {
 .search-input, .filter-select {
   min-height: 40px;
   padding: 9px 14px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #111827;
-  color: #E5E5E5;
+  background: var(--admin-surface);
+  color: var(--admin-text);
   font-size: 14px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   transition: border-color 150ms ease;
@@ -467,24 +467,24 @@ onUnmounted(() => {
   appearance: none;
 }
 .search-input { flex: 1; min-width: 200px; }
-.search-input::placeholder { color: #9CA3AF; }
+.search-input::placeholder { color: var(--admin-text-muted); }
 .search-input:focus, .filter-select:focus {
   outline: none;
-  border-color: #FFFFFF;
+  border-color: var(--admin-accent);
   box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
 }
 
 /* ── Table wrapper ── */
 .card {
-  background: #111827;
-  border: 1px solid #374151;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   overflow: hidden;
 }
 
 /* ── Table ── */
 table { width: 100%; border-collapse: collapse; }
-thead tr { background: #0D0D0D; }
+thead tr { background: var(--admin-bg); }
 th {
   padding: 12px 16px;
   text-align: left;
@@ -493,24 +493,24 @@ th {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9CA3AF;
-  border-bottom: 2px solid #374151;
+  color: var(--admin-text-muted);
+  border-bottom: 2px solid var(--admin-border);
   white-space: nowrap;
 }
-tbody tr { border-bottom: 1px solid #1F2937; transition: background 150ms ease; }
+tbody tr { border-bottom: 1px solid var(--admin-divider); transition: background 150ms ease; }
 tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #1F2937; }
+tbody tr:hover { background: var(--admin-surface-hover); }
 td {
   padding: 14px 16px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
-  color: #E5E5E5;
+  color: var(--admin-text);
   vertical-align: middle;
 }
 
 /* ── Cell helpers ── */
-.mono  { font-family: 'Courier New', monospace; font-size: 13px; color: #FFFFFF; font-weight: 600; }
-.price { font-weight: 700; color: #FFFFFF; }
+.mono  { font-family: 'Courier New', monospace; font-size: 13px; color: var(--admin-accent); font-weight: 600; }
+.price { font-weight: 700; color: var(--admin-accent); }
 
 /* ── Status badges ── */
 .badge {
@@ -526,13 +526,13 @@ td {
 .badge-green  { background: rgba(16,185,129,0.15); color: #10B981; }
 .badge-yellow { background: rgba(245,158,11,0.15);  color: #F59E0B; }
 .badge-red    { background: rgba(239,68,68,0.15);   color: #EF4444; }
-.badge-gray   { background: rgba(156,163,175,0.15); color: #9CA3AF; }
+.badge-gray   { background: rgba(156,163,175,0.15); color: var(--admin-text-muted); }
 
 /* ── Loading / empty ── */
 .loading-text, .empty-text {
   text-align: center;
   padding: 32px;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
 }
@@ -544,31 +544,31 @@ td {
   justify-content: center;
   gap: 14px;
   padding: 14px 20px;
-  border-top: 1px solid #1F2937;
+  border-top: 1px solid var(--admin-divider);
 }
 .pagination button {
   min-height: 36px;
   padding: 7px 16px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   border-radius: 9999px;
   background: transparent;
-  color: #E5E5E5;
+  color: var(--admin-text);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 150ms ease, color 150ms ease;
 }
-.pagination button:hover:not(:disabled) { border-color: #FFFFFF; color: #FFFFFF; }
+.pagination button:hover:not(:disabled) { border-color: var(--admin-accent); color: var(--admin-accent); }
 .pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
-.pagination span { font-size: 13px; color: #9CA3AF; font-weight: 600; }
+.pagination span { font-size: 13px; color: var(--admin-text-muted); font-weight: 600; }
 
 /* ── Seat lock section ── */
 .lock-section { margin-top: 20px; }
-.lock-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid #1F2937; }
-.lock-title { font-size: 14px; font-weight: 700; color: #E5E5E5; margin: 0; }
+.lock-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid var(--admin-divider); }
+.lock-title { font-size: 14px; font-weight: 700; color: var(--admin-text); margin: 0; }
 .lock-config-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.lock-config-label { font-size: 13px; color: #9CA3AF; }
-.lock-min-input { width: 72px; min-height: 36px; padding: 6px 10px; border: 1px solid #374151; border-radius: 6px; background: #0D0D0D; color: #E5E5E5; font-size: 14px; text-align: center; }
+.lock-config-label { font-size: 13px; color: var(--admin-text-muted); }
+.lock-min-input { width: 72px; min-height: 36px; padding: 6px 10px; border: 1px solid var(--admin-border); border-radius: 6px; background: var(--admin-bg); color: var(--admin-text); font-size: 14px; text-align: center; }
 .btn-save-lock { padding: 7px 14px; background: #C9A84C; color: #0D0D0D; border: none; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; }
 .btn-save-lock:hover { background: #F5D17E; }
 .lock-save-msg { font-size: 12px; color: #34d399; }
@@ -590,7 +590,7 @@ td {
 
 /* ── Seat chips in booking rows ── */
 .seat-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.no-seats { font-size: 12px; color: #6B7280; }
+.no-seats { font-size: 12px; color: var(--admin-text-muted); }
 
 .seat-chip {
   display: inline-flex;
@@ -607,9 +607,9 @@ td {
 }
 /* Matches SeatSelectionPage seat colors */
 .chip-thuong {
-  background: #1F2937;
-  border-color: #374151;
-  color: #E5E5E5;
+  background: var(--admin-surface-hover);
+  border-color: var(--admin-border);
+  color: var(--admin-text);
 }
 .chip-vip {
   background: rgba(201,168,76,0.18);
@@ -629,11 +629,11 @@ td {
   flex-wrap: wrap;
   padding: 12px 20px;
   font-size: 13px;
-  color: #9CA3AF;
-  border-bottom: 1px solid #1F2937;
+  color: var(--admin-text-muted);
+  border-bottom: 1px solid var(--admin-divider);
 }
-.seat-stats strong { color: #E5E5E5; }
-.stat-avail  strong { color: #9CA3AF; }
+.seat-stats strong { color: var(--admin-text); }
+.stat-avail  strong { color: var(--admin-text-muted); }
 .stat-booked strong { color: #EF4444; }
 .stat-locked strong { color: #F59E0B; }
 
@@ -643,9 +643,9 @@ td {
   flex-wrap: wrap;
   align-items: center;
   padding: 10px 20px;
-  border-bottom: 1px solid #1F2937;
+  border-bottom: 1px solid var(--admin-divider);
   font-size: 12px;
-  color: #9CA3AF;
+  color: var(--admin-text-muted);
 }
 .legend-item {
   display: flex;
@@ -668,14 +668,14 @@ td {
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 3px;
-  color: #6B7280;
+  color: var(--admin-text-muted);
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 .sm-screen-bar {
   height: 5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent 0%, #374151 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--admin-border) 50%, transparent 100%);
   margin-bottom: 24px;
 }
 .sm-grid-scroll { overflow-x: auto; padding-bottom: 12px; }
@@ -686,7 +686,7 @@ td {
   text-align: center;
   font-size: 11px;
   font-weight: 800;
-  color: #6B7280;
+  color: var(--admin-text-muted);
   flex-shrink: 0;
 }
 .sm-row-seats { display: flex; gap: 5px; }
@@ -697,7 +697,7 @@ td {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  border: 1px solid #374151;
+  border: 1px solid var(--admin-border);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -705,13 +705,13 @@ td {
   justify-content: center;
   flex-shrink: 0;
   cursor: default;
-  background: #1F2937;
-  color: #9CA3AF;
+  background: var(--admin-surface-hover);
+  color: var(--admin-text-muted);
 }
 .sm-seat-label { line-height: 1; }
 
 /* Status colors matching SeatSelectionPage exactly */
-.sm-seat--avail   { background: #1F2937; border-color: #374151; color: #9CA3AF; }
+.sm-seat--avail   { background: var(--admin-surface-hover); border-color: var(--admin-border); color: var(--admin-text-muted); }
 .sm-seat--booked  { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.5); color: #EF4444; }
 .sm-seat--locked  { background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.5); color: #F59E0B; cursor: pointer; }
 .sm-seat--locked:hover { background: rgba(245,158,11,0.4); }
@@ -727,7 +727,7 @@ td {
   height: 14px;
   border-radius: 50%;
   background: #EF4444;
-  color: #ffffff;
+  color: var(--admin-accent);
   border: none;
   font-size: 8px;
   font-weight: 900;

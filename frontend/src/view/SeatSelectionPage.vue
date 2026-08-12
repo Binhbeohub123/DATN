@@ -127,6 +127,7 @@ import { useBookingStore } from '@/stores/bookingStore'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { fmtDateTime12 } from '@/utils/homeHelpers'
 
 const router       = useRouter()
 const route        = useRoute()
@@ -292,8 +293,7 @@ function goCombo() {
 }
 
 function fmtTime(dt) {
-  if (!dt) return '—'
-  return new Date(dt).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+  return fmtDateTime12(dt)
 }
 function fmtPrice(v) {
   if (v == null) return '—'

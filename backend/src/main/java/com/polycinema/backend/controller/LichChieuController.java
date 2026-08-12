@@ -2,11 +2,14 @@ package com.polycinema.backend.controller;
 
 import com.polycinema.backend.entity.GheNgoi;
 import com.polycinema.backend.entity.LichChieu;
+import com.polycinema.backend.entity.Phim;
 import com.polycinema.backend.dto.LichChieuResponse;
+import com.polycinema.backend.dto.ShowtimeMovieResponse;
 import com.polycinema.backend.repository.ChiTietDatGheRepository;
 import com.polycinema.backend.repository.GheNgoiRepository;
 import com.polycinema.backend.repository.LichChieuRepository;
 import com.polycinema.backend.repository.NguoiDungRepository;
+import com.polycinema.backend.service.PhimService;
 import com.polycinema.backend.service.SeatLockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -32,6 +35,7 @@ public class LichChieuController {
     private final ChiTietDatGheRepository chiTietDatGheRepository;
     private final SeatLockService seatLockService;
     private final NguoiDungRepository nguoiDungRepository;
+    private final PhimService phimService;
 
     /**
      * GET /api/lich-chieu?phimId=&ngay= — public
@@ -178,6 +182,43 @@ public class LichChieuController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * GET /api/lich-chieu/rap/{rapChieuId}?tu=&den= — public
+     * Trả về toàn bộ suất chiếu của một rạp trong khoảng [tu, den) (mặc định:
+     * hôm nay → +30 ngày), kèm thông tin phim để hiển thị "Lịch chiếu theo rạp".
+     * Trạng thái phim (đang_chiếu / sắp_chiếu / ...) được tính tự động từ suất chiếu.
+     */
+    @GetMapping("/rap/{rapChieuId}")
+    public ResponseEntity<List<ShowtimeMovieResponse>> getLichChieuByRap(
+            @PathVariable Long rapChieuId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate tu,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate den) {
+
+        LocalDate from = tu  != null ? tu  : LocalDate.now();
+        LocalDate to   = den != null ? den : from.plusDays(30);
+
+        List<LichChieu> list = lichChieuRepository.findByRapChieuIdAndRange(
+                rapChieuId,
+                from.atStartOfDay(),
+                to.plusDays(1).atStartOfDay());
+
+        // Tính trạng thái tự động cho các phim có suất trong danh sách
+        List<Phim> phims = list.stream()
+                .map(LichChieu::getPhim)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        phimService.applyComputedStatus(phims);
+
+        List<ShowtimeMovieResponse> response = list.stream()
+                .map(ShowtimeMovieResponse::from)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
     }
 
     // ── Inner DTO ──────────────────────────────────────────────

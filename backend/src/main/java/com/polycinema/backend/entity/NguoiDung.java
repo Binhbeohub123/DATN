@@ -68,6 +68,19 @@ public class NguoiDung {
     @Column(name = "NgayCapNhat")
     private LocalDateTime ngayCapNhat;
 
+    /** ID of the admin who created this account (null = self-registered or seed admin). */
+    @Column(name = "CreatedBy")
+    private Long createdBy;
+
+    /**
+     * Stamped whenever an admin changes this user's email address.
+     * JwtAuthenticationFilter checks JWT iat against this value — any token
+     * issued BEFORE this timestamp is rejected, effectively invalidating
+     * sessions that were active at the time of the email change.
+     */
+    @Column(name = "EmailChangedAt")
+    private LocalDateTime emailChangedAt;
+
     @PrePersist
     protected void onCreate() {
         if (trangThai == null) trangThai = true;

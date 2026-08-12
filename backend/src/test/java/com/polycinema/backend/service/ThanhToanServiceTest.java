@@ -32,6 +32,7 @@ class ThanhToanServiceTest {
     @Mock ThanhToanRepository   thanhToanRepository;
     @Mock NguoiDungRepository   nguoiDungRepository;
     @Mock EmailService          emailService;
+    @Mock DatVeService          datVeService;
 
     @InjectMocks ThanhToanService thanhToanService;
 
@@ -158,10 +159,38 @@ class ThanhToanServiceTest {
 
     // ── TC-RQ29-05: loyalty points awarded correctly ─────────────────────────
     @Test
-    @DisplayName("RQ29-05: markPaid() awards correct loyalty points (1 per 1000 VND)")
+    @DisplayName("RQ29-05: markPaid() awards correct loyalty points (1 per 1000 VND, order >= 100k)")
     void markPaid_awardsLoyaltyPoints() {
-        // 80 000 VND → 80 points
+        // 120 000 VND → 120 points (order >= 100k threshold)
+        testDatVe.setTongTienThanhToan(new BigDecimal("120000"));
+        testDatVe.setTongTienGoc(new BigDecimal("120000"));
         thanhToanService.markPaid(testDatVe, "VNPay", "TXN_PTS");
-        assertThat(testUser.getDiemTichLuy()).isEqualTo(80);
+        assertThat(testUser.getDiemTichLuy()).isEqualTo(120);
+    }
+
+    // ── TC-RQ29-06: no points for orders under 100k ──────────────────────────
+    @Test
+    @DisplayName("RQ29-06: markPaid() awards 0 points when paid total < 100k")
+    void markPaid_noPointsBelowThreshold() {
+        // 80 000 VND < 100k → 0 points
+        testDatVe.setTongTienThanhToan(new BigDecimal("80000"));
+        testDatVe.setTongTienGoc(new BigDecimal("80000"));
+        thanhToanService.markPaid(testDatVe, "VNPay", "TXN_SMALL");
+        assertThat(testUser.getDiemTichLuy()).isEqualTo(0);
+    }
+
+    // ── TC-RQ29-07: only the actually-redeemed points are deducted ───────────
+    @Test
+    @DisplayName("RQ29-07: markPaid() deducts only the redeemed points, then awards earned")
+    void markPaid_deductsOnlyActualPoints() {
+        testUser.setDiemTichLuy(600);
+        // Order 200k, used 600 pts (=60k discount, exactly 30% cap) → paid 140k
+        testDatVe.setTongTienThanhToan(new BigDecimal("140000"));
+        testDatVe.setTongTienGoc(new BigDecimal("200000"));
+        testDatVe.setDiemSuDung(600);   // actual points stored on the booking
+        testDatVe.setTienGiamTuDiem(new BigDecimal("60000"));
+        thanhToanService.markPaid(testDatVe, "VNPay", "TXN_REDEEM");
+        // +140 earned (140k paid), −600 redeemed → 600 + 140 − 600 = 140
+        assertThat(testUser.getDiemTichLuy()).isEqualTo(140);
     }
 }

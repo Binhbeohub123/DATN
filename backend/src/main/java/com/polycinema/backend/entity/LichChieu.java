@@ -40,6 +40,10 @@ public class LichChieu {
     @Column(name = "GiaCoBan", nullable = false, precision = 12, scale = 2)
     private BigDecimal giaCoBan;
 
+    /** Break time between showtimes (minutes). Default: 15. Included in thoiGianKetThuc calculation. */
+    @Column(name = "ThoiGianNghi")
+    private Integer thoiGianNghi;
+
     @Column(name = "TrangThai", length = 20)
     private String trangThai;
 
@@ -51,8 +55,9 @@ public class LichChieu {
 
     @PrePersist
     protected void onCreate() {
-        if (trangThai == null) trangThai = "active";
-        if (isDeleted == null) isDeleted = false;
-        if (ngayTao == null) ngayTao = LocalDateTime.now();
+        if (trangThai == null)  trangThai = "active";
+        if (isDeleted == null)  isDeleted = false;
+        if (ngayTao == null)    ngayTao = LocalDateTime.now();
+        if (thoiGianNghi == null) thoiGianNghi = 15;
     }
 }

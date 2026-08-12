@@ -35,6 +35,19 @@ public interface DatVeRepository
 
     List<DatVe> findByLichChieuId(Long lichChieuId);
 
+    // ── Promo usage counting ──────────────────────────────────────
+    /**
+     * Số lượt đang dùng một mã khuyến mãi trên toàn hệ thống
+     * (đơn còn hiệu lực — chưa hủy).
+     */
+    long countByKhuyenMaiIdAndTrangThaiNot(Long khuyenMaiId, String trangThai);
+
+    /**
+     * Số lượt một người dùng đã dùng một mã khuyến mãi
+     * (đơn còn hiệu lực — chưa hủy). Dùng để giới hạn mỗi người 1 lần/mã.
+     */
+    long countByKhuyenMaiIdAndNguoiDungIdAndTrangThaiNot(Long khuyenMaiId, Long nguoiDungId, String trangThai);
+
     // ── Admin paginated search ────────────────────────────────────
     /**
      * Search across maDatVe, user email/name, and movie title.

@@ -101,18 +101,54 @@
               <span class="home-btn__label">Trang chủ</span>
             </button>
             <ThemeToggle />
-            <div class="topbar-search-wrap">
-              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div class="topbar-search-wrap" @click="openPalette">
+              <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input
+                ref="paletteInputRef"
                 v-model="shell.searchQuery"
                 type="search"
-                class="search-input"
-                placeholder="Tìm phim, vé, khách..."
-                aria-label="Tìm kiếm"
-                @input="runSearch"
+                class="admin-search-input"
+                placeholder="Tìm phim, vé, khách... (Enter)"
+                aria-label="Tìm kiếm toàn cục"
+                autocomplete="off"
+                @input="debouncedPalette"
                 @keydown.enter.prevent="runSearch"
+                @keydown.escape="closePalette"
+                @keydown.down.prevent="paletteMoveDown"
+                @keydown.up.prevent="paletteMoveUp"
+                @focus="onSearchFocus"
               />
+              <button v-if="shell.searchQuery" class="admin-search-clear" @click.stop="clearSearch" aria-label="Xóa tìm kiếm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
+
+            <!-- Command Palette dropdown -->
+            <transition name="palette-drop">
+              <div v-if="paletteOpen && shell.searchQuery.trim()" class="admin-palette" role="listbox" @mousedown.prevent>
+                <div v-if="paletteLoading" class="palette-state">
+                  <div class="palette-spinner"></div><span>Đang tìm...</span>
+                </div>
+                <template v-else-if="paletteResults.length > 0">
+                  <div
+                    v-for="(item, idx) in paletteResults"
+                    :key="item._key"
+                    :class="['palette-item', { 'palette-item--active': idx === paletteActiveIdx }]"
+                    role="option"
+                    :aria-selected="idx === paletteActiveIdx"
+                    @click="paletteSelect(item)"
+                    @mouseenter="paletteActiveIdx = idx"
+                  >
+                    <span :class="['palette-badge', `palette-badge--${item._section}`]">{{ item._label }}</span>
+                    <span class="palette-title">{{ item._title }}</span>
+                    <span v-if="item._sub" class="palette-sub">{{ item._sub }}</span>
+                  </div>
+                </template>
+                <div v-else class="palette-state palette-empty">
+                  Không tìm thấy kết quả cho "<strong>{{ shell.searchQuery }}</strong>"
+                </div>
+              </div>
+            </transition>
           </div>
 
           <div class="topbar-toolbar-end">
@@ -185,6 +221,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useToast } from '@/composables/useToast'
+import api from '@/services/api'
 import DashboardPage  from './components/DashboardPage.vue'
 import MoviesPage     from './components/MoviesPage.vue'
 import SchedulePage   from './components/SchedulePage.vue'
@@ -243,18 +280,190 @@ const pageLabels = {
   customers: 'Khách hàng',
 }
 
-function runSearch() {
+// ── Admin Command Palette ─────────────────────────────────────
+const paletteInputRef = ref(null)
+const paletteOpen     = ref(false)
+const paletteLoading  = ref(false)
+const paletteResults  = ref([])
+const paletteActiveIdx = ref(0)
+let _paletteTimer = null
+
+// Static settings items for client-side matching
+// subTab maps to SettingsPage's internal tabs: banners | products | gioi_thieu | null
+const SETTINGS_ITEMS = [
+  { key: 'settings-info',    label: 'Cài Đặt', title: 'Thông tin rạp',       sub: 'Settings → Thông tin',    tab: 'settings', subTab: null },
+  { key: 'settings-about',   label: 'Cài Đặt', title: 'Giới thiệu',          sub: 'Settings → Giới thiệu',  tab: 'settings', subTab: 'gioi_thieu' },
+  { key: 'settings-banner',  label: 'Cài Đặt', title: 'Banner quảng cáo',    sub: 'Settings → Banner',      tab: 'settings', subTab: 'banners' },
+  { key: 'settings-product', label: 'Cài Đặt', title: 'Sản phẩm combo',      sub: 'Settings → Sản phẩm',    tab: 'settings', subTab: 'products' },
+  { key: 'settings-format',  label: 'Cài Đặt', title: 'Định dạng chiếu phim',sub: 'Settings → Định dạng',   tab: 'settings', subTab: null },
+  { key: 'settings-config',  label: 'Cài Đặt', title: 'Cấu hình hệ thống',  sub: 'Settings → Cấu hình',    tab: 'settings', subTab: null },
+]
+
+function openPalette() { paletteOpen.value = true }
+function onSearchFocus() { if (shell.searchQuery.trim()) debouncedPalette() }
+function closePalette() { paletteOpen.value = false; paletteActiveIdx.value = 0 }
+
+function clearSearch() {
+  shell.searchQuery = ''
+  paletteResults.value = []
+  closePalette()
+  paletteInputRef.value?.focus()
+}
+
+async function runPalette() {
   const q = shell.searchQuery.trim()
-  if (!q) {
-    toast.info('Nhập từ khóa (tên phim, email, mã vé...) rồi nhấn Enter hoặc ⌕')
-    return
-  }
-  const page = shell.applyGlobalSearch()
-  if (page) {
-    switchPage(page)
-    toast.success(`Đang tìm trên ${pageLabels[page] || page}`)
+  if (!q) { paletteResults.value = []; closePalette(); return }
+  paletteOpen.value = true
+  paletteLoading.value = true
+  paletteActiveIdx.value = 0
+  const ql = q.toLowerCase()
+
+  try {
+    // All 6 sections in parallel — server-side for users/tickets, client-side for the rest
+    const [moviesRes, usersRes, ticketsRes] = await Promise.allSettled([
+      api.get('/admin/phim'),
+      api.get('/admin/users', { params: { page: 0, size: 8, search: q } }),
+      api.get('/admin/dat-ve', { params: { page: 0, size: 8, q } }),
+    ])
+
+    const results = []
+
+    // ── Movies (client-side filter of full list) ──────────────
+    const allMovies = moviesRes.status === 'fulfilled' ? (moviesRes.value.data || []) : []
+    allMovies
+      .filter(m => !m.isDeleted && (m.tenPhim || '').toLowerCase().includes(ql))
+      .slice(0, 5)
+      .forEach(m => results.push({
+        _key: 'movie-' + m.id, _section: 'movies', _label: '🎬 Phim',
+        _title: m.tenPhim, _sub: m.trangThai === 'dang_chieu' ? 'Đang chiếu' : m.trangThai === 'sap_chieu' ? 'Sắp chiếu' : m.trangThai === 'da_ket_thuc' ? 'Đã kết thúc' : 'Chưa chiếu',
+        _action: () => { switchPage('movies'); shell.searchQuery = m.tenPhim; shell.searchTargetPage = 'movies'; shell.searchTick++ },
+      }))
+
+    // ── Customers ─────────────────────────────────────────────
+    const usersData = usersRes.status === 'fulfilled' ? (usersRes.value.data?.content || usersRes.value.data || []) : []
+    ;(Array.isArray(usersData) ? usersData : []).slice(0, 5).forEach(u => results.push({
+      _key: 'user-' + u.id, _section: 'customers', _label: '👤 Khách hàng',
+      _title: u.hoTen || u.email, _sub: u.email,
+      _action: () => { switchPage('customers'); shell.searchQuery = u.hoTen || u.email; shell.searchTargetPage = 'customers'; shell.searchTick++ },
+    }))
+
+    // ── Tickets ────────────────────────────────────────────────
+    const ticketRows = ticketsRes.status === 'fulfilled' ? (ticketsRes.value.data?.content || ticketsRes.value.data || []) : []
+    ;(Array.isArray(ticketRows) ? ticketRows : []).slice(0, 5).forEach(t => results.push({
+      _key: 'ticket-' + t.id, _section: 'tickets', _label: '🎟️ Vé',
+      _title: t.maDatVe || t.maDatVe, _sub: t.nguoiDung?.email || t.email || '',
+      _action: () => { switchPage('tickets'); shell.searchQuery = t.maDatVe; shell.searchTargetPage = 'tickets'; shell.ticketStatusFilter = ''; shell.searchTick++ },
+    }))
+
+    // ── Cinemas (client-side via /api/rap-chieu — small dataset) ─
+    try {
+      const cinemasRes = await api.get('/rap-chieu')
+      ;(cinemasRes.data || [])
+        .filter(c => (c.tenRap || '').toLowerCase().includes(ql) || (c.diaChi || '').toLowerCase().includes(ql))
+        .slice(0, 4)
+        .forEach(c => results.push({
+          _key: 'cinema-' + c.id, _section: 'cinemas', _label: '🏠 Rạp chiếu',
+          _title: c.tenRap, _sub: c.diaChi || '',
+          _action: () => { switchPage('cinemas'); shell.searchQuery = c.tenRap; shell.searchTargetPage = 'cinemas'; shell.searchTick++ },
+        }))
+    } catch {}
+
+    // ── Promos (client-side via /api/khuyen-mai/all — admin endpoint) ─
+    try {
+      const promosRes = await api.get('/khuyen-mai/all')
+      ;(promosRes.data || [])
+        .filter(p => (p.tenKhuyenMai || '').toLowerCase().includes(ql) || (p.maKhuyenMai || '').toLowerCase().includes(ql))
+        .slice(0, 4)
+        .forEach(p => results.push({
+          _key: 'promo-' + p.id, _section: 'promo', _label: '🎁 Khuyến mãi',
+          _title: p.tenKhuyenMai, _sub: p.maKhuyenMai ? `Mã: ${p.maKhuyenMai}` : '',
+          _action: () => { switchPage('promo'); shell.searchQuery = p.tenKhuyenMai; shell.searchTargetPage = 'promo'; shell.searchTick++ },
+        }))
+    } catch {}
+
+    // ── Settings (static keyword match + live banner/product data) ─────
+    // 1. Static tab-label matches (kept as fallback)
+    SETTINGS_ITEMS
+      .filter(s => s.title.toLowerCase().includes(ql) || s.sub.toLowerCase().includes(ql))
+      .forEach(s => results.push({
+        _key: s.key, _section: 'settings', _label: '⚙️ Cài đặt',
+        _title: s.title, _sub: s.sub,
+        _action: () => {
+          switchPage('settings')
+          shell.searchTargetPage = 'settings'
+          shell.settingsSubTab = s.subTab || null
+          shell.searchQuery = (s.subTab === 'banners' || s.subTab === 'products') ? q : ''
+          shell.searchTick++
+        },
+      }))
+
+    // 2. Live banner content
+    try {
+      const bannersRes = await api.get('/admin/banner')
+      ;(bannersRes.data || [])
+        .filter(b => (b.tieuDe || '').toLowerCase().includes(ql) || (b.moTa || '').toLowerCase().includes(ql))
+        .slice(0, 4)
+        .forEach(b => results.push({
+          _key: 'banner-' + b.id, _section: 'banner', _label: '🖼️ Banner',
+          _title: b.tieuDe || '(Banner)',
+          _sub: b.dangHoatDong ? 'Đang hiển thị' : 'Đã ẩn',
+          _action: () => { switchPage('settings'); shell.searchQuery = b.tieuDe || q; shell.searchTargetPage = 'settings'; shell.settingsSubTab = 'banners'; shell.searchTick++ },
+        }))
+    } catch {}
+
+    // 3. Live combo/product content
+    try {
+      const prodsRes = await api.get('/admin/san-pham')
+      ;(prodsRes.data || [])
+        .filter(p => (p.tenSanPham || '').toLowerCase().includes(ql) || (p.moTa || '').toLowerCase().includes(ql))
+        .slice(0, 4)
+        .forEach(p => results.push({
+          _key: 'product-' + p.id, _section: 'product', _label: '🍿 Combo',
+          _title: p.tenSanPham || '(Sản phẩm)',
+          _sub: p.gia ? `${Number(p.gia).toLocaleString('vi-VN')} ₫` : '',
+          _action: () => { switchPage('settings'); shell.searchQuery = p.tenSanPham || q; shell.searchTargetPage = 'settings'; shell.settingsSubTab = 'products'; shell.searchTick++ },
+        }))
+    } catch {}
+
+    paletteResults.value = results
+  } catch {}
+  paletteLoading.value = false
+}
+
+function debouncedPalette() {
+  clearTimeout(_paletteTimer)
+  _paletteTimer = setTimeout(() => runPalette(), 320)
+}
+
+// Keep legacy runSearch for Enter key — just runs palette immediately
+function runSearch() {
+  clearTimeout(_paletteTimer)
+  runPalette()
+}
+
+// Keep old debouncedSearch alias so any leftover references don't break
+const debouncedSearch = debouncedPalette
+
+function paletteMoveDown() {
+  if (!paletteResults.value.length) return
+  paletteActiveIdx.value = (paletteActiveIdx.value + 1) % paletteResults.value.length
+}
+function paletteMoveUp() {
+  if (!paletteResults.value.length) return
+  paletteActiveIdx.value = (paletteActiveIdx.value - 1 + paletteResults.value.length) % paletteResults.value.length
+}
+function paletteSelect(item) {
+  closePalette()
+  item._action?.()
+}
+
+// Close palette when clicking outside
+function onDocClick(e) {
+  if (!e.target.closest('.topbar-search-wrap') && !e.target.closest('.admin-palette')) {
+    closePalette()
   }
 }
+
 
 function applyDateFilter() {
   const page = shell.applyFilterDate(shell.filterDate)
@@ -311,12 +520,14 @@ onMounted(async () => {
     router.replace('/admin/dashboard')
   }
   document.addEventListener('keydown', onEscapeKey)
+  document.addEventListener('click', onDocClick)
   await shell.refreshPendingCount()
   pendingTickets.value = shell.pendingCount
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onEscapeKey)
+  document.removeEventListener('click', onDocClick)
 })
 </script>
 
@@ -327,16 +538,10 @@ onUnmounted(() => {
 
 /* ── Admin role badge (sidebar logo) ── */
 .admin-role-badge {
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background: rgba(255,255,255,0.10);
-  color: #FFFFFF;
-  font-family: var(--font-ui);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  margin-left: auto; padding: 2px 8px; border-radius: 9999px;
+  background: var(--admin-accent-muted); color: var(--admin-accent);
+  font-family: var(--font-ui); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
 }
 
 /* ── Shell layout variables ── */
@@ -349,7 +554,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: var(--admin-sidebar) minmax(0, 1fr);
   align-items: start;
-  background: #0D0D0D;
+  background: var(--admin-bg);
 }
 
 /* ── Sidebar ── */
@@ -362,8 +567,8 @@ onUnmounted(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #0D0D0D;
-  border-right: 1px solid var(--glass-border);
+  background: var(--admin-bg);
+  border-right: 1px solid var(--admin-border);
   overflow: hidden;
 }
 
@@ -373,10 +578,10 @@ onUnmounted(() => {
   gap: 10px;
   height: 64px;
   padding: 0 20px;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--admin-border);
   flex-shrink: 0;
 }
-.logo-icon-svg { color: #FFFFFF; flex-shrink: 0; }
+.logo-icon-svg { color: var(--admin-accent); flex-shrink: 0; }
 .logo-text {
   font-family: var(--font-display);
   font-size: 18px;
@@ -423,7 +628,7 @@ onUnmounted(() => {
   transition: all 300ms var(--ease-out);
 }
 .menu-item:hover { background: var(--glass-bg); color: var(--text-primary); }
-.menu-item.active { background: rgba(255,255,255,0.08); color: #FFFFFF; font-weight: 600; }
+.menu-item.active { background: var(--admin-accent-muted); color: var(--admin-accent); font-weight: 600; }
 .menu-item > svg { flex-shrink: 0; opacity: 0.75; }
 .menu-item.active > svg,
 .menu-item:hover > svg { opacity: 1; }
@@ -442,7 +647,7 @@ onUnmounted(() => {
 
 .sidebar-footer {
   padding: 16px;
-  border-top: 1px solid var(--glass-border);
+  border-top: 1px solid var(--admin-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -462,8 +667,8 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #FFFFFF;
-  color: #000;
+  background: var(--admin-accent);
+  color: var(--admin-bg);
   font-family: var(--font-display);
   font-size: 13px;
   font-weight: 700;
@@ -508,17 +713,11 @@ onUnmounted(() => {
 
 /* ── Topbar ── */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 45;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px 24px;
-  background: rgba(5,5,8,0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--glass-border);
+  position: sticky; top: 0; z-index: 45;
+  display: flex; flex-direction: column; gap: 12px; padding: 16px 24px;
+  background: color-mix(in srgb, var(--admin-bg) 85%, transparent);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--admin-border);
 }
 .topbar-head { min-width: 0; }
 .eyebrow {
@@ -560,37 +759,127 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .topbar-popover-wrap { position: relative; flex-shrink: 0; }
-.home-btn--topbar { white-space: nowrap; border: 1px solid #374151; border-radius: 8px; padding: 6px 12px; color: #E5E5E5; background: transparent; font-size: 12px; transition: border-color 150ms, color 150ms; }
-.home-btn--topbar:hover { border-color: #FFFFFF; color: #FFFFFF; }
+.home-btn--topbar {
+  white-space: nowrap;
+  border: 1px solid var(--admin-border); border-radius: 8px; padding: 6px 12px;
+  color: var(--admin-text); background: transparent; font-size: 12px;
+  transition: border-color 150ms, color 150ms;
+}
+.home-btn--topbar:hover { border-color: var(--admin-accent); color: var(--admin-accent); }
 .home-btn__label { font-size: 12px; }
 
 /* Search bar */
 .topbar-search-wrap {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  background: #111827;
-  border: 1px solid #374151;
-  border-radius: 8px;
+  display: flex; align-items: center; flex: 1; min-width: 0;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border); border-radius: 10px; overflow: visible;
+  transition: border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+  position: relative;   /* palette anchors to this */
+}
+.topbar-search-wrap:focus-within {
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 2px var(--admin-accent-border);
+}
+.admin-search-icon {
+  /* Icon sits inside the rounded bar — transparent bg, vertically centred by flex parent */
+  margin-left: 14px; flex-shrink: 0; display: block;
+  color: var(--admin-text-muted);
+  background: transparent; border: none; padding: 0; min-height: unset;
+}
+.admin-search-input {
+  flex: 1 !important; min-width: 0;
+  min-height: 42px !important; padding: 10px 14px !important;
+  border: none !important; background: transparent !important;
+  box-shadow: none !important; border-radius: 0 !important;
+  color: var(--admin-text) !important; font-family: var(--font-ui) !important;
+  font-size: 13px !important; outline: none !important;
+}
+.admin-search-input::placeholder { color: var(--admin-text-muted) !important; }
+
+/* Clear button inside search bar */
+.admin-search-clear {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin-right: 8px; flex-shrink: 0;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--admin-text-muted); border-radius: 4px;
+  transition: color 150ms, background 150ms;
+}
+.admin-search-clear:hover { color: var(--admin-text); background: var(--admin-accent-muted); }
+
+/* ── Admin Command Palette Dropdown ── */
+.palette-drop-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.palette-drop-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
+.palette-drop-enter-from, .palette-drop-leave-to { opacity: 0; transform: translateY(-6px); }
+
+.admin-palette {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  z-index: 6000;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
   overflow: hidden;
-  transition: border-color 200ms var(--ease-out);
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--admin-border) transparent;
 }
-.topbar-search-wrap:focus-within { border-color: #FFFFFF; box-shadow: 0 0 0 1px rgba(255,255,255,0.15); }
-.search-icon { margin-left: 12px; color: #9CA3AF; flex-shrink: 0; }
-.search-input {
-  flex: 1;
-  min-width: 0;
-  min-height: 38px;
-  padding: 8px 12px;
-  border: none;
-  background: transparent;
-  color: #E5E5E5;
-  font-family: var(--font-ui);
+
+.palette-state {
+  display: flex; align-items: center; gap: 10px;
+  padding: 20px 16px;
+  color: var(--admin-text-muted);
   font-size: 13px;
-  outline: none;
+  font-family: var(--font-ui);
 }
-.search-input::placeholder { color: #9CA3AF; }
+.palette-empty { font-size: 13px; }
+.palette-empty strong { color: var(--admin-accent); font-weight: 600; }
+
+.palette-spinner {
+  width: 18px; height: 18px; flex-shrink: 0;
+  border: 2px solid var(--admin-border);
+  border-top-color: var(--admin-accent);
+  border-radius: 50%;
+  animation: pal-spin 0.65s linear infinite;
+}
+@keyframes pal-spin { to { transform: rotate(360deg); } }
+
+.palette-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--admin-divider);
+  transition: background 100ms;
+  font-family: var(--font-ui);
+}
+.palette-item:last-child { border-bottom: none; }
+.palette-item--active,
+.palette-item:hover { background: var(--admin-surface-hover); }
+
+.palette-badge {
+  flex-shrink: 0; font-size: 11px; font-weight: 600;
+  padding: 2px 7px; border-radius: 9999px; white-space: nowrap;
+}
+.palette-badge--movies   { background: rgba(41,188,234,0.12); color: #29bcea; }
+.palette-badge--customers { background: rgba(16,185,129,0.12); color: #10B981; }
+.palette-badge--tickets  { background: rgba(245,158,11,0.12);  color: #F59E0B; }
+.palette-badge--cinemas  { background: rgba(201,168,76,0.12);  color: #C9A84C; }
+.palette-badge--promo    { background: rgba(236,72,153,0.12);  color: #EC4899; }
+.palette-badge--settings { background: rgba(156,163,175,0.12); color: #9CA3AF; }
+.palette-badge--banner   { background: rgba(139,92,246,0.12);  color: #a78bfa; }
+.palette-badge--product  { background: rgba(249,115,22,0.12);  color: #fb923c; }
+
+.palette-title {
+  flex: 1; font-size: 13px; font-weight: 500; color: var(--admin-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.palette-sub {
+  font-size: 12px; color: var(--admin-text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 180px;
+}
 
 /* Date tag */
 .date-tag {
@@ -617,7 +906,7 @@ onUnmounted(() => {
   color: var(--text-secondary);
   transition: border-color 200ms var(--ease-out), color 200ms var(--ease-out);
 }
-.notif:hover { border-color: #FFFFFF; color: #FFFFFF; }
+.notif:hover { border-color: var(--admin-accent); color: var(--admin-accent); }
 .notif-dot {
   position: absolute;
   top: 4px;
@@ -663,13 +952,8 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 .popover-link {
-  border: none;
-  background: none;
-  color: #FFFFFF;
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
+  border: none; background: none; color: var(--admin-accent);
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600; cursor: pointer;
 }
 .popover-date-input {
   width: 100%;

@@ -124,6 +124,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { fmtDateTimeFull12 } from '@/utils/homeHelpers'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -144,8 +145,7 @@ function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN', { style:'currency', currency:'VND' }).format(v || 0)
 }
 function fmtDate(dt) {
-  if (!dt) return '—'
-  return new Date(dt).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  return fmtDateTimeFull12(dt)
 }
 function seatList(tx) {
   if (!tx.chiTietDatGhe?.length) return '—'
@@ -159,7 +159,8 @@ function totalDisc(tx) {
   return (Number(tx.tienGiamKhuyenMai) || 0) + (Number(tx.tienGiamTuDiem) || 0)
 }
 function earnedPoints(tx) {
-  return Math.floor((Number(tx.tongTienThanhToan) || 0) / 1000)
+  const paid = Number(tx.tongTienThanhToan) || 0
+  return paid >= 100000 ? Math.floor(paid / 1000) : 0
 }
 function statusClass(tx) {
   if (tx.trangThai === 'confirmed') return 'badge--green'

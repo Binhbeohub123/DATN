@@ -31,4 +31,7 @@ public interface NguoiDungRepository
            ORDER BY u.id DESC
            """)
     Page<NguoiDung> searchAdmin(@Param("q") String q, Pageable pageable);
+
+    /** Count users by exact vaiTro — used to guard last-admin demotion. */
+    long countByVaiTro(String vaiTro);
 }

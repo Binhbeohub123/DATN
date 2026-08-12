@@ -2,12 +2,16 @@ package com.polycinema.backend.controller;
 
 import com.polycinema.backend.entity.KhuyenMai;
 import com.polycinema.backend.entity.Phim;
+import com.polycinema.backend.repository.DatVeRepository;
 import com.polycinema.backend.repository.KhuyenMaiRepository;
+import com.polycinema.backend.repository.NguoiDungRepository;
 import com.polycinema.backend.repository.PhimRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -23,6 +27,8 @@ public class KhuyenMaiController {
 
     private final KhuyenMaiRepository khuyenMaiRepository;
     private final PhimRepository phimRepository;
+    private final DatVeRepository datVeRepository;
+    private final NguoiDungRepository nguoiDungRepository;
 
     /**
      * POST /api/khuyen-mai/validate — authenticated
@@ -78,12 +84,26 @@ public class KhuyenMaiController {
                     "message", "Mã khuyến mãi đã hết hạn"));
         }
 
-        if (km.getGioiHanSuDung() != null && km.getDaSuDung() != null
-                && km.getDaSuDung() >= km.getGioiHanSuDung()) {
+        // Giới hạn lượt dùng tối đa toàn hệ thống — đếm trực tiếp trên DB
+        long usedTotal = datVeRepository.countByKhuyenMaiIdAndTrangThaiNot(km.getId(), "cancelled");
+        if (km.getGioiHanSuDung() != null && usedTotal >= km.getGioiHanSuDung()) {
             return ResponseEntity.ok(Map.of(
                     "valid", false,
                     "discountAmount", java.math.BigDecimal.ZERO,
                     "message", "Mã khuyến mãi đã hết lượt sử dụng"));
+        }
+
+        // Mỗi người dùng chỉ được dùng mã này 1 lần
+        Long userId = getUserIdFromToken();
+        if (userId != null) {
+            long userUsed = datVeRepository.countByKhuyenMaiIdAndNguoiDungIdAndTrangThaiNot(
+                    km.getId(), userId, "cancelled");
+            if (userUsed > 0) {
+                return ResponseEntity.ok(Map.of(
+                        "valid", false,
+                        "discountAmount", java.math.BigDecimal.ZERO,
+                        "message", "Bạn đã sử dụng mã khuyến mãi này rồi"));
+            }
         }
 
         // Check minimum order value
@@ -140,7 +160,13 @@ public class KhuyenMaiController {
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<KhuyenMai>> getAllAdmin() {
-        return ResponseEntity.ok(khuyenMaiRepository.findAllWithPhims());
+        List<KhuyenMai> list = khuyenMaiRepository.findAllWithPhims();
+        // Đồng bộ cột DaSuDung với số đơn đang hiệu lực thực tế để admin thấy đúng lượt đã dùng
+        for (KhuyenMai km : list) {
+            long used = datVeRepository.countByKhuyenMaiIdAndTrangThaiNot(km.getId(), "cancelled");
+            km.setDaSuDung((int) used);
+        }
+        return ResponseEntity.ok(list);
     }
 
     /**
@@ -231,5 +257,24 @@ public class KhuyenMaiController {
         km.setDangHoatDong(false);
         khuyenMaiRepository.save(km);
         return ResponseEntity.ok(Map.of("message", "Đã vô hiệu hóa khuyến mãi"));
+    }
+
+    /** Lấy userId từ JWT token (principal = email). Trả null nếu chưa đăng nhập. */
+    private Long getUserIdFromToken() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated()) {
+                Object principal = auth.getPrincipal();
+                String email = principal instanceof String ? (String) principal : null;
+                if (email != null && !email.equals("anonymousUser")) {
+                    return nguoiDungRepository.findByEmail(email)
+                            .map(u -> u.getId())
+                            .orElse(null);
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

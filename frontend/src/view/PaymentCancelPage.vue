@@ -26,10 +26,30 @@ const route  = useRoute()
 const router = useRouter()
 
 onMounted(async () => {
-  const maDatVe = route.query?.maDatVe
-  if (maDatVe) {
+  // Priority: path param (path-based cancelUrl) → query param (legacy) → sessionStorage
+  // (saved by CheckoutPage right before redirecting to PayOS).
+  // orderCode always survives — PayOS appends it to the cancelUrl redirect.
+  let maDatVe = route.params?.maDatVe || route.query?.maDatVe
+  let datVeId = null
+
+  const pending = sessionStorage.getItem('pendingPayOSCancel')
+  if (pending) {
     try {
-      await api.post('/thanh-toan/payos/cancel', { maDatVe })
+      const saved = JSON.parse(pending)
+      if (!maDatVe) maDatVe = saved.maDatVe
+      if (!datVeId) datVeId = saved.datVeId
+    } catch { /* ignore malformed */ }
+    sessionStorage.removeItem('pendingPayOSCancel')
+  }
+
+  const payload = {}
+  if (maDatVe && maDatVe !== 'null') payload.maDatVe = maDatVe
+  if (datVeId) payload.datVeId = datVeId
+  if (route.query?.orderCode) payload.orderCode = route.query.orderCode
+
+  if (Object.keys(payload).length) {
+    try {
+      await api.post('/thanh-toan/payos/cancel', payload)
     } catch (e) {
       // Non-fatal — booking may have been auto-cancelled already
       console.error('[PaymentCancelPage] Cancel error:', e?.response?.data || e?.message)

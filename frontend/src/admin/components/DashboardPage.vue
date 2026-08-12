@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="db-page">
     <!-- Toast -->
     <transition name="toast">
@@ -44,19 +44,19 @@
         <svg v-else class="db-line-chart" :viewBox="`0 0 ${SVG_W} ${SVG_H}`" preserveAspectRatio="none">
           <defs>
             <linearGradient id="dbRevGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.28"/>
-              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+              <stop offset="0%" :stop-color="chartColors.accent" stop-opacity="0.28"/>
+              <stop offset="100%" :stop-color="chartColors.accent" stop-opacity="0"/>
             </linearGradient>
           </defs>
-          <line v-for="y in yLines" :key="y" :x1="PAD" :y1="y" :x2="SVG_W - PAD/2" :y2="y" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+          <line v-for="y in yLines" :key="y" :x1="PAD" :y1="y" :x2="SVG_W - PAD/2" :y2="y" :stroke="chartColors.accentMuted" stroke-width="1"/>
           <path :d="areaPath" fill="url(#dbRevGrad)"/>
-          <path :d="linePath" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle v-for="(p, i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#FFFFFF" stroke="#0a0a0f" stroke-width="2"/>
+          <path :d="linePath" fill="none" :stroke="chartColors.accent" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle v-for="(p, i) in chartPts" :key="i" :cx="p.x" :cy="p.y" r="3" :fill="chartColors.accent" stroke="#0a0a0f" stroke-width="2"/>
           <text
             v-for="(p, i) in chartPts.filter((_, i) => i % (Math.ceil(chartPts.length / 6)) === 0)"
             :key="'l' + i"
             :x="p.x" :y="SVG_H - 4"
-            text-anchor="middle" font-size="10" fill="#94a3b8"
+            text-anchor="middle" font-size="10" :fill="chartColors.muted"
           >{{ fmtDateShort(p.label) }}</text>
         </svg>
       </div>
@@ -125,6 +125,16 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import api from '@/services/api'
+
+const chartColors = computed(() => {
+  const style = getComputedStyle(document.documentElement)
+  return {
+    accent:      style.getPropertyValue('--admin-accent').trim()      || '#FFFFFF',
+    accentMuted: style.getPropertyValue('--admin-accent-muted').trim() || 'rgba(255,255,255,0.07)',
+    muted:       style.getPropertyValue('--admin-text-muted').trim()  || '#9CA3AF',
+    surface:     style.getPropertyValue('--admin-surface').trim()     || '#111827',
+  }
+})
 
 const SVG_W = 600, SVG_H = 180, PAD = 40
 
@@ -251,8 +261,8 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   flex-direction: column;
   gap: 24px;
   min-height: 100%;
-  background: #0D0D0D;
-  color: #E5E5E5;
+  background: var(--admin-bg);
+  color: var(--admin-text);
   font-family: var(--font-ui);
 }
 
@@ -288,14 +298,14 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   align-items: center;
   gap: 16px;
   padding: 20px 24px;
-  border-left: 3px solid #FFFFFF;
+  border-left: 3px solid var(--admin-accent);
   transition: box-shadow 200ms var(--ease-out);
 }
 .db-kpi:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-color: rgba(255,255,255,0.20); }
 
 .db-kpi__icon {
   flex-shrink: 0;
-  color: #FFFFFF;
+  color: var(--admin-accent);
 }
 
 .db-kpi__body {
@@ -363,10 +373,10 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--admin-accent);
   margin: 0 0 16px;
   padding-left: 12px;
-  border-left: 3px solid #FFFFFF;
+  border-left: 3px solid var(--admin-accent);
   line-height: 1.3;
 }
 .db-card-head .db-section-title { margin-bottom: 0; }
@@ -386,7 +396,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   transition: all 200ms var(--ease-out);
 }
 .db-pbtn:hover       { color: var(--text-primary); border-color: var(--glass-border); }
-.db-pbtn--active     { background: rgba(255,255,255,0.08); color: #FFFFFF; border-color: #FFFFFF; }
+.db-pbtn--active     { background: var(--admin-accent-muted); color: var(--admin-accent); border-color: var(--admin-accent); }
 
 /* ── Chart ── */
 .db-line-chart {
@@ -404,7 +414,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 .db-spinner {
   width: 32px; height: 32px;
   border: 3px solid var(--glass-border);
-  border-top-color: #FFFFFF;
+  border-top-color: var(--admin-accent);
   border-radius: 50%;
   animation: db-spin 0.8s linear infinite;
 }
@@ -419,7 +429,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 }
 
 .db-table thead tr {
-  background: #0D0D0D;
+  background: var(--admin-bg);
 }
 
 .db-table th {
@@ -440,7 +450,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   transition: background 150ms var(--ease-out);
 }
 .db-table tbody tr:last-child { border-bottom: none; }
-.db-table tbody tr:hover { background: #1F2937; }
+.db-table tbody tr:hover { background: var(--admin-surface-hover); }
 
 .db-table td {
   padding: 14px 16px;
@@ -458,8 +468,8 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   text-overflow: ellipsis;
   font-weight: 600;
 }
-.db-td-rev  { font-weight: 700; color: #FFFFFF; }
-.db-td-mono { font-family: 'Courier New', monospace; font-size: 13px; color: #FFFFFF; }
+.db-td-rev  { font-weight: 700; color: var(--admin-text); }
+.db-td-mono { font-family: 'Courier New', monospace; font-size: 13px; color: var(--admin-text); }
 
 /* ── Rank badges ── */
 .db-rank {
@@ -474,7 +484,7 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
   background: var(--glass-bg);
   color: var(--text-secondary);
 }
-.db-rank--1 { background: #FFFFFF;             color: #000; }
+.db-rank--1 { background: var(--admin-accent); color: var(--admin-bg); }
 .db-rank--2 { background: var(--glass-bg-heavy);   color: var(--text-primary); }
 .db-rank--3 { background: rgba(245,158,11,0.2);    color: #f59e0b; }
 
@@ -496,8 +506,8 @@ onMounted(() => { loadStats(); loadRevenue(); loadTopMovies(); loadBookings() })
 .db-count-badge {
   padding: 3px 10px;
   border-radius: var(--radius-pill);
-  background: rgba(255,255,255,0.08);
-  color: #FFFFFF;
+  background: var(--admin-accent-muted);
+  color: var(--admin-text);
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 600;

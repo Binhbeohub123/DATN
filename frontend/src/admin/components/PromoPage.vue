@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="promo-page">
     <transition name="toast"><div v-if="toast.show" :class="['toast',`toast--${toast.type}`]">{{ toast.msg }}</div></transition>
 
@@ -17,7 +17,8 @@
             <th>Đơn tối thiểu</th><th>Đã dùng / Max</th><th>Hết hạn</th><th>Phim áp dụng</th><th>Trạng thái</th><th>Thao tác</th>
           </tr></thead>
           <tbody>
-            <tr v-for="km in promos" :key="km.id">
+            <tr v-if="filteredPromos.length === 0"><td colspan="10" class="empty-text">Không tìm thấy mã phù hợp</td></tr>
+            <tr v-for="km in filteredPromos" :key="km.id" :data-row-id="km.id">
               <td class="td-code">{{ km.maKhuyenMai }}</td>
               <td class="td-name">{{ km.tenKhuyenMai }}</td>
               <td><span :class="['tbadge', km.loaiGiamGia==='percent'?'tbadge--blue':'tbadge--purple']">{{ km.loaiGiamGia==='percent'?'%':'Cố định' }}</span></td>
@@ -100,8 +101,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, watch } from 'vue'
+import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
 import api from '@/services/api'
+import { useAdminShellStore } from '@/stores/adminShellStore'
+import { flashRow } from '@/utils/flashRow'
+
+const shell = useAdminShellStore()
 
 const toast = reactive({ show:false, msg:'', type:'success' })
 let toastTimer = null
@@ -118,6 +123,37 @@ const saving    = ref(false)
 const formErr   = ref('')
 
 const allMovies = ref([])
+
+// ── Command-palette targeting (mirrors MoviesPage syncFromShell) ──
+const search = ref('')
+const flashQueued = ref(false)
+
+const filteredPromos = computed(() => {
+  const q = search.value.toLowerCase()
+  if (!q) return promos.value
+  return promos.value.filter(p =>
+    p.tenKhuyenMai?.toLowerCase().includes(q) ||
+    p.maKhuyenMai?.toLowerCase().includes(q)
+  )
+})
+
+function syncFromShell() {
+  if (shell.searchTargetPage !== 'promo') return
+  if (shell.searchQuery) {
+    search.value = shell.searchQuery
+    flashQueued.value = true
+  }
+}
+
+watch(() => shell.searchTick, syncFromShell)
+
+// When the palette-narrowed list renders, flash + scroll the matched row.
+watch(filteredPromos, (list) => {
+  if (flashQueued.value && list.length > 0) {
+    flashQueued.value = false
+    nextTick(() => flashRow(document.querySelector(`[data-row-id="${list[0].id}"]`)))
+  }
+})
 
 const blankForm = () => ({
   maKhuyenMai:'', tenKhuyenMai:'', moTa:'', loaiGiamGia:'percent',
@@ -209,7 +245,10 @@ async function load() {
   catch(e) { showToast('Không tải được mã khuyến mãi') }
   finally { loading.value=false }
 }
-onMounted(load)
+onMounted(() => {
+  syncFromShell()
+  load()
+})
 </script>
 
 <style scoped>
@@ -221,15 +260,15 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: #0D0D0D;
-  color: #E5E5E5;
+  background: var(--admin-bg);
+  color: var(--admin-text);
 }
 
 /* ── Cell helpers ── */
-.td-code { font-family: 'Courier New', monospace; font-size: 13px; color: #FFFFFF; font-weight: 600; }
-.td-name { font-weight: 600; font-size: 14px; color: #E5E5E5; }
-.td-date { font-size: 12px; color: #9CA3AF; }
-.td-val  { font-weight: 600; color: #E5E5E5; }
+.td-code { font-family: 'Courier New', monospace; font-size: 13px; color: var(--admin-accent); font-weight: 600; }
+.td-name { font-weight: 600; font-size: 14px; color: var(--admin-text); }
+.td-date { font-size: 12px; color: var(--admin-text-muted); }
+.td-val  { font-weight: 600; color: var(--admin-text); }
 
 /* ── FIX: badge clipping on Trạng thái ── */
 .toggle-btn {
@@ -259,16 +298,16 @@ onMounted(load)
   white-space: nowrap;
   min-width: fit-content;
 }
-.tbadge--blue   { background: rgba(255,255,255,0.10); color: #FFFFFF; }
-.tbadge--purple { background: rgba(255,255,255,0.10); color: #FFFFFF; }
+.tbadge--blue   { background: rgba(255,255,255,0.10); color: var(--admin-accent); }
+.tbadge--purple { background: rgba(255,255,255,0.10); color: var(--admin-accent); }
 
 /* ── Movie multi-select ── */
 .field--full { grid-column: 1 / -1; }
 .movie-select-box {
   max-height: 160px;
   overflow-y: auto;
-  background: #0D0D0D;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-accent-muted);
   border-radius: 6px;
   padding: 6px 8px;
 }
@@ -281,17 +320,26 @@ onMounted(load)
   gap: 8px;
   padding: 4px 2px;
   cursor: pointer;
-  color: #E5E5E5;
+  color: var(--admin-text);
   font-size: 13px;
   border-radius: 4px;
   transition: background 0.15s;
 }
-.movie-select-row:hover { background: rgba(255,255,255,0.06); }
-.movie-select-row input[type="checkbox"] { accent-color: #E5E5E5; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
-.movie-select-empty { color: #9CA3AF; font-size: 13px; padding: 4px 2px; }
+.movie-select-row:hover { background: var(--admin-accent-muted); }
+.movie-select-row input[type="checkbox"] { accent-color: var(--admin-text); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+.movie-select-empty { color: var(--admin-text-muted); font-size: 13px; padding: 4px 2px; }
 
 /* ── Phim column ── */
 .td-phim { font-size: 12px; max-width: 200px; }
-.phim-all  { color: #6B7280; font-style: italic; }
+.phim-all  { color: var(--admin-text-muted); font-style: italic; }
 .phim-list { color: #29bcea; line-height: 1.5; }
+
+/* ── Palette target row flash ── */
+.row-flash {
+  animation: row-flash-pop 1.6s ease;
+}
+@keyframes row-flash-pop {
+  0%, 100% { background-color: transparent; }
+  20%, 60% { background-color: rgba(41, 188, 234, 0.18); }
+}
 </style>

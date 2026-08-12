@@ -49,6 +49,20 @@ public class JwtUtil {
                 .get("role", String.class);
     }
 
+    // ================= EXTRACT ISSUED AT =================
+    public Date extractIssuedAt(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getIssuedAt();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     // ================= VALIDATE TOKEN =================
     public boolean isValid(String token) {
         try {

@@ -162,7 +162,8 @@ export const useMovieStore = defineStore('movie', () => {
         id:          b.id,
         tieuDe:      b.tieuDe  || b.title       || '',
         hinhAnh:     b.hinhAnh || b.image       || '',
-        linkUrl:     b.linkUrl || b.link        || '',
+        loaiBanner:  b.loaiBanner || null,
+        phimId:      b.phimId      ?? null,
         thuTu:       b.thuTu   || 0,
         moTa:        b.moTa    || b.description || '',
         ngayBatDau:  b.ngayBatDau  || null,
@@ -197,6 +198,7 @@ export const useMovieStore = defineStore('movie', () => {
       title:       m.tenPhim          || m.title       || '',
       titleEn:     m.tenPhimTiengAnh  || m.titleEn     || '',
       theLoais:    Array.isArray(m.theLoais) ? m.theLoais : [],
+      formats:     Array.isArray(m.dinhDangs) ? m.dinhDangs : [],
       genre:       Array.isArray(m.theLoais) && m.theLoais.length > 0
                      ? m.theLoais.map(t => t.tenTheLoai).join(', ')
                      : (m.genre || ''),

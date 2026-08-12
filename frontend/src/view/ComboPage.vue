@@ -158,7 +158,15 @@ const ProductCard = defineComponent({
       return c ? c.soLuong : 0
     })
 
+    const maxQty = computed(() => {
+      const stock = props.product?.tonKho ?? 0
+      return Math.max(0, stock)
+    })
+
+    const outOfStock = computed(() => maxQty.value === 0)
+
     function inc() {
+      if (qty.value >= maxQty.value) return
       if (qty.value === 0) {
         bookingStore.addCombo(props.product, 1)
       } else {
@@ -181,11 +189,18 @@ const ProductCard = defineComponent({
         h('p', { class: 'pcard__name' }, props.product.tenSanPham),
         props.product.moTa ? h('p', { class: 'pcard__desc' }, props.product.moTa) : null,
         h('p', { class: 'pcard__price' }, fmtP(props.product.gia)),
+        h('p', { class: outOfStock.value ? 'pcard__stock pcard__stock--out' : 'pcard__stock' },
+          outOfStock.value ? 'Hết hàng' : `Còn ${props.product.tonKho}`),
       ]),
       h('div', { class: 'pcard__ctrl' }, [
         h('button', { class: 'ctrl-btn', onClick: dec, disabled: qty.value === 0, 'aria-label': 'Giảm' }, '−'),
         h('span', { class: qty.value > 0 ? 'ctrl-qty ctrl-qty--active' : 'ctrl-qty' }, String(qty.value)),
-        h('button', { class: 'ctrl-btn ctrl-btn--plus', onClick: inc, 'aria-label': 'Tăng' }, '+'),
+        h('button', {
+          class: 'ctrl-btn ctrl-btn--plus',
+          onClick: inc,
+          disabled: outOfStock.value || qty.value >= maxQty.value,
+          'aria-label': 'Tăng'
+        }, '+'),
       ]),
     ])
   }
@@ -327,6 +342,8 @@ const ProductCard = defineComponent({
 }
 :deep(.pcard__desc) { font-size: 11px; color: var(--text-secondary, #94a3b8); margin: 0; flex: 1; }
 :deep(.pcard__price) { font-size: 16px; font-weight: 900; color: var(--gold, #C9A84C); margin: 6px 0 0; }
+:deep(.pcard__stock) { font-size: 11px; color: #34d399; margin: 0; font-weight: 600; }
+:deep(.pcard__stock--out) { color: #f87171; }
 :deep(.pcard__ctrl) {
   display: flex; align-items: center;
   padding: 10px 14px;

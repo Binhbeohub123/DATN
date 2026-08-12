@@ -6,6 +6,7 @@ import com.polycinema.backend.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -22,6 +23,9 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final NguoiDungRepository repo;
     private final JwtUtil jwtUtil;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationSuccess(
@@ -96,7 +100,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                 );
 
         response.sendRedirect(
-                "/?token=" + token
+                frontendUrl + "/?token=" + token
         );
     }
 }
