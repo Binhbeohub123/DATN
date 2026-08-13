@@ -59,10 +59,6 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(result);
 
-            case "Tài khoản đã bị khóa":
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(result);
-
             default:
                 return ResponseEntity.ok(result);
         }

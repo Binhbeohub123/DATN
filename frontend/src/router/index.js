@@ -82,7 +82,12 @@ router.beforeEach(async (to, from, next) => {
   // ── OAuth callback: token in query ──
   const oauthToken = to.query?.token
   if (oauthToken) {
-    localStorage.setItem('token', oauthToken)
+    // Update the reactive store (ref + localStorage), otherwise isLoggedIn
+    // stays false and the header keeps showing "Đăng nhập/Đăng ký" until F5.
+    const { useAuthStore } = await import('@/stores/authStore')
+    const authStore = useAuthStore()
+    authStore.setToken(oauthToken)
+    authStore.fetchProfile().catch(() => {})
     const role = getUserRole()
     const dest = role === 'ADMIN' ? '/admin/dashboard' : role === 'STAFF' ? '/staff/dashboard' : '/'
     next({ path: dest, replace: true })

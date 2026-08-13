@@ -101,7 +101,6 @@
   background: var(--surface-elevated) !important;
 }
 
-[data-theme='dark'] .footer,
 [data-theme='dark'] .summary-bar,
 [data-theme='dark'] .showtime-strip,
 [data-theme='dark'] .context-strip,

@@ -170,15 +170,45 @@ public class AdminController {
     /**
      * PUT /api/admin/users/{id}/lock
      * Body: { "reason": "..." }
+     * Safety: an admin account can only be locked while at least one other
+     * admin remains active — so the system can never be left without an admin
+     * to unlock accounts (covers locking your own account too).
      */
     @PutMapping("/users/{id}/lock")
     public ResponseEntity<?> lockUser(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        NguoiDung user = nguoiDungRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
-        user.setTrangThai(false);
-        user.setLyDoKhoa(body.get("reason"));
-        nguoiDungRepository.save(user);
-        return ResponseEntity.ok(Map.of("message", "Đã khóa tài khoản"));
+        try {
+            NguoiDung user = nguoiDungRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+
+            String reason = body.get("reason");
+            if (reason == null || reason.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng nhập lý do khóa tài khoản"));
+            }
+
+            // Last-admin guard: never lock the last ACTIVE admin (self or another)
+            if ("admin".equalsIgnoreCase(user.getVaiTro())) {
+                long activeAdmins = nguoiDungRepository.countByVaiTroAndTrangThai("admin", Boolean.TRUE);
+                if (activeAdmins <= 1) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Không thể khóa tài khoản admin cuối cùng. Hệ thống cần ít nhất 1 admin hoạt động."));
+                }
+            }
+
+            user.setTrangThai(false);
+            user.setLyDoKhoa(reason);
+            nguoiDungRepository.save(user);
+
+            org.slf4j.LoggerFactory.getLogger(AdminController.class).info(
+                "[ACCOUNT_LOCK] admin={} targetUserId={} email={} reason={}",
+                getCallerEmail(), id, user.getEmail(), reason);
+
+            return ResponseEntity.ok(Map.of("message", "Đã khóa tài khoản"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khóa tài khoản: " + e.getMessage()));
+        }
     }
 
     /**
@@ -517,7 +547,7 @@ public class AdminController {
         if (body.containsKey("tenPhimTiengAnh")) phim.setTenPhimTiengAnh((String) body.get("tenPhimTiengAnh"));
         if (body.containsKey("daoDien"))         phim.setDaoDien((String) body.get("daoDien"));
         if (body.containsKey("dienVienChinh"))   phim.setDienVienChinh((String) body.get("dienVienChinh"));
-        if (body.containsKey("thoiLuong"))       phim.setThoiLuong(((Number) body.get("thoiLuong")).intValue());
+        if (body.containsKey("thoiLuong") && body.get("thoiLuong") != null) phim.setThoiLuong(((Number) body.get("thoiLuong")).intValue());
         if (body.containsKey("ngonNgu"))         phim.setNgonNgu((String) body.get("ngonNgu"));
         if (body.containsKey("phanLoaiDoTuoi"))  phim.setPhanLoaiDoTuoi((String) body.get("phanLoaiDoTuoi"));
         if (body.containsKey("posterUrl"))       phim.setPosterUrl((String) body.get("posterUrl"));
@@ -525,7 +555,10 @@ public class AdminController {
         if (body.containsKey("moTa"))            phim.setMoTa((String) body.get("moTa"));
         if (body.containsKey("trangThai"))       phim.setTrangThai((String) body.get("trangThai"));
         if (body.containsKey("ngayCongChieu") && body.get("ngayCongChieu") != null) {
-            phim.setNgayCongChieu(java.time.LocalDate.parse((String) body.get("ngayCongChieu")));
+            String rawDate = ((String) body.get("ngayCongChieu")).trim();
+            if (!rawDate.isEmpty()) {
+                phim.setNgayCongChieu(java.time.LocalDate.parse(rawDate));
+            }
         }
         // Replace entire genre list when theLoaiIds is supplied
         if (body.containsKey("theLoaiIds")) {

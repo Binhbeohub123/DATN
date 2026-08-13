@@ -19,6 +19,10 @@ export const useAuthStore = defineStore('auth', () => {
   // Stores the path the user tried to visit before being redirected to /auth
   const redirectPath = ref(null)
 
+  // ── Account-lock state (set when backend returns ACCOUNT_LOCKED) ──
+  const locked     = ref(false)
+  const lockReason = ref('')
+
   // ── Getters ──
   const isLoggedIn = computed(() => !!token.value)
 
@@ -51,6 +55,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res  = await api.get('/auth/profile')
       user.value = res.data
+      // Guard: even if a locked profile somehow returns, show the lock screen
+      if (user.value && user.value.trangThai === false) {
+        setAccountLocked(user.value.lyDoKhoa)
+      }
     } catch (err) {
       if (err.response?.status === 401) logout()
       else user.value = null
@@ -70,10 +78,18 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('token', normalized)
   }
 
+  /** Mark the account as locked and store the reason shown to the user. */
+  function setAccountLocked(reason) {
+    locked.value = true
+    lockReason.value = reason || ''
+  }
+
   function logout() {
     token.value    = null
     user.value     = null
     redirectPath.value = null
+    locked.value   = false
+    lockReason.value = ''
     localStorage.removeItem('token')
     localStorage.removeItem('user')
   }
@@ -129,8 +145,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     token, user, loading, error, redirectPath,
+    locked, lockReason,
     isLoggedIn, userRole, isAdmin, isStaff, memberLevel, userInitials,
-    fetchProfile, setToken, logout, setRedirectPath, popRedirectPath,
+    fetchProfile, setToken, setAccountLocked, logout, setRedirectPath, popRedirectPath,
     login, register,
   }
 })

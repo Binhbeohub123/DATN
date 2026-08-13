@@ -37,12 +37,13 @@
         <div class="avatar-wrap">
           <img v-if="authStore.user?.anhDaiDien" :src="authStore.user.anhDaiDien" :alt="authStore.user.hoTen" class="avatar-img" @error="e => e.target.style.display='none'" />
           <div v-else class="avatar-initials">{{ initials }}</div>
-          <span :class="['member-badge', memberClass]">{{ memberLevel }}</span>
+          <span v-if="isCustomer" :class="['member-badge', memberClass]">{{ memberLevel }}</span>
+          <span v-else :class="['member-badge', 'badge--role']">{{ roleLabel }}</span>
         </div>
         <div class="hero-info">
           <h1 class="hero-name">{{ authStore.user?.hoTen || authStore.user?.email }}</h1>
           <p class="hero-email">{{ authStore.user?.email }}</p>
-          <div class="stats-row">
+          <div v-if="isCustomer" class="stats-row">
             <div class="stat">
               <span class="stat-val">{{ authStore.user?.diemTichLuy || 0 }}</span>
               <span class="stat-lbl">Điểm tích lũy</span>
@@ -58,11 +59,11 @@
 
       <!-- Quick nav -->
       <div class="quick-nav">
-        <button class="qnav-btn" @click="router.push('/my-tickets')">
+        <button v-if="isCustomer" class="qnav-btn" @click="router.push('/my-tickets')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3l-4 4-4-4"/></svg>
           Vé của tôi
         </button>
-        <button class="qnav-btn" @click="router.push('/transaction-history')">
+        <button v-if="isCustomer" class="qnav-btn" @click="router.push('/transaction-history')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
           Lịch sử GD
         </button>
@@ -224,6 +225,15 @@ const initials = computed(() => {
 
 const memberLevel = computed(() => authStore.user?.capDoThanhVien || 'Thường')
 
+const userRole = computed(() => authStore.userRole)
+const isCustomer = computed(() => userRole.value === 'CUSTOMER')
+
+const roleLabel = computed(() => {
+  if (userRole.value === 'ADMIN') return 'QUẢN TRỊ VIÊN'
+  if (userRole.value === 'STAFF') return 'NHÂN VIÊN'
+  return 'THÀNH VIÊN'
+})
+
 const memberClass = computed(() => {
   const l = memberLevel.value
   if (l === 'Kim Cương') return 'badge--diamond'
@@ -366,6 +376,7 @@ onMounted(async () => {
 .badge--silver  { background: rgba(148,163,175,0.2); color: #94a3af; }
 .badge--gold    { background: rgba(201,168,76,0.15); color: var(--gold, #C9A84C); }
 .badge--diamond { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+.badge--role    { background: rgba(41,188,234,0.15); color: var(--electric, #29bcea); }
 .hero-info { flex: 1; }
 .hero-name  { font-size: 20px; font-weight: 700; margin: 0 0 4px; color: var(--text-primary, #f1f5f9); font-family: var(--font-display, 'Playfair Display', Georgia, serif); }
 .hero-email { font-size: 13px; color: var(--text-secondary, #94a3b8); margin: 0 0 14px; }

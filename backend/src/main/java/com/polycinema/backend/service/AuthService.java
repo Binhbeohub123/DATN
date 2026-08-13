@@ -141,11 +141,13 @@ public class AuthService {
     if (!encoder.matches(password, u.getMatKhauHash()))
         return "Sai email hoặc mật khẩu";
 
-    if (!Boolean.TRUE.equals(u.getTrangThai()))
-        return "Tài khoản đã bị khóa";
-
     if (!Boolean.TRUE.equals(u.getIsEmailVerified()))
         return "Email chưa xác thực";
+
+    // Locked accounts are still allowed to LOGIN — the token is issued, but
+    // JwtAuthenticationFilter rejects every authenticated request with
+    // ACCOUNT_LOCKED + the reason, so the user sees the "bị khóa" notice
+    // and cannot do anything (frontend shows a full-screen lock overlay).
 
     return jwtUtil.generateToken(email, normalizeRole(u.getVaiTro()));
 }

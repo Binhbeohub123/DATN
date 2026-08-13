@@ -43,8 +43,15 @@ api.interceptors.response.use(
       }
 
       if (status === 403) {
-        // Show toast for forbidden
-        _showErrorToast('Bạn không có quyền thực hiện thao tác này')
+        const body = error.response?.data
+        // Locked account — show the full-screen "bị khóa" notice everywhere
+        if (body?.code === 'ACCOUNT_LOCKED') {
+          const { useAuthStore } = await import('@/stores/authStore')
+          useAuthStore().setAccountLocked(body.lyDoKhoa || body.message || '')
+        } else {
+          // Show toast for forbidden
+          _showErrorToast('Bạn không có quyền thực hiện thao tác này')
+        }
       }
 
       if (status >= 500) {

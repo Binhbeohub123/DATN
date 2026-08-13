@@ -71,6 +71,10 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         NguoiDung nd =
                 repo.findByEmail(email).orElse(null);
 
+        // Locked accounts are still issued a token on login (so the reason can
+        // be shown), but JwtAuthenticationFilter rejects every authenticated
+        // request with ACCOUNT_LOCKED + lyDoKhoa, so they cannot do anything.
+
         if (nd == null) {
 
             nd = new NguoiDung();

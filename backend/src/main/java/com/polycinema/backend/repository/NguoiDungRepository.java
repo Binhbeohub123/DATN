@@ -34,4 +34,7 @@ public interface NguoiDungRepository
 
     /** Count users by exact vaiTro — used to guard last-admin demotion. */
     long countByVaiTro(String vaiTro);
+
+    /** Count ACTIVE users by vaiTro — used to guard locking the last remaining admin. */
+    long countByVaiTroAndTrangThai(String vaiTro, Boolean trangThai);
 }

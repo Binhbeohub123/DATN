@@ -58,24 +58,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = jwtUtil.extractEmail(token);
                 String role  = jwtUtil.extractRole(token);
 
+                NguoiDung user = email != null
+                        ? nguoiDungRepository.findByEmail(email).orElse(null)
+                        : null;
+
+                // ── Locked account — reject every request ────────────────
+                // A locked user must not be able to use any authenticated API.
+                // 403 + code so the frontend can show a "bị khóa" screen.
+                if (user != null && !Boolean.TRUE.equals(user.getTrangThai())) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json; charset=utf-8");
+                    String reason = user.getLyDoKhoa() != null ? user.getLyDoKhoa() : "";
+                    response.getWriter().write(
+                        "{\"code\":\"ACCOUNT_LOCKED\",\"message\":\"Tài khoản đã bị khóa\"" +
+                        (reason.isEmpty() ? "" : ",\"lyDoKhoa\":" + asJsonString(reason)) +
+                        "}"
+                    );
+                    return;
+                }
+
                 // ── Email-change session invalidation ─────────────────────────
                 // If the user's email was changed after this JWT was issued,
                 // the token is stale — skip authentication so the request is
                 // treated as unauthenticated. The user must log in again with
                 // the new email to get a fresh token.
-                if (email != null) {
-                    NguoiDung user = nguoiDungRepository.findByEmail(email).orElse(null);
-                    if (user != null && user.getEmailChangedAt() != null) {
-                        Date issuedAt = jwtUtil.extractIssuedAt(token);
-                        if (issuedAt != null) {
-                            LocalDateTime tokenIat = issuedAt.toInstant()
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDateTime();
-                            if (tokenIat.isBefore(user.getEmailChangedAt())) {
-                                // Token predates the email change — reject
-                                filterChain.doFilter(request, response);
-                                return;
-                            }
+                if (email != null && user != null && user.getEmailChangedAt() != null) {
+                    Date issuedAt = jwtUtil.extractIssuedAt(token);
+                    if (issuedAt != null) {
+                        LocalDateTime tokenIat = issuedAt.toInstant()
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDateTime();
+                        if (tokenIat.isBefore(user.getEmailChangedAt())) {
+                            // Token predates the email change — reject
+                            filterChain.doFilter(request, response);
+                            return;
                         }
                     }
                 }
@@ -93,5 +109,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /** Minimal JSON string escaping for the lock reason. */
+    private String asJsonString(String s) {
+        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 }

@@ -292,7 +292,14 @@ async function save() {
   saving.value = true; formErr.value = ''
   try {
     // Send theLoaiIds alongside the standard form fields
-    const payload = { ...form.value, theLoaiIds: selectedGenreIds.value, dinhDangIds: selectedFormatIds.value }
+    const payload = {
+      ...form.value,
+      // Empty date/empty duration must go as null, not "", or backend 500s on LocalDate.parse("")
+      ngayCongChieu: form.value.ngayCongChieu || null,
+      thoiLuong: form.value.thoiLuong || null,
+      theLoaiIds: selectedGenreIds.value,
+      dinhDangIds: selectedFormatIds.value,
+    }
     if (editing.value) { await api.put(`/admin/phim/${editing.value.id}`, payload) }
     else               { await api.post('/admin/phim', payload) }
     showToast(editing.value?'Đã cập nhật phim':'Đã thêm phim mới', 'success')
