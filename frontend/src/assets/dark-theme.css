@@ -334,3 +334,23 @@
   background: rgba(234, 179, 8, 0.2) !important;
   color: #fde047 !important;
 }
+
+/* ── Avatar initials: luôn giữ nền vàng + chữ tối tương phản ──
+   Kế thừa color var(--text-secondary) của dark theme có thể đè lên
+   chữ #0D0D0D của component, làm chữ sáng/trắng trên nền vàng. */
+[data-theme='dark'] .avatar-initials,
+[data-theme='dark'] .drawer-avatar {
+  background: var(--gold, #C9A84C) !important;
+  color: #0D0D0D !important;
+}
+
+/* ── Member badge: nền đặc + màu chữ cố định, không trắng trên nền vàng ── */
+[data-theme='dark'] .member-badge {
+  background: var(--surface-elevated, #242d3a) !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  box-shadow: 0 0 0 3px var(--page-bg, #050508) !important;
+}
+[data-theme='dark'] .badge--silver  { color: #cbd5e1 !important; }
+[data-theme='dark'] .badge--gold    { color: var(--gold, #C9A84C) !important; }
+[data-theme='dark'] .badge--diamond { color: #c4b5fd !important; }
+[data-theme='dark'] .badge--role    { color: var(--electric, #29bcea) !important; }

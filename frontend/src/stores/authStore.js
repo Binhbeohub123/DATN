@@ -44,6 +44,10 @@ export const useAuthStore = defineStore('auth', () => {
   const memberLevel = computed(() => user.value?.capDoThanhVien || 'Thường')
 
   const userInitials = computed(() => {
+    // Avatar mặc định theo role: ADMIN → AD, STAFF → NV, khách → chữ cái đầu tên
+    const role = userRole.value
+    if (role === 'ADMIN') return 'AD'
+    if (role === 'STAFF') return 'NV'
     const name = user.value?.hoTen || user.value?.email || '?'
     return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
   })

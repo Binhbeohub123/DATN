@@ -93,10 +93,6 @@
             <label>Ngày sinh</label>
             <input v-model="form.ngaySinh" type="date" />
           </div>
-          <div class="field field--full">
-            <label>Ảnh đại diện (URL)</label>
-            <input v-model="form.anhDaiDien" placeholder="https://..." />
-          </div>
         </div>
         <button class="btn-primary" :disabled="savingProfile" @click="saveProfile">
           <span v-if="savingProfile" class="btn-spin"></span>
@@ -164,7 +160,7 @@ function showToast(msg, type = 'success') {
 }
 
 // ── profile form ─────────────────────────────────────────────
-const form = ref({ hoTen: '', soDienThoai: '', ngaySinh: '', anhDaiDien: '' })
+const form = ref({ hoTen: '', soDienThoai: '', ngaySinh: '' })
 const savingProfile = ref(false)
 
 async function saveProfile() {
@@ -218,10 +214,7 @@ async function changePw() {
 }
 
 // ── helpers ───────────────────────────────────────────────────
-const initials = computed(() => {
-  const name = authStore.user?.hoTen || authStore.user?.email || '?'
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-})
+const initials = computed(() => authStore.userInitials)
 
 const memberLevel = computed(() => authStore.user?.capDoThanhVien || 'Thường')
 
@@ -252,7 +245,6 @@ function syncForm() {
   form.value.hoTen       = u.hoTen        || ''
   form.value.soDienThoai = u.soDienThoai  || ''
   form.value.ngaySinh    = u.ngaySinh     || ''
-  form.value.anhDaiDien  = u.anhDaiDien   || ''
 }
 
 function doLogout() {
@@ -371,12 +363,15 @@ onMounted(async () => {
   position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
   padding: 2px 10px; border-radius: var(--radius-pill, 999px);
   font-size: 10px; font-weight: 900; white-space: nowrap;
+  /* Nền đặc để nền vàng avatar không lọt qua, chữ luôn đọc được */
+  background: var(--surface-elevated, #1a1a28);
+  box-shadow: 0 0 0 3px var(--page-bg, #050508);
 }
-.badge--normal  { background: rgba(148,163,184,0.15); color: var(--text-secondary, #94a3b8); }
-.badge--silver  { background: rgba(148,163,175,0.2); color: #94a3af; }
-.badge--gold    { background: rgba(201,168,76,0.15); color: var(--gold, #C9A84C); }
-.badge--diamond { background: rgba(139,92,246,0.2); color: #c4b5fd; }
-.badge--role    { background: rgba(41,188,234,0.15); color: var(--electric, #29bcea); }
+.badge--normal  { color: var(--text-secondary, #94a3b8); }
+.badge--silver  { color: #cbd5e1; }
+.badge--gold    { color: var(--gold, #C9A84C); }
+.badge--diamond { color: #c4b5fd; }
+.badge--role    { color: var(--electric, #29bcea); }
 .hero-info { flex: 1; }
 .hero-name  { font-size: 20px; font-weight: 700; margin: 0 0 4px; color: var(--text-primary, #f1f5f9); font-family: var(--font-display, 'Playfair Display', Georgia, serif); }
 .hero-email { font-size: 13px; color: var(--text-secondary, #94a3b8); margin: 0 0 14px; }
