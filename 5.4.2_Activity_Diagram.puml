@@ -1,0 +1,96 @@
+@startuml Activity_Diagram_DatVe
+skinparam defaultFontName "Consolas"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam ActivityBackgroundColor White
+skinparam ActivityBorderColor Black
+skinparam ArrowColor Black
+skinparam DecisionBackgroundColor #FFE0B2
+skinparam DecisionBorderColor Black
+
+title Activity Diagram – Quy trình Đặt vé trực tuyến
+
+|Khách hàng|
+start
+:Truy cập trang chủ PolyCinema;
+:Chọn phim muốn xem;
+:Chọn suất chiếu (ngày, giờ, rạp, định dạng);
+
+|Hệ thống|
+:Kiểm tra suất chiếu còn hiệu lực?;
+
+if (Hết suất?) then (Có)
+  :Hiển thị thông báo "Hết chỗ";
+  stop
+else (Không)
+endif
+
+:Load sơ đồ ghế theo phòng chiếu;
+:Hiển thị trạng thái ghế (trống / đã đặt / vip / cặp đôi);
+
+|Khách hàng|
+:Chọn ghế ngồi trên sơ đồ;
+
+|Hệ thống|
+:Kiểm tra ghế còn trống?;
+
+if (Ghế đã có người chọn?) then (Có)
+  :Hiển thị thông báo "Ghế đã được đặt";
+  :Yêu cầu chọn lại ghế;
+  stop
+else (Không)
+endif
+
+:TẠO TẠM DatVe (trạng thái: pending, HetHanGiuGhe = now + 15 phút);
+:Khóa ghế tạm thời bằng SeatLock;
+
+|Khách hàng|
+:Chọn combo bắp nước (tuỳ chọn);
+:Nhập mã khuyến mãi hoặc dùng điểm tích lũy (tuỳ chọn);
+
+|Hệ thống|
+:Tính lại tổng tiền (vé + combo - khuyến mãi/điểm);
+
+if (Đã chọn đủ?) then (Có)
+else (Chưa)
+  :Yêu cầu chọn lại;
+  stop
+endif
+
+|Khách hàng|
+:Chọn phương thức thanh toán (PayOS / ZaloPay);
+
+|Hệ thống|
+:POST /api/thanh-toan/payos/create hoặc /zalopay/create;
+:Tạo link thanh toán (checkoutUrl);
+:Chuyển hướng đến cổng thanh toán;
+
+|Khách hàng|
+:Thực hiện thanh toán trên cổng thanh toán;
+
+|Cổng thanh toán|
+:Gọi webhook về hệ thống;
+
+|Hệ thống|
+:POST /payos/webhook hoặc /zalopay/callback;
+:Xác thực webhook (SDK PayOS / MAC key);
+:Kiểm tra kết quả giao dịch;
+
+if (Thanh toán thành công?) then (Thành công)
+  :Cập nhật DatVe.TrangThaiThanhToan = 'paid';
+  :Cập nhật ThanhToan.TrangThai = 'success';
+  :Sinh mã QR vé điện tử;
+  :Gửi email xác nhận vé (EmailService);
+  :Xóa SeatLock (giải phóng ghế);
+  :Chuyển hướng về /payment-result;
+else (Thất bại)
+  :Cập nhật DatVe.TrangThaiThanhToan = 'failed';
+  :Giữ đơn ở trạng thái pending;
+  :Cho phép thử lại;
+endif
+
+|Khách hàng|
+:Nhận vé điện tử qua email;
+stop
+
+@enduml

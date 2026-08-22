@@ -1,9 +1,7 @@
 package com.polycinema.backend.controller;
 
 import com.polycinema.backend.entity.DinhDang;
-import com.polycinema.backend.repository.DinhDangRepository;
-import com.polycinema.backend.repository.PhimRepository;
-import com.polycinema.backend.repository.PhongChieuRepository;
+import com.polycinema.backend.service.DinhDangService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,86 +27,56 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DinhDangController {
 
-    private final DinhDangRepository dinhDangRepository;
-    private final PhimRepository phimRepository;
-    private final PhongChieuRepository phongChieuRepository;
+    private final DinhDangService dinhDangService;
 
     /** GET /api/dinh-dang — public */
     @GetMapping
     public ResponseEntity<List<DinhDang>> getAll() {
-        return ResponseEntity.ok(dinhDangRepository.findAllByOrderByTenDinhDangAsc());
+        return ResponseEntity.ok(dinhDangService.getAll());
     }
 
     /** POST /api/dinh-dang — ADMIN */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> create(@RequestBody Map<String, String> body) {
-        String ten = body.get("tenDinhDang");
-        if (ten == null || ten.isBlank()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "tenDinhDang không được để trống"));
+        try {
+            DinhDang dd = dinhDangService.create(body.get("tenDinhDang"));
+            return ResponseEntity.status(HttpStatus.CREATED).body(dd);
+        } catch (IllegalArgumentException e) {
+            String msg = e.getMessage();
+            if (msg.contains("đã tồn tại")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("message", msg));
+            }
+            return ResponseEntity.badRequest().body(Map.of("message", msg));
         }
-        if (dinhDangRepository.findByTenDinhDang(ten.trim()).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("message", "Định dạng '" + ten.trim() + "' đã tồn tại"));
-        }
-        DinhDang dd = new DinhDang();
-        dd.setTenDinhDang(ten.trim());
-        return ResponseEntity.status(HttpStatus.CREATED).body(dinhDangRepository.save(dd));
     }
 
     /** PUT /api/dinh-dang/{id} — ADMIN */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        DinhDang dd = dinhDangRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy định dạng id=" + id));
-        String ten = body.get("tenDinhDang");
-        if (ten == null || ten.isBlank()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "tenDinhDang không được để trống"));
+        try {
+            return ResponseEntity.ok(dinhDangService.update(id, body.get("tenDinhDang")));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
-        dd.setTenDinhDang(ten.trim());
-        return ResponseEntity.ok(dinhDangRepository.save(dd));
     }
 
-    /**
-     * DELETE /api/dinh-dang/{id} — ADMIN
-     *
-     * Blocks deletion with 409 Conflict if this format is still referenced by:
-     *   - any Phim row (via Phim_DinhDang — which has ON DELETE CASCADE, so deletion
-     *     would silently strip the format from those movies with no warning)
-     *   - any PhongChieu row (via PhongChieu.DinhDangId — plain FK with no cascade,
-     *     so deletion would throw a raw DB constraint error → 500)
-     */
+    /** DELETE /api/dinh-dang/{id} — ADMIN */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> delete(@PathVariable Long id) {
-        if (!dinhDangRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-
-        long phimCount  = phimRepository.countByDinhDangId(id);
-        long phongCount = phongChieuRepository.countByDinhDangId(id);
-
-        if (phimCount > 0 || phongCount > 0) {
-            String detail = buildReferenceDetail(phimCount, phongCount);
+        try {
+            dinhDangService.delete(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xóa định dạng"));
+        } catch (IllegalArgumentException e) {
+            String msg = e.getMessage();
+            if (msg.contains("Không tìm thấy")) {
+                return ResponseEntity.notFound().build();
+            }
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("message",
-                            "Không thể xóa: định dạng này đang được sử dụng bởi " + detail));
+                    .body(Map.of("message", msg));
         }
-
-        dinhDangRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Đã xóa định dạng"));
-    }
-
-    private String buildReferenceDetail(long phimCount, long phongCount) {
-        if (phimCount > 0 && phongCount > 0) {
-            return phimCount + " phim và " + phongCount + " phòng chiếu";
-        }
-        if (phimCount > 0) {
-            return phimCount + " phim";
-        }
-        return phongCount + " phòng chiếu";
     }
 }

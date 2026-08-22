@@ -1,7 +1,7 @@
 package com.polycinema.backend.controller;
 
 import com.polycinema.backend.entity.SanPham;
-import com.polycinema.backend.repository.SanPhamRepository;
+import com.polycinema.backend.service.SanPhamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,43 +13,29 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SanPhamController {
 
-    private final SanPhamRepository sanPhamRepository;
+    private final SanPhamService sanPhamService;
 
-    /**
-     * GET /api/san-pham — public
-     * Trả về toàn bộ sản phẩm đang hoạt động (combo, food, drink).
-     */
+    /** GET /api/san-pham — public */
     @GetMapping
     public ResponseEntity<List<SanPham>> getAllSanPham() {
-        List<SanPham> sanPhams = sanPhamRepository.findByDangHoatDongTrue();
-        return ResponseEntity.ok(sanPhams);
+        return ResponseEntity.ok(sanPhamService.getAllActive());
     }
 
-    /**
-     * GET /api/san-pham/combo — public
-     * Trả về riêng sản phẩm loại "combo".
-     */
+    /** GET /api/san-pham/combo — public */
     @GetMapping("/combo")
     public ResponseEntity<List<SanPham>> getCombo() {
-        List<SanPham> combos = sanPhamRepository.findByLoaiSanPhamAndDangHoatDongTrue("combo");
-        return ResponseEntity.ok(combos);
+        return ResponseEntity.ok(sanPhamService.getByLoai("combo"));
     }
 
-    /**
-     * GET /api/san-pham/food — public
-     */
+    /** GET /api/san-pham/food — public */
     @GetMapping("/food")
     public ResponseEntity<List<SanPham>> getFood() {
-        List<SanPham> foods = sanPhamRepository.findByLoaiSanPhamAndDangHoatDongTrue("food");
-        return ResponseEntity.ok(foods);
+        return ResponseEntity.ok(sanPhamService.getByLoai("food"));
     }
 
-    /**
-     * GET /api/san-pham/drink — public
-     */
+    /** GET /api/san-pham/drink — public */
     @GetMapping("/drink")
     public ResponseEntity<List<SanPham>> getDrink() {
-        List<SanPham> drinks = sanPhamRepository.findByLoaiSanPhamAndDangHoatDongTrue("drink");
-        return ResponseEntity.ok(drinks);
+        return ResponseEntity.ok(sanPhamService.getByLoai("drink"));
     }
 }

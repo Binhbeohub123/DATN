@@ -20,12 +20,16 @@ import java.util.List;
 public class SeatLockCleanupService {
 
     private final SeatLockRepository seatLockRepository;
+    private final SeatNotificationService seatNotificationService;
 
     @Scheduled(fixedRate = 60_000)
     @Transactional
     public void cleanExpiredLocks() {
         List<SeatLock> expired = seatLockRepository.findAllByExpiresAtBefore(LocalDateTime.now());
         if (!expired.isEmpty()) {
+            for (SeatLock lock : expired) {
+                seatNotificationService.broadcastSeatUnlocked(lock.getLichChieuId(), lock.getGheNgoiId());
+            }
             seatLockRepository.deleteAll(expired);
             System.err.println("[SeatLockCleanup] Released " + expired.size() + " expired seat locks");
         }

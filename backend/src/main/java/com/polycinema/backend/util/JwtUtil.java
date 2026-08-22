@@ -2,6 +2,8 @@ package com.polycinema.backend.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
@@ -10,17 +12,22 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private final String SECRET = "cinema_secret_key_123_cinema_secret_key_123"; 
-    // ⚠️ phải >= 32 bytes
+    @Value("${jwt.secret}")
+    private String secret;
 
-    private final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
+    private Key key;
+
+    @PostConstruct
+    public void init() {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+    }
 
     // ================= GENERATE TOKEN =================
     public String generateToken(String email, String role) {
 
         return Jwts.builder()
                 .setSubject(email)
-                .claim("role", role) // 🔥 thêm role
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // 1 day
                 .signWith(key, SignatureAlgorithm.HS256)

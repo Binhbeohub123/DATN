@@ -265,6 +265,65 @@ public class DatVeService {
         return datVeRepository.findByIdWithDetails(bookingId).orElse(null);
     }
 
+    public DatVe findByMaDatVe(String maDatVe) {
+        return datVeRepository.findByMaDatVe(maDatVe).orElse(null);
+    }
+
+    @Transactional
+    public DatVe checkIn(String maDatVe, NguoiDung nhanVien) {
+        DatVe datVe = datVeRepository.findByMaDatVe(maDatVe)
+                .orElseThrow(() -> new IllegalArgumentException("Mã vé không hợp lệ"));
+        if ("đã sử dụng".equals(datVe.getTrangThaiCheckIn())) {
+            throw new IllegalArgumentException("Vé đã được sử dụng lúc " +
+                    (datVe.getThoiGianCheckIn() != null ? datVe.getThoiGianCheckIn().toString() : "không rõ"));
+        }
+        if (datVe.getLichChieu() != null && datVe.getLichChieu().getThoiGianBatDau() != null) {
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            java.time.LocalDateTime start = datVe.getLichChieu().getThoiGianBatDau();
+            if (now.isBefore(start.minusMinutes(20))) {
+                throw new IllegalArgumentException("Chưa tới giờ check-in (chỉ hỗ trợ check-in trước 20 phút)");
+            }
+            if (now.isAfter(start.plusMinutes(120))) {
+                throw new IllegalArgumentException("Suất chiếu đã kết thúc hoặc quá giờ check-in");
+            }
+        }
+        datVe.setTrangThaiCheckIn("đã sử dụng");
+        datVe.setThoiGianCheckIn(java.time.LocalDateTime.now());
+        datVe.setNhanVienCheckIn(nhanVien);
+        return datVeRepository.save(datVe);
+    }
+
+    public Map<String, Object> getShiftReport(Long nhanVienId, java.time.LocalDateTime from, java.time.LocalDateTime to) {
+        java.time.LocalDateTime start = from != null ? from : java.time.LocalDate.now().atStartOfDay();
+        java.time.LocalDateTime end   = to   != null ? to   : java.time.LocalDateTime.now();
+
+        List<DatVe> allDatVe = datVeRepository.findAll();
+
+        List<DatVe> shiftSales = allDatVe.stream()
+                .filter(dv -> dv.getNhanVien() != null && dv.getNhanVien().getId().equals(nhanVienId))
+                .filter(dv -> dv.getNgayTao() != null && !dv.getNgayTao().isBefore(start) && !dv.getNgayTao().isAfter(end))
+                .filter(dv -> "paid".equals(dv.getTrangThaiThanhToan()))
+                .collect(java.util.stream.Collectors.toList());
+
+        long tongVeBan = shiftSales.size();
+        java.math.BigDecimal tongDoanhThu = shiftSales.stream()
+                .map(dv -> dv.getTongTienThanhToan() != null ? dv.getTongTienThanhToan() : java.math.BigDecimal.ZERO)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        long soVeCheckIn = allDatVe.stream()
+                .filter(dv -> dv.getNhanVienCheckIn() != null && dv.getNhanVienCheckIn().getId().equals(nhanVienId))
+                .filter(dv -> dv.getThoiGianCheckIn() != null && !dv.getThoiGianCheckIn().isBefore(start) && !dv.getThoiGianCheckIn().isAfter(end))
+                .count();
+
+        Map<String, Object> stats = new java.util.LinkedHashMap<>();
+        stats.put("from", start.toString());
+        stats.put("to", end.toString());
+        stats.put("tongVeBan", tongVeBan);
+        stats.put("tongDoanhThu", tongDoanhThu);
+        stats.put("soVeCheckIn", soVeCheckIn);
+        return stats;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Cancel — customer-facing (owner check enforced)
     // ─────────────────────────────────────────────────────────────
@@ -631,6 +690,51 @@ public class DatVeService {
             sp.setTonKho(tonKho + soLuong);
             sanPhamRepository.save(sp);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Admin methods
+    // ─────────────────────────────────────────────────────────────
+
+    public java.util.List<DatVe> findAll() {
+        return datVeRepository.findAll();
+    }
+
+    public java.util.Optional<DatVe> findById(Long id) {
+        return datVeRepository.findById(id);
+    }
+
+    public org.springframework.data.domain.Page<DatVe> searchAdmin(String q, String trangThai, org.springframework.data.domain.Pageable pageable) {
+        return datVeRepository.searchAdmin(q, trangThai, pageable);
+    }
+
+    public java.util.List<DatVe> findByLichChieuId(Long lichChieuId) {
+        return datVeRepository.findByLichChieuId(lichChieuId);
+    }
+
+    public DatVe save(DatVe datVe) {
+        return datVeRepository.save(datVe);
+    }
+
+    @Transactional
+    public void refundBooking(Long id) {
+        DatVe datVe = datVeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn đặt vé"));
+        if (!"paid".equals(datVe.getTrangThaiThanhToan())) {
+            throw new IllegalArgumentException("Chỉ có thể hoàn tiền cho đơn đã thanh toán (trạng thái 'paid')");
+        }
+        datVe.setTrangThai("cancelled");
+        datVeRepository.save(datVe);
+
+        List<ThanhToan> payments = thanhToanRepository.findByDatVeId(id);
+        for (ThanhToan tt : payments) {
+            tt.setTrangThai("refunded");
+            tt.setNgayHoan(LocalDateTime.now());
+            tt.setLyDoHoan("Admin hoàn tiền");
+        }
+        if (!payments.isEmpty()) thanhToanRepository.saveAll(payments);
+
+        restoreStock(datVe);
     }
 
     // ─────────────────────────────────────────────────────────────

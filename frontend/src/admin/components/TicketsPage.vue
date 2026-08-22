@@ -144,6 +144,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 import { fmtTime12, fmtDateTime12 } from '@/utils/homeHelpers'
+import { useSeatWebSocket } from '@/composables/useSeatWebSocket'
 
 const shell = useAdminShellStore()
 
@@ -165,7 +166,7 @@ const loadingLocks    = ref(false)
 
 // ── Seat map state ──────────────────────────────────────────
 const seatMapData  = ref([])   // [{ gheNgoiId, hangGhe, soGhe, loaiGhe, status, lockId?, expiresAt? }]
-let   seatMapTimer = null      // auto-refresh interval
+let   seatMapWs    = null      // WebSocket connection (replaced 30s polling)
 
 const seatMapRows = computed(() => {
   const map = {}
@@ -208,32 +209,35 @@ async function loadSeatMap() {
     seatMapData.value = Array.isArray(res.data) ? res.data : []
     // Also keep activeLocks in sync for the old force-release helper
     activeLocks.value = seatMapData.value.filter(s => s.status === 'locked')
-    // Start auto-refresh now that map is loaded
-    startSeatMapAutoRefresh()
   } catch { seatMapData.value = [] }
   finally { loadingLocks.value = false }
 }
 
 /** Called by @change on the showtime dropdown — loads map immediately or resets. */
 function onLichChieuChange() {
-  stopSeatMapAutoRefresh()
+  stopSeatMapWs()
   if (!lockLichChieuId.value) {
     seatMapData.value = []
     activeLocks.value = []
     return
   }
-  loadSeatMap()
+  loadSeatMap().then(() => {
+    // Connect WebSocket for real-time updates (replaces 30s polling)
+    startSeatMapWs(lockLichChieuId.value)
+  })
 }
 
-function startSeatMapAutoRefresh() {
-  stopSeatMapAutoRefresh()
-  seatMapTimer = setInterval(() => {
-    if (seatMapData.value.length > 0) loadSeatMap()
-  }, 30_000)
+function startSeatMapWs(lichChieuId) {
+  stopSeatMapWs()
+  if (!lichChieuId) return
+  seatMapWs = useSeatWebSocket(lichChieuId, () => {
+    // On any seat lock/unlock event, reload the full seat map for admin detail
+    if (lockLichChieuId.value) loadSeatMap()
+  })
 }
 
-function stopSeatMapAutoRefresh() {
-  if (seatMapTimer) { clearInterval(seatMapTimer); seatMapTimer = null }
+function stopSeatMapWs() {
+  if (seatMapWs) { seatMapWs.disconnect(); seatMapWs = null }
 }
 
 async function forceReleaseSeat(seat) {
@@ -427,7 +431,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopSeatMapAutoRefresh()
+  stopSeatMapWs()
 })
 </script>
 

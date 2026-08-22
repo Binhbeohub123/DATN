@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.polycinema.backend.entity.DatVe;
 import com.polycinema.backend.entity.LichChieu;
 import com.polycinema.backend.entity.NguoiDung;
-import com.polycinema.backend.repository.DatVeRepository;
-import com.polycinema.backend.repository.NguoiDungRepository;
+import com.polycinema.backend.service.AuthService;
 import com.polycinema.backend.service.DatVeService;
 import com.polycinema.backend.service.ThanhToanService;
 import com.polycinema.backend.util.JwtUtil;
@@ -22,7 +21,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -40,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 3. Payment callback processing: GET /api/thanh-toan/vnpay/callback
  * 4. QR Ticket retrieval: GET /api/ve/{maVe}/qr
  *
- * It uses MockMvc and mocks only the repository database layer to avoid external network dependencies.
+ * It uses MockMvc and mocks only the service layer to avoid external dependencies.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -50,12 +48,12 @@ class BookingFlowIntegrationTest {
     @Autowired JwtUtil jwtUtil;
     @Autowired ObjectMapper objectMapper;
 
+    @MockBean AuthService authService;
     @MockBean DatVeService datVeService;
     @MockBean ThanhToanService thanhToanService;
-    @MockBean NguoiDungRepository nguoiDungRepository;
-    @MockBean DatVeRepository datVeRepository;
 
     private static final String USER_EMAIL = "buyer@polycinema.com";
+    private static final Long USER_ID = 101L;
     private String jwtToken;
     private NguoiDung mockUser;
     private DatVe mockBooking;
@@ -65,7 +63,7 @@ class BookingFlowIntegrationTest {
         jwtToken = jwtUtil.generateToken(USER_EMAIL, "USER");
 
         mockUser = new NguoiDung();
-        mockUser.setId(101L);
+        mockUser.setId(USER_ID);
         mockUser.setEmail(USER_EMAIL);
         mockUser.setHoTen("Gia Bao");
 
@@ -81,17 +79,16 @@ class BookingFlowIntegrationTest {
         mockLich.setId(1L);
         mockBooking.setLichChieu(mockLich);
 
-        // Stub user resolution
-        when(nguoiDungRepository.findByEmail(USER_EMAIL))
-                .thenReturn(Optional.of(mockUser));
+        // Stub auth — getUserIdFromToken extracts email from JWT → returns userId
+        when(authService.getUserIdFromToken()).thenReturn(USER_ID);
 
         // Stub booking services
-        when(datVeService.createBooking(eq(101L), eq(1L), any(), any(), any(), any()))
+        when(datVeService.createBooking(eq(USER_ID), eq(1L), any(), any(), any(), any()))
                 .thenReturn(mockBooking);
         when(datVeService.getBookingDetail(500L))
                 .thenReturn(mockBooking);
-        when(datVeRepository.findByMaDatVe("BK_INTEGRATION_99"))
-                .thenReturn(Optional.of(mockBooking));
+        when(datVeService.findByMaDatVe("BK_INTEGRATION_99"))
+                .thenReturn(mockBooking);
     }
 
     // ── E2E-01: Complete Booking Flow ──────────────────────────────────────

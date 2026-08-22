@@ -20,6 +20,7 @@ public class SeatLockService {
 
     private final SeatLockRepository seatLockRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final SeatNotificationService seatNotificationService;
 
     // ─────────────────────────────────────────────────────────────
     // Read lock duration from SystemConfig
@@ -65,7 +66,12 @@ public class SeatLockService {
         lock.setLockedAt(now);
         lock.setExpiresAt(now.plusMinutes(lockMinutes));
 
-        return seatLockRepository.save(lock);
+        SeatLock saved = seatLockRepository.save(lock);
+        if (saved.getExpiresAt() != null) {
+            long epochMs = saved.getExpiresAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+            seatNotificationService.broadcastSeatLocked(lichChieuId, gheNgoiId, epochMs);
+        }
+        return saved;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -74,6 +80,7 @@ public class SeatLockService {
     @Transactional
     public void releaseSeat(Long gheNgoiId, Long lichChieuId) {
         seatLockRepository.deleteByGheNgoiIdAndLichChieuId(gheNgoiId, lichChieuId);
+        seatNotificationService.broadcastSeatUnlocked(lichChieuId, gheNgoiId);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -130,5 +137,23 @@ public class SeatLockService {
                     lichChieuId, LocalDateTime.now(), excludeUserId);
         }
         return getLockedSeatIds(lichChieuId);
+    }
+
+    // ── Admin methods ─────────────────────────────────────────
+
+    public List<SeatLock> findActiveByLichChieu(Long lichChieuId) {
+        return seatLockRepository.findActiveByLichChieu(lichChieuId, LocalDateTime.now());
+    }
+
+    public boolean existsById(Long id) {
+        return seatLockRepository.existsById(id);
+    }
+
+    @Transactional
+    public void deleteById(Long id) {
+        seatLockRepository.findById(id).ifPresent(lock -> {
+            seatNotificationService.broadcastSeatUnlocked(lock.getLichChieuId(), lock.getGheNgoiId());
+            seatLockRepository.deleteById(id);
+        });
     }
 }

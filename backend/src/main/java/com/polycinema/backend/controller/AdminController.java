@@ -1,13 +1,25 @@
 package com.polycinema.backend.controller;
 
-import com.polycinema.backend.entity.*;
-import com.polycinema.backend.repository.*;
-import com.polycinema.backend.service.DatVeService;
-import com.polycinema.backend.service.AuthService;
-import com.polycinema.backend.service.EmailService;
-import com.polycinema.backend.service.PhimService;
+import com.polycinema.backend.entity.Banner;
+import com.polycinema.backend.entity.ChiTietDatGhe;
+import com.polycinema.backend.entity.ChiTietDatSanPham;
+import com.polycinema.backend.entity.DatVe;
+import com.polycinema.backend.entity.DinhDang;
+import com.polycinema.backend.entity.GheNgoi;
+import com.polycinema.backend.entity.LichChieu;
+import com.polycinema.backend.entity.NguoiDung;
+import com.polycinema.backend.entity.Phim;
+import com.polycinema.backend.entity.PhongChieu;
+import com.polycinema.backend.entity.RapChieu;
+import com.polycinema.backend.entity.SanPham;
+import com.polycinema.backend.entity.SeatLock;
+import com.polycinema.backend.entity.SystemConfig;
+import com.polycinema.backend.entity.TheLoai;
+import com.polycinema.backend.entity.ThanhToan;
+import com.polycinema.backend.service.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,25 +47,21 @@ import java.util.stream.Collectors;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
-    private final DatVeRepository datVeRepository;
-    private final NguoiDungRepository nguoiDungRepository;
-    private final PhimRepository phimRepository;
-    private final LichChieuRepository lichChieuRepository;
-    private final RapChieuRepository rapChieuRepository;
-    private final PhongChieuRepository phongChieuRepository;
-    private final GheNgoiRepository gheNgoiRepository;
-    private final SanPhamRepository sanPhamRepository;
-    private final BannerRepository bannerRepository;
-    private final ThanhToanRepository thanhToanRepository;
-    private final SeatLockRepository seatLockRepository;
-    private final SystemConfigRepository systemConfigRepository;
     private final DatVeService datVeService;
     private final AuthService authService;
     private final EmailService emailService;
     private final PhimService phimService;
-    private final TheLoaiRepository theLoaiRepository;
-    private final ChiTietDatGheRepository chiTietDatGheRepository;
-    private final DinhDangRepository dinhDangRepository;
+    private final NguoiDungService nguoiDungService;
+    private final LichChieuService lichChieuService;
+    private final RapChieuService rapChieuService;
+    private final PhongChieuService phongChieuService;
+    private final GheNgoiService gheNgoiService;
+    private final SanPhamService sanPhamService;
+    private final BannerService bannerService;
+    private final TheLoaiService theLoaiService;
+    private final DinhDangService dinhDangService;
+    private final SeatLockService seatLockService;
+    private final SystemConfigService systemConfigService;
 
     // ─────────────────────────────────────────────────────────────
     // STATS
@@ -66,15 +74,15 @@ public class AdminController {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime todayEnd = todayStart.plusDays(1);
 
-        List<DatVe> allBookings = datVeRepository.findAll();
+        List<DatVe> allBookings = datVeService.findAll();
         List<DatVe> todayBookings = allBookings.stream()
                 .filter(dv -> dv.getNgayTao() != null
                         && dv.getNgayTao().isAfter(todayStart)
                         && dv.getNgayTao().isBefore(todayEnd))
                 .collect(Collectors.toList());
 
-        long totalUsers = nguoiDungRepository.count();
-        long totalMovies = phimRepository.findByIsDeletedFalse().size();
+        long totalUsers = nguoiDungService.count();
+        long totalMovies = phimService.findAllActive().size();
 
         BigDecimal todayRevenue = todayBookings.stream()
                 .filter(dv -> "paid".equals(dv.getTrangThaiThanhToan()))
@@ -112,7 +120,7 @@ public class AdminController {
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to) {
 
-        List<DatVe> paid = datVeRepository.findAll().stream()
+        List<DatVe> paid = datVeService.findAll().stream()
                 .filter(dv -> "paid".equals(dv.getTrangThaiThanhToan()))
                 .collect(Collectors.toList());
 
@@ -152,10 +160,7 @@ public class AdminController {
 
         String q = (search != null && !search.isBlank()) ? search.trim() : null;
         PageRequest pr = PageRequest.of(page, size);
-        Page<NguoiDung> result = nguoiDungRepository.searchAdmin(q, pr);
-
-        // Mask password hashes before sending to client
-        result.getContent().forEach(u -> u.setMatKhauHash(null));
+        Page<NguoiDung> result = nguoiDungService.searchAdmin(q, pr);
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("content",       result.getContent());
@@ -177,7 +182,7 @@ public class AdminController {
     @PutMapping("/users/{id}/lock")
     public ResponseEntity<?> lockUser(@PathVariable Long id, @RequestBody Map<String, String> body) {
         try {
-            NguoiDung user = nguoiDungRepository.findById(id)
+            NguoiDung user = nguoiDungService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
 
             String reason = body.get("reason");
@@ -187,7 +192,7 @@ public class AdminController {
 
             // Last-admin guard: never lock the last ACTIVE admin (self or another)
             if ("admin".equalsIgnoreCase(user.getVaiTro())) {
-                long activeAdmins = nguoiDungRepository.countByVaiTroAndTrangThai("admin", Boolean.TRUE);
+                long activeAdmins = nguoiDungService.countByVaiTroAndTrangThai("admin", Boolean.TRUE);
                 if (activeAdmins <= 1) {
                     return ResponseEntity.badRequest()
                             .body(Map.of("message", "Không thể khóa tài khoản admin cuối cùng. Hệ thống cần ít nhất 1 admin hoạt động."));
@@ -196,7 +201,7 @@ public class AdminController {
 
             user.setTrangThai(false);
             user.setLyDoKhoa(reason);
-            nguoiDungRepository.save(user);
+            nguoiDungService.save(user);
 
             org.slf4j.LoggerFactory.getLogger(AdminController.class).info(
                 "[ACCOUNT_LOCK] admin={} targetUserId={} email={} reason={}",
@@ -216,11 +221,11 @@ public class AdminController {
      */
     @PutMapping("/users/{id}/unlock")
     public ResponseEntity<?> unlockUser(@PathVariable Long id) {
-        NguoiDung user = nguoiDungRepository.findById(id)
+        NguoiDung user = nguoiDungService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
         user.setTrangThai(true);
         user.setLyDoKhoa(null);
-        nguoiDungRepository.save(user);
+        nguoiDungService.save(user);
         return ResponseEntity.ok(Map.of("message", "Đã mở khóa tài khoản"));
     }
 
@@ -240,7 +245,7 @@ public class AdminController {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
                         .body(Map.of("message", "Vui lòng đăng nhập"));
             }
-            Long callerAdminId = nguoiDungRepository.findByEmail(callerEmail)
+            Long callerAdminId = nguoiDungService.findByEmail(callerEmail)
                     .map(NguoiDung::getId).orElse(null);
 
             String email      = body.get("email");
@@ -251,7 +256,6 @@ public class AdminController {
 
             NguoiDung created = authService.createStaffOrAdmin(
                     email, password, hoTen, soDienThoai, vaiTro, callerAdminId);
-            created.setMatKhauHash(null);   // never return hash
             return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(created);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -271,7 +275,7 @@ public class AdminController {
     @PutMapping("/users/{id}/points")
     public ResponseEntity<?> adjustPoints(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         try {
-            NguoiDung user = nguoiDungRepository.findById(id)
+            NguoiDung user = nguoiDungService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
 
             Object deltaRaw = body.get("delta");
@@ -284,7 +288,7 @@ public class AdminController {
             int before = user.getDiemTichLuy() == null ? 0 : user.getDiemTichLuy();
             int after  = Math.max(0, before + delta);
             user.setDiemTichLuy(after);
-            nguoiDungRepository.save(user);
+            nguoiDungService.save(user);
 
             // Audit log (application-level; no new table needed)
             String adminEmail = getCallerEmail();
@@ -292,7 +296,6 @@ public class AdminController {
                 "[POINTS_ADJUST] admin={} targetUserId={} before={} delta={} after={} lyDo={}",
                 adminEmail, id, before, delta, after, lyDo);
 
-            user.setMatKhauHash(null);
             Map<String, Object> result = new java.util.LinkedHashMap<>();
             result.put("userId",       id);
             result.put("diemTichLuy",  after);
@@ -325,13 +328,13 @@ public class AdminController {
                         .body(Map.of("message", "Vai trò không hợp lệ. Chỉ chấp nhận: customer, staff, admin"));
             }
 
-            NguoiDung target = nguoiDungRepository.findById(id)
+            NguoiDung target = nguoiDungService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
 
             // Self-change guard
             String callerEmail = getCallerEmail();
             if (callerEmail != null) {
-                NguoiDung caller = nguoiDungRepository.findByEmail(callerEmail).orElse(null);
+                NguoiDung caller = nguoiDungService.findByEmail(callerEmail).orElse(null);
                 if (caller != null && caller.getId().equals(id)) {
                     return ResponseEntity.badRequest()
                             .body(Map.of("message", "Không thể thay đổi vai trò của chính mình"));
@@ -340,7 +343,7 @@ public class AdminController {
 
             // Last-admin guard: prevent demoting the last admin
             if ("admin".equals(target.getVaiTro()) && !"admin".equals(newRole)) {
-                long adminCount = nguoiDungRepository.countByVaiTro("admin");
+                long adminCount = nguoiDungService.countByVaiTro("admin");
                 if (adminCount <= 1) {
                     return ResponseEntity.badRequest()
                             .body(Map.of("message", "Không thể hạ cấp tài khoản admin cuối cùng"));
@@ -349,13 +352,12 @@ public class AdminController {
 
             String oldRole = target.getVaiTro();
             target.setVaiTro(newRole);
-            nguoiDungRepository.save(target);
+            nguoiDungService.save(target);
 
             org.slf4j.LoggerFactory.getLogger(AdminController.class).info(
                 "[ROLE_CHANGE] admin={} targetUserId={} oldRole={} newRole={}",
                 callerEmail, id, oldRole, newRole);
 
-            target.setMatKhauHash(null);
             return ResponseEntity.ok(Map.of(
                     "userId",  id,
                     "vaiTro",  newRole,
@@ -387,7 +389,7 @@ public class AdminController {
     @PutMapping("/users/{id}/profile")
     public ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody Map<String, String> body) {
         try {
-            NguoiDung user = nguoiDungRepository.findById(id)
+            NguoiDung user = nguoiDungService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
 
             boolean changed = false;
@@ -421,7 +423,7 @@ public class AdminController {
                 }
 
                 // Uniqueness check — reject if taken by a different account
-                java.util.Optional<NguoiDung> existing = nguoiDungRepository.findByEmail(email);
+                java.util.Optional<NguoiDung> existing = nguoiDungService.findByEmail(email);
                 if (existing.isPresent() && !existing.get().getId().equals(id)) {
                     return ResponseEntity.badRequest()
                             .body(Map.of("message", "Email " + email + " đã được sử dụng bởi tài khoản khác"));
@@ -442,7 +444,7 @@ public class AdminController {
                         .body(Map.of("message", "Không có trường nào được cập nhật"));
             }
 
-            nguoiDungRepository.save(user);
+            nguoiDungService.save(user);
 
             // ── Email-change notifications (fire-and-forget, non-blocking) ──
             if (emailChanged) {
@@ -459,7 +461,6 @@ public class AdminController {
                 "[PROFILE_UPDATE] admin={} targetUserId={} fields={} emailChanged={}",
                 adminEmail, id, body.keySet(), emailChanged);
 
-            user.setMatKhauHash(null);
             Map<String, Object> result = new java.util.LinkedHashMap<>();
             result.put("id",           user.getId());
             result.put("hoTen",        user.getHoTen());
@@ -501,7 +502,7 @@ public class AdminController {
      */
     @GetMapping("/phim")
     public ResponseEntity<?> getAllPhim() {
-        List<Phim> movies = phimRepository.findAll();
+        List<Phim> movies = phimService.findAllIncludingDeleted();
         phimService.applyComputedStatus(movies);
         return ResponseEntity.ok(movies);
     }
@@ -519,7 +520,7 @@ public class AdminController {
         applyPhimFields(phim, body);
         // Never use caller-supplied trangThai — keep a DB-valid default
         phim.setTrangThai("sap_chieu");
-        Phim saved = phimRepository.save(phim);
+        Phim saved = phimService.save(phim);
         phimService.applyComputedStatus(saved);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
@@ -530,12 +531,12 @@ public class AdminController {
      */
     @PutMapping("/phim/{id}")
     public ResponseEntity<?> updatePhim(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        Phim phim = phimRepository.findById(id)
+        Phim phim = phimService.findByIdOptional(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
         String storedStatus = phim.getTrangThai();  // preserve stored value
         applyPhimFields(phim, body);
         phim.setTrangThai(storedStatus);  // restore: never override with incoming value
-        Phim saved = phimRepository.save(phim);
+        Phim saved = phimService.save(phim);
         phimService.applyComputedStatus(saved);
         return ResponseEntity.ok(saved);
     }
@@ -570,7 +571,7 @@ public class AdminController {
                 genres = rawIds.stream()
                         .map(raw -> {
                             Long gid = ((Number) raw).longValue();
-                            return theLoaiRepository.findById(gid)
+                            return theLoaiService.findById(gid)
                                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thể loại id=" + gid));
                         })
                         .collect(Collectors.toList());
@@ -589,7 +590,7 @@ public class AdminController {
                 formats = rawIds.stream()
                         .map(raw -> {
                             Long fid = ((Number) raw).longValue();
-                            return dinhDangRepository.findById(fid)
+                            return dinhDangService.findById(fid)
                                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy định dạng id=" + fid));
                         })
                         .collect(Collectors.toList());
@@ -604,16 +605,24 @@ public class AdminController {
      */
     @DeleteMapping("/phim/{id}")
     public ResponseEntity<?> deletePhim(@PathVariable Long id) {
-        Phim phim = phimRepository.findById(id)
+        Phim phim = phimService.findByIdOptional(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
         phim.setIsDeleted(true);
-        phimRepository.save(phim);
+        phimService.save(phim);
         return ResponseEntity.ok(Map.of("message", "Đã xóa phim"));
     }
 
     // ─────────────────────────────────────────────────────────────
     // SCHEDULE ADMIN CRUD
     // ─────────────────────────────────────────────────────────────
+
+    private String computeTrangThai(LichChieu lc) {
+        if (lc.getThoiGianBatDau() == null || lc.getThoiGianKetThuc() == null) return "chua_chieu";
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        if (now.isBefore(lc.getThoiGianBatDau())) return "chua_chieu";
+        if (now.isAfter(lc.getThoiGianKetThuc())) return "da_chieu";
+        return "dang_chieu";
+    }
 
     /**
      * GET /api/admin/lich-chieu/validate-date
@@ -630,7 +639,7 @@ public class AdminController {
             @RequestParam Long phimId,
             @RequestParam(required = false) Long excludeId) {
 
-        Phim phim = phimRepository.findById(phimId).orElse(null);
+        Phim phim = phimService.findByIdOptional(phimId).orElse(null);
         if (phim == null || phim.getThoiLuong() == null) {
             return ResponseEntity.ok(Map.of("date", ngay, "valid", false, "reason", "Không tìm thấy phim"));
         }
@@ -640,7 +649,7 @@ public class AdminController {
                 .atTime(Integer.parseInt(hm[0]), Integer.parseInt(hm[1]));
         java.time.LocalDateTime end = start.plusMinutes(phim.getThoiLuong() + thoiGianNghi);
 
-        java.util.Optional<LichChieu> conflict = lichChieuRepository.findAll().stream()
+        java.util.Optional<LichChieu> conflict = lichChieuService.findAll().stream()
                 .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
                 .filter(lc -> lc.getPhongChieu() != null && phongChieuId.equals(lc.getPhongChieu().getId()))
                 .filter(lc -> excludeId == null || !excludeId.equals(lc.getId()))
@@ -684,7 +693,9 @@ public class AdminController {
         int effectiveSize = (rapChieuId != null) ? Math.max(size, 500) : size;
 
         PageRequest pr = PageRequest.of(page, effectiveSize);
-        Page<LichChieu> result = lichChieuRepository.findAdminPage(from, to, rapChieuId, phongChieuId, pr);
+        Page<LichChieu> result = lichChieuService.findAdminPage(from, to, rapChieuId, phongChieuId, pr);
+
+        result.getContent().forEach(lc -> lc.setTrangThai(computeTrangThai(lc)));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("content",       result.getContent());
@@ -720,9 +731,9 @@ public class AdminController {
         // Always attach managed entities to avoid detached/transient entity issues.
         Long phimId = lichChieu.getPhim().getId();
         Long phongId = lichChieu.getPhongChieu().getId();
-        Phim phim = phimRepository.findById(phimId)
+        Phim phim = phimService.findByIdOptional(phimId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
-        PhongChieu phongChieu = phongChieuRepository.findById(phongId)
+        PhongChieu phongChieu = phongChieuService.findById(phongId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
         lichChieu.setPhim(phim);
         lichChieu.setPhongChieu(phongChieu);
@@ -738,7 +749,7 @@ public class AdminController {
             LocalDateTime start = lichChieu.getThoiGianBatDau();
             LocalDateTime end = lichChieu.getThoiGianKetThuc();
 
-            java.util.Optional<LichChieu> conflicting = lichChieuRepository.findAll().stream()
+            java.util.Optional<LichChieu> conflicting = lichChieuService.findAll().stream()
                     .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
                     .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
                     .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
@@ -757,7 +768,7 @@ public class AdminController {
             }
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(lichChieuRepository.save(lichChieu));
+        return ResponseEntity.status(HttpStatus.CREATED).body(lichChieuService.save(lichChieu));
     }
 
     /**
@@ -789,9 +800,9 @@ public class AdminController {
                     .body(Map.of("message", "Thiếu phimId, phongChieuId hoặc dates"));
         }
 
-        Phim phim = phimRepository.findById(phimId)
+        Phim phim = phimService.findByIdOptional(phimId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim id=" + phimId));
-        PhongChieu phong = phongChieuRepository.findById(phongId)
+        PhongChieu phong = phongChieuService.findById(phongId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu id=" + phongId));
 
         // ── Build the list of shows to create ────────────────────────────────
@@ -823,7 +834,7 @@ public class AdminController {
         }
 
         // Pre-load all active schedules in this room once — reused to avoid N+1
-        java.util.List<LichChieu> roomSchedules = lichChieuRepository.findAll().stream()
+        java.util.List<LichChieu> roomSchedules = lichChieuService.findAll().stream()
                 .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
                 .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
                 .collect(java.util.stream.Collectors.toList());
@@ -885,7 +896,7 @@ public class AdminController {
                     lc.setThoiGianNghi(nghi);
                     lc.setTrangThai("active");
                     lc.setIsDeleted(false);
-                    LichChieu saved = lichChieuRepository.save(lc);
+                    LichChieu saved = lichChieuService.save(lc);
 
                     // Track so intra-batch shows on the same date also see it
                     roomSchedules.add(saved);
@@ -1050,7 +1061,7 @@ public class AdminController {
 
                 // Lookup movie by exact name (case-insensitive)
                 final String tenPhimFinal = tenPhim;
-                java.util.Optional<Phim> phimOpt = phimRepository.findByIsDeletedFalse().stream()
+                java.util.Optional<Phim> phimOpt = phimService.findAllActive().stream()
                         .filter(p -> p.getTenPhim() != null && p.getTenPhim().trim().equalsIgnoreCase(tenPhimFinal.trim()))
                         .findFirst();
                 if (phimOpt.isEmpty()) {
@@ -1073,7 +1084,7 @@ public class AdminController {
                 final String tenPhongFinal = tenPhong;
 
                 // Step 1: find the cinema by name
-                java.util.Optional<PhongChieu> anyInRap = phongChieuRepository.findAll().stream()
+                java.util.Optional<PhongChieu> anyInRap = phongChieuService.findAll().stream()
                         .filter(p -> p.getRapChieu() != null
                                 && p.getRapChieu().getTenRap() != null
                                 && p.getRapChieu().getTenRap().trim().equalsIgnoreCase(tenRapFinal.trim()))
@@ -1086,7 +1097,7 @@ public class AdminController {
                 }
 
                 // Step 2: find the room within that cinema
-                java.util.Optional<PhongChieu> phongOpt = phongChieuRepository.findAll().stream()
+                java.util.Optional<PhongChieu> phongOpt = phongChieuService.findAll().stream()
                         .filter(p -> Boolean.TRUE.equals(p.getTrangThai()))
                         .filter(p -> p.getRapChieu() != null
                                 && p.getRapChieu().getTenRap() != null
@@ -1116,7 +1127,7 @@ public class AdminController {
 
                 // Room+time conflict check against DB
                 Long phongId = phong.getId();
-                java.util.Optional<LichChieu> dbConflict = lichChieuRepository.findAll().stream()
+                java.util.Optional<LichChieu> dbConflict = lichChieuService.findAll().stream()
                         .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
                         .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
                         .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
@@ -1175,6 +1186,130 @@ public class AdminController {
     }
 
     /**
+     * GET /api/admin/lich-chieu/import-template
+     * Returns a downloadable .xlsx template file with:
+     *   - Header row (bold, colored)
+     *   - Data validation dropdowns for Ten Rap (A), Ten Phim (B), Ten Phong (C)
+     *   - 30 empty rows ready to fill
+     *   - Hidden "Data" sheet as source for dropdown lists
+     */
+    @GetMapping("/lich-chieu/import-template")
+    public ResponseEntity<byte[]> downloadImportTemplate() {
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Lich Chieu");
+            org.apache.poi.ss.usermodel.Sheet dataSheet = wb.createSheet("Data");
+            wb.setSheetHidden(wb.getSheetIndex(dataSheet), true);
+
+            // ── Header row (row 0) ──
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            String[] headers = {"Ten Rap", "Ten Phim", "Ten Phong", "Ngay Chieu", "Gio Chieu", "Gia Co Ban"};
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font boldFont = wb.createFont();
+            boldFont.setBold(true);
+            headerStyle.setFont(boldFont);
+            org.apache.poi.ss.usermodel.FillPatternType solidFill = org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND;
+            headerStyle.setFillPattern(solidFill);
+            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setAlignment(org.apache.poi.ss.usermodel.HorizontalAlignment.CENTER);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // ── Populate hidden Data sheet ──
+            java.util.List<RapChieu> raps = rapChieuService.findAll().stream()
+                    .filter(r -> Boolean.TRUE.equals(r.getTrangThai()))
+                    .collect(java.util.stream.Collectors.toList());
+            java.util.List<Phim> phims = phimService.findAllActive();
+            java.util.List<PhongChieu> phongs = phongChieuService.findAll().stream()
+                    .filter(p -> Boolean.TRUE.equals(p.getTrangThai()))
+                    .collect(java.util.stream.Collectors.toList());
+
+            // Column A = Ten Rap
+            for (int i = 0; i < raps.size(); i++) {
+                org.apache.poi.ss.usermodel.Row dr = dataSheet.createRow(i);
+                dr.createCell(0).setCellValue(raps.get(i).getTenRap());
+            }
+            // Column B = Ten Phim
+            for (int i = 0; i < phims.size(); i++) {
+                org.apache.poi.ss.usermodel.Row dr = dataSheet.getRow(i);
+                if (dr == null) dr = dataSheet.createRow(i);
+                dr.createCell(1).setCellValue(phims.get(i).getTenPhim());
+            }
+            // Column C = Ten Phong (Ten Rap)
+            int maxPhongRows = Math.max(phongs.size(), Math.max(raps.size(), phims.size()));
+            for (int i = 0; i < phongs.size(); i++) {
+                org.apache.poi.ss.usermodel.Row dr = dataSheet.getRow(i);
+                if (dr == null) dr = dataSheet.createRow(i);
+                PhongChieu p = phongs.get(i);
+                String rapName = (p.getRapChieu() != null) ? p.getRapChieu().getTenRap() : "";
+                dr.createCell(2).setCellValue(p.getTenPhong() + " (" + rapName + ")");
+            }
+
+            // ── Data validation (dropdown) for 30 rows using hidden Data sheet ──
+            int dataRows = 30;
+            org.apache.poi.ss.usermodel.DataValidationHelper dvHelper = sheet.getDataValidationHelper();
+
+            // Column A: Ten Rap — reference Data!A1:A{count}
+            if (!raps.isEmpty()) {
+                String formula = "Data!$A$1:$A$" + raps.size();
+                org.apache.poi.ss.usermodel.DataValidationConstraint rapConstraint = dvHelper.createFormulaListConstraint(formula);
+                CellRangeAddressList rapRange = new CellRangeAddressList(1, dataRows, 0, 0);
+                org.apache.poi.ss.usermodel.DataValidation rapDv = dvHelper.createValidation(rapConstraint, rapRange);
+                rapDv.setShowErrorBox(true);
+
+                rapDv.createErrorBox("Gia tri khong hop le", "Vui long chon tu danh sach rap.");
+                sheet.addValidationData(rapDv);
+            }
+
+            // Column B: Ten Phim — reference Data!B1:B{count}
+            if (!phims.isEmpty()) {
+                String formula = "Data!$B$1:$B$" + phims.size();
+                org.apache.poi.ss.usermodel.DataValidationConstraint phimConstraint = dvHelper.createFormulaListConstraint(formula);
+                CellRangeAddressList phimRange = new CellRangeAddressList(1, dataRows, 1, 1);
+                org.apache.poi.ss.usermodel.DataValidation phimDv = dvHelper.createValidation(phimConstraint, phimRange);
+                phimDv.setShowErrorBox(true);
+
+                phimDv.createErrorBox("Gia tri khong hop le", "Vui long chon tu danh sach phim.");
+                sheet.addValidationData(phimDv);
+            }
+
+            // Column C: Ten Phong (Ten Rap) — reference Data!C1:C{count}
+            if (!phongs.isEmpty()) {
+                String formula = "Data!$C$1:$C$" + phongs.size();
+                org.apache.poi.ss.usermodel.DataValidationConstraint phongConstraint = dvHelper.createFormulaListConstraint(formula);
+                CellRangeAddressList phongRange = new CellRangeAddressList(1, dataRows, 2, 2);
+                org.apache.poi.ss.usermodel.DataValidation phongDv = dvHelper.createValidation(phongConstraint, phongRange);
+                phongDv.setShowErrorBox(true);
+
+                phongDv.createErrorBox("Gia tri khong hop le", "Vui long chon tu danh sach phong chieu.");
+                sheet.addValidationData(phongDv);
+            }
+
+            // ── Auto-size columns ──
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // ── Write to byte array ──
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            wb.write(baos);
+            byte[] bytes = baos.toByteArray();
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Mau_Import_Lich_Chieu.xlsx\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .contentLength(bytes.length)
+                    .body(bytes);
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("message", "Loi tao file mau: " + e.getMessage()).toString().getBytes());
+        }
+    }
+
+    /**
      * POST /api/admin/lich-chieu/import-confirm
      * Accepts the valid rows from import-preview, re-validates each from scratch,
      * saves only those that still pass, and returns succeeded/failed in the same
@@ -1219,14 +1354,14 @@ public class AdminController {
                 java.time.LocalDateTime start = java.time.LocalDateTime.parse(startRaw.toString());
                 java.time.LocalDateTime end   = java.time.LocalDateTime.parse(endRaw.toString());
 
-                Phim phim = phimRepository.findById(phimId).orElse(null);
+                Phim phim = phimService.findByIdOptional(phimId).orElse(null);
                 if (phim == null) {
                     Map<String, Object> f = new java.util.LinkedHashMap<>(row);
                     f.put("reason", "Khong tim thay phim id=" + phimId);
                     failed.add(f); continue;
                 }
 
-                PhongChieu phong = phongChieuRepository.findById(phongId).orElse(null);
+                PhongChieu phong = phongChieuService.findById(phongId).orElse(null);
                 if (phong == null) {
                     Map<String, Object> f = new java.util.LinkedHashMap<>(row);
                     f.put("reason", "Khong tim thay phong chieu id=" + phongId);
@@ -1242,7 +1377,7 @@ public class AdminController {
                 }
 
                 // DB conflict re-check
-                java.util.Optional<LichChieu> dbConflict = lichChieuRepository.findAll().stream()
+                java.util.Optional<LichChieu> dbConflict = lichChieuService.findAll().stream()
                         .filter(lc -> !Boolean.TRUE.equals(lc.getIsDeleted()))
                         .filter(lc -> lc.getPhongChieu() != null && phongId.equals(lc.getPhongChieu().getId()))
                         .filter(lc -> lc.getThoiGianBatDau() != null && lc.getThoiGianKetThuc() != null
@@ -1286,7 +1421,7 @@ public class AdminController {
                 lc.setThoiGianNghi(nghibMin);
                 lc.setTrangThai("active");
                 lc.setIsDeleted(false);
-                LichChieu saved = lichChieuRepository.save(lc);
+                LichChieu saved = lichChieuService.save(lc);
 
                 savedSlots.add(new java.time.LocalDateTime[]{start, end});
                 savedPhongIds.add(phongId);
@@ -1318,15 +1453,20 @@ public class AdminController {
      */
     @PutMapping("/lich-chieu/{id}")
     public ResponseEntity<?> updateLichChieu(@PathVariable Long id, @RequestBody LichChieu body) {
-        LichChieu lc = lichChieuRepository.findById(id)
+        LichChieu lc = lichChieuService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch chiếu"));
 
         // Ticket check: block if any non-cancelled booking exists
-        boolean hasTickets = datVeRepository.findByLichChieuId(id).stream()
+        boolean hasTickets = datVeService.findByLichChieuId(id).stream()
                 .anyMatch(dv -> !"cancelled".equalsIgnoreCase(dv.getTrangThai()));
         if (hasTickets) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "Không thể chỉnh sửa lịch chiếu đã phát sinh vé"));
+        }
+
+        if ("da_chieu".equals(computeTrangThai(lc))) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể chỉnh sửa lịch chiếu đã chiếu"));
         }
 
         LocalDateTime start = body.getThoiGianBatDau() != null ? body.getThoiGianBatDau() : lc.getThoiGianBatDau();
@@ -1334,11 +1474,11 @@ public class AdminController {
         PhongChieu phong = lc.getPhongChieu();
 
         if (body.getPhongChieu() != null && body.getPhongChieu().getId() != null) {
-            phong = phongChieuRepository.findById(body.getPhongChieu().getId())
+            phong = phongChieuService.findById(body.getPhongChieu().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
         }
         if (body.getPhim() != null && body.getPhim().getId() != null) {
-            Phim phim = phimRepository.findById(body.getPhim().getId())
+            Phim phim = phimService.findByIdOptional(body.getPhim().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phim"));
             lc.setPhim(phim);
         }
@@ -1359,7 +1499,7 @@ public class AdminController {
         if (phong != null && start != null && end != null) {
             Long phongId = phong.getId();
             final PhongChieu finalPhong = phong;
-            java.util.Optional<LichChieu> conflicting = lichChieuRepository.findAll().stream()
+            java.util.Optional<LichChieu> conflicting = lichChieuService.findAll().stream()
                     .filter(other -> !Boolean.TRUE.equals(other.getIsDeleted()))
                     .filter(other -> !other.getId().equals(id))
                     .filter(other -> other.getPhongChieu() != null && phongId.equals(other.getPhongChieu().getId()))
@@ -1386,7 +1526,7 @@ public class AdminController {
         if (body.getTrangThai() != null) lc.setTrangThai(body.getTrangThai());
         if (body.getPhongChieu() != null && body.getPhongChieu().getId() != null) lc.setPhongChieu(phong);
 
-        return ResponseEntity.ok(lichChieuRepository.save(lc));
+        return ResponseEntity.ok(lichChieuService.save(lc));
     }
 
     /**
@@ -1395,18 +1535,23 @@ public class AdminController {
      */
     @DeleteMapping("/lich-chieu/{id}")
     public ResponseEntity<?> deleteLichChieu(@PathVariable Long id) {
-        LichChieu lc = lichChieuRepository.findById(id)
+        LichChieu lc = lichChieuService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch chiếu"));
 
-        boolean hasTickets = datVeRepository.findByLichChieuId(id).stream()
+        boolean hasTickets = datVeService.findByLichChieuId(id).stream()
                 .anyMatch(dv -> !"cancelled".equalsIgnoreCase(dv.getTrangThai()));
         if (hasTickets) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "Không thể xóa lịch chiếu đã phát sinh vé"));
         }
 
+        if ("da_chieu".equals(computeTrangThai(lc))) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể xóa lịch chiếu đã chiếu"));
+        }
+
         lc.setIsDeleted(true);
-        lichChieuRepository.save(lc);
+        lichChieuService.save(lc);
         return ResponseEntity.ok(Map.of("message", "Đã xóa lịch chiếu"));
     }
 
@@ -1451,19 +1596,19 @@ public class AdminController {
     /** GET /api/admin/rap-chieu — returns ALL cinemas regardless of trangThai */
     @GetMapping("/rap-chieu")
     public ResponseEntity<java.util.List<RapChieu>> getAllRap() {
-        return ResponseEntity.ok(rapChieuRepository.findAll());
+        return ResponseEntity.ok(rapChieuService.findAll());
     }
 
     @PostMapping("/rap-chieu")
     public ResponseEntity<?> createRap(@RequestBody RapChieu rap) {
         rap.setId(null);
         if (rap.getTrangThai() == null) rap.setTrangThai(true);
-        return ResponseEntity.status(HttpStatus.CREATED).body(rapChieuRepository.save(rap));
+        return ResponseEntity.status(HttpStatus.CREATED).body(rapChieuService.save(rap));
     }
 
     @PutMapping("/rap-chieu/{id}")
     public ResponseEntity<?> updateRap(@PathVariable Long id, @RequestBody RapChieu body) {
-        RapChieu rap = rapChieuRepository.findById(id)
+        RapChieu rap = rapChieuService.getById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy rạp chiếu"));
         if (body.getTenRap()   != null) rap.setTenRap(body.getTenRap());
         if (body.getDiaChi()   != null) rap.setDiaChi(body.getDiaChi());
@@ -1475,15 +1620,15 @@ public class AdminController {
         // banDoUrl: always overwrite (including clearing to null when blank string sent)
         rap.setBanDoUrl(body.getBanDoUrl() != null && !body.getBanDoUrl().isBlank()
                 ? body.getBanDoUrl().trim() : null);
-        return ResponseEntity.ok(rapChieuRepository.save(rap));
+        return ResponseEntity.ok(rapChieuService.save(rap));
     }
 
     @DeleteMapping("/rap-chieu/{id}")
     public ResponseEntity<?> deleteRap(@PathVariable Long id) {
-        RapChieu rap = rapChieuRepository.findById(id)
+        RapChieu rap = rapChieuService.getById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy rạp chiếu"));
         rap.setTrangThai(false);
-        rapChieuRepository.save(rap);
+        rapChieuService.save(rap);
         return ResponseEntity.ok(Map.of("message", "Đã vô hiệu hóa rạp chiếu"));
     }
 
@@ -1498,7 +1643,7 @@ public class AdminController {
      */
     @GetMapping("/ghe-ngoi")
     public ResponseEntity<?> getGheByPhong(@RequestParam Long phongChieuId) {
-        return ResponseEntity.ok(gheNgoiRepository.findByPhongChieuId(phongChieuId));
+        return ResponseEntity.ok(gheNgoiService.findByPhongChieuId(phongChieuId));
     }
 
     /**
@@ -1529,11 +1674,11 @@ public class AdminController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Loại ghế không hợp lệ"));
             }
 
-            PhongChieu phong = phongChieuRepository.findById(phongChieuId)
+            PhongChieu phong = phongChieuService.findById(phongChieuId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
 
             // Build existing keys once, trimmed (CHAR(2) pads HangGhe with spaces)
-            java.util.Set<String> existingKeys = gheNgoiRepository.findByPhongChieuId(phongChieuId)
+            java.util.Set<String> existingKeys = gheNgoiService.findByPhongChieuId(phongChieuId)
                     .stream()
                     .map(g -> g.getHangGhe().trim() + "-" + g.getSoGhe())
                     .collect(java.util.stream.Collectors.toSet());
@@ -1555,14 +1700,14 @@ public class AdminController {
                 ghe.setSoGhe(n);
                 ghe.setLoaiGhe(loaiGhe);
                 ghe.setHeSoGia(heSoGia);
-                gheNgoiRepository.save(ghe);
+                gheNgoiService.save(ghe);
                 created++;
             }
 
             // Link "Sức chứa" to the real seat count
-            int soGheThucTe = (int) gheNgoiRepository.countByPhongChieuId(phongChieuId);
+            int soGheThucTe = (int) gheNgoiService.countByPhongChieuId(phongChieuId);
             phong.setSucChua(soGheThucTe);
-            phongChieuRepository.save(phong);
+            phongChieuService.save(phong);
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("message",    "Đã thêm " + created + " ghế (dãy " + hangGhe + ")");
@@ -1584,18 +1729,18 @@ public class AdminController {
     @DeleteMapping("/ghe-ngoi/row")
     public ResponseEntity<?> deleteGheRow(@RequestParam Long phongChieuId, @RequestParam String hangGhe) {
         try {
-            PhongChieu phong = phongChieuRepository.findById(phongChieuId)
+            PhongChieu phong = phongChieuService.findById(phongChieuId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
             String target = hangGhe.trim().toUpperCase();
-            List<GheNgoi> seats = gheNgoiRepository.findByPhongChieuId(phongChieuId)
+            List<GheNgoi> seats = gheNgoiService.findByPhongChieuId(phongChieuId)
                     .stream()
                     .filter(g -> target.equals(g.getHangGhe().trim()))
                     .collect(Collectors.toList());
-            gheNgoiRepository.deleteAll(seats);
+            gheNgoiService.deleteAll(seats);
 
-            int soGheThucTe = (int) gheNgoiRepository.countByPhongChieuId(phongChieuId);
+            int soGheThucTe = (int) gheNgoiService.countByPhongChieuId(phongChieuId);
             phong.setSucChua(soGheThucTe);
-            phongChieuRepository.save(phong);
+            phongChieuService.save(phong);
 
             return ResponseEntity.ok(Map.of(
                     "message",    "Đã xóa dãy " + target + " (" + seats.size() + " ghế)",
@@ -1616,17 +1761,17 @@ public class AdminController {
     @DeleteMapping("/ghe-ngoi/{id}")
     public ResponseEntity<?> deleteGhe(@PathVariable Long id) {
         try {
-            GheNgoi ghe = gheNgoiRepository.findById(id)
+            GheNgoi ghe = gheNgoiService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ghế"));
             Long phongChieuId = ghe.getPhongChieu() != null ? ghe.getPhongChieu().getId() : null;
-            gheNgoiRepository.delete(ghe);
+            gheNgoiService.delete(ghe);
 
             if (phongChieuId != null) {
-                PhongChieu phong = phongChieuRepository.findById(phongChieuId).orElse(null);
+                PhongChieu phong = phongChieuService.findById(phongChieuId).orElse(null);
                 if (phong != null) {
-                    int soGheThucTe = (int) gheNgoiRepository.countByPhongChieuId(phongChieuId);
+                    int soGheThucTe = (int) gheNgoiService.countByPhongChieuId(phongChieuId);
                     phong.setSucChua(soGheThucTe);
-                    phongChieuRepository.save(phong);
+                    phongChieuService.save(phong);
                 }
             }
             return ResponseEntity.ok(Map.of("message", "Đã xóa ghế"));
@@ -1645,11 +1790,11 @@ public class AdminController {
      */
     @PutMapping("/ghe-ngoi/{id}")
     public ResponseEntity<?> updateGhe(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        GheNgoi ghe = gheNgoiRepository.findById(id)
+        GheNgoi ghe = gheNgoiService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ghế"));
         if (body.containsKey("loaiGhe")) ghe.setLoaiGhe((String) body.get("loaiGhe"));
         if (body.containsKey("heSoGia")) ghe.setHeSoGia(new java.math.BigDecimal(body.get("heSoGia").toString()));
-        return ResponseEntity.ok(gheNgoiRepository.save(ghe));
+        return ResponseEntity.ok(gheNgoiService.save(ghe));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -1660,7 +1805,7 @@ public class AdminController {
     public ResponseEntity<?> createPhong(@RequestBody PhongChieu phong) {
         phong.setId(null);
         if (phong.getTrangThai() == null) phong.setTrangThai(true);
-        return ResponseEntity.status(HttpStatus.CREATED).body(phongChieuRepository.save(phong));
+        return ResponseEntity.status(HttpStatus.CREATED).body(phongChieuService.save(phong));
     }
 
     /**
@@ -1671,7 +1816,7 @@ public class AdminController {
      */
     @GetMapping("/phong-chieu")
     public ResponseEntity<?> getPhongByRap(@RequestParam Long rapChieuId) {
-        List<PhongChieu> phongs = phongChieuRepository.findByRapChieuId(rapChieuId);
+        List<PhongChieu> phongs = phongChieuService.findByRapChieuId(rapChieuId);
         List<Map<String, Object>> result = phongs.stream().map(p -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id",          p.getId());
@@ -1679,7 +1824,7 @@ public class AdminController {
             m.put("loaiPhong",   p.getLoaiPhong());
             m.put("trangThai",   p.getTrangThai());
             m.put("sucChua",     p.getSucChua());
-            m.put("soGheThucTe", gheNgoiRepository.countByPhongChieuId(p.getId()));
+            m.put("soGheThucTe", gheNgoiService.countByPhongChieuId(p.getId()));
             return m;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);
@@ -1687,14 +1832,14 @@ public class AdminController {
 
     @PutMapping("/phong-chieu/{id}")
     public ResponseEntity<?> updatePhong(@PathVariable Long id, @RequestBody PhongChieu body) {
-        PhongChieu phong = phongChieuRepository.findById(id)
+        PhongChieu phong = phongChieuService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
         if (body.getTenPhong() != null) phong.setTenPhong(body.getTenPhong());
         if (body.getLoaiPhong() != null) phong.setLoaiPhong(body.getLoaiPhong());
         if (body.getSucChua() != null) phong.setSucChua(body.getSucChua());
         if (body.getSoDoGhe() != null) phong.setSoDoGhe(body.getSoDoGhe());
         if (body.getTrangThai() != null) phong.setTrangThai(body.getTrangThai());
-        return ResponseEntity.ok(phongChieuRepository.save(phong));
+        return ResponseEntity.ok(phongChieuService.save(phong));
     }
 
     /**
@@ -1703,10 +1848,10 @@ public class AdminController {
      */
     @DeleteMapping("/phong-chieu/{id}")
     public ResponseEntity<?> deactivatePhong(@PathVariable Long id) {
-        PhongChieu phong = phongChieuRepository.findById(id)
+        PhongChieu phong = phongChieuService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phòng chiếu"));
         phong.setTrangThai(false);
-        phongChieuRepository.save(phong);
+        phongChieuService.save(phong);
         return ResponseEntity.ok(Map.of("message", "Đã vô hiệu hóa phòng chiếu"));
     }
 
@@ -1717,19 +1862,19 @@ public class AdminController {
     /** GET /api/admin/san-pham — returns ALL products regardless of dangHoatDong */
     @GetMapping("/san-pham")
     public ResponseEntity<java.util.List<SanPham>> getAllSanPham() {
-        return ResponseEntity.ok(sanPhamRepository.findAll());
+        return ResponseEntity.ok(sanPhamService.findAll());
     }
 
     @PostMapping("/san-pham")
     public ResponseEntity<?> createSanPham(@RequestBody SanPham sp) {
         sp.setId(null);
         if (sp.getDangHoatDong() == null) sp.setDangHoatDong(true);
-        return ResponseEntity.status(HttpStatus.CREATED).body(sanPhamRepository.save(sp));
+        return ResponseEntity.status(HttpStatus.CREATED).body(sanPhamService.save(sp));
     }
 
     @PutMapping("/san-pham/{id}")
     public ResponseEntity<?> updateSanPham(@PathVariable Long id, @RequestBody SanPham body) {
-        SanPham sp = sanPhamRepository.findById(id)
+        SanPham sp = sanPhamService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
         if (body.getTenSanPham() != null) sp.setTenSanPham(body.getTenSanPham());
         if (body.getMoTa() != null) sp.setMoTa(body.getMoTa());
@@ -1738,15 +1883,15 @@ public class AdminController {
         if (body.getAnhUrl() != null) sp.setAnhUrl(body.getAnhUrl());
         if (body.getTonKho() != null) sp.setTonKho(body.getTonKho());
         if (body.getDangHoatDong() != null) sp.setDangHoatDong(body.getDangHoatDong());
-        return ResponseEntity.ok(sanPhamRepository.save(sp));
+        return ResponseEntity.ok(sanPhamService.save(sp));
     }
 
     @DeleteMapping("/san-pham/{id}")
     public ResponseEntity<?> deleteSanPham(@PathVariable Long id) {
-        SanPham sp = sanPhamRepository.findById(id)
+        SanPham sp = sanPhamService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
         sp.setDangHoatDong(false);
-        sanPhamRepository.save(sp);
+        sanPhamService.save(sp);
         return ResponseEntity.ok(Map.of("message", "Đã vô hiệu hóa sản phẩm"));
     }
 
@@ -1757,7 +1902,7 @@ public class AdminController {
     /** GET /api/admin/banner — returns ALL banners regardless of status or date range */
     @GetMapping("/banner")
     public ResponseEntity<java.util.List<Banner>> getAllBanners() {
-        return ResponseEntity.ok(bannerRepository.findAllByOrderByThuTuAsc());
+        return ResponseEntity.ok(bannerService.findAllByOrderByThuTuAsc());
     }
 
     @PostMapping("/banner")
@@ -1767,12 +1912,12 @@ public class AdminController {
         // Exactly one FK must be set and must match loaiBanner
         ResponseEntity<?> validErr = validateBannerTarget(banner);
         if (validErr != null) return validErr;
-        return ResponseEntity.status(HttpStatus.CREATED).body(bannerRepository.save(banner));
+        return ResponseEntity.status(HttpStatus.CREATED).body(bannerService.save(banner));
     }
 
     @PutMapping("/banner/{id}")
     public ResponseEntity<?> updateBanner(@PathVariable Long id, @RequestBody Banner body) {
-        Banner banner = bannerRepository.findById(id)
+        Banner banner = bannerService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy banner"));
         if (body.getTieuDe() != null)       banner.setTieuDe(body.getTieuDe());
         if (body.getHinhAnh() != null)       banner.setHinhAnh(body.getHinhAnh());
@@ -1789,7 +1934,7 @@ public class AdminController {
             ResponseEntity<?> validErr = validateBannerTarget(banner);
             if (validErr != null) return validErr;
         }
-        return ResponseEntity.ok(bannerRepository.save(banner));
+        return ResponseEntity.ok(bannerService.save(banner));
     }
 
     /** Enforces the loaiBanner/FK rule. "Phim" requires a movie; "Khac" has no link. */
@@ -1808,7 +1953,7 @@ public class AdminController {
 
     @DeleteMapping("/banner/{id}")
     public ResponseEntity<?> deleteBanner(@PathVariable Long id) {
-        bannerRepository.deleteById(id);
+        bannerService.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "Đã xóa banner"));
     }
 
@@ -1829,7 +1974,7 @@ public class AdminController {
         String status   = (trangThai != null && !trangThai.isBlank()) ? trangThai.trim() : null;
 
         PageRequest pr = PageRequest.of(page, size);
-        Page<DatVe> result = datVeRepository.searchAdmin(query, status, pr);
+        Page<DatVe> result = datVeService.searchAdmin(query, status, pr);
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("content",       result.getContent());
@@ -1851,39 +1996,20 @@ public class AdminController {
      */
     @PostMapping("/dat-ve/{id}/refund")
     public ResponseEntity<?> refundBooking(@PathVariable Long id) {
-        DatVe datVe = datVeRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn đặt vé"));
-
-        if (!"paid".equals(datVe.getTrangThaiThanhToan())) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Chỉ có thể hoàn tiền cho đơn đã thanh toán (trạng thái 'paid')"));
+        try {
+            datVeService.refundBooking(id);
+            DatVe datVe = datVeService.findById(id).orElse(null);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã hoàn tiền thành công",
+                    "maDatVe", datVe != null ? datVe.getMaDatVe() : "",
+                    "trangThai", "cancelled"
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi hoàn tiền: " + e.getMessage()));
         }
-
-        // Update DatVe statuses — DB constraint allows: pending/confirmed/cancelled for trangThai
-        // and paid/unpaid for trangThaiThanhToan.
-        // We set trangThai → "cancelled" (booking is voided) and leave trangThaiThanhToan as "paid"
-        // so the payment record remains intact; the refund is tracked on ThanhToan.trangThai.
-        datVe.setTrangThai("cancelled");
-        datVeRepository.save(datVe);
-
-        // Update all associated ThanhToan records
-        List<ThanhToan> payments = thanhToanRepository.findByDatVeId(id);
-        for (ThanhToan tt : payments) {
-            tt.setTrangThai("refunded");
-            tt.setNgayHoan(LocalDateTime.now());
-            tt.setLyDoHoan("Admin hoàn tiền");
-        }
-        if (!payments.isEmpty()) thanhToanRepository.saveAll(payments);
-
-        // Restore product inventory — the stock was deducted when the booking
-        // was paid, so it must be added back when the money is refunded.
-        datVeService.restoreStock(datVe);
-
-        return ResponseEntity.ok(Map.of(
-                "message", "Đã hoàn tiền thành công",
-                "maDatVe", datVe.getMaDatVe(),
-                "trangThai", datVe.getTrangThai()
-        ));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -1904,7 +2030,7 @@ public class AdminController {
         LocalDate dateTo   = (to   != null && !to.isBlank())
                 ? LocalDate.parse(to)   : LocalDate.now();
 
-        List<DatVe> paid = datVeRepository.findAll().stream()
+        List<DatVe> paid = datVeService.findAll().stream()
                 .filter(dv -> "paid".equals(dv.getTrangThaiThanhToan()))
                 .filter(dv -> dv.getNgayTao() != null)
                 .filter(dv -> {
@@ -2032,7 +2158,7 @@ public class AdminController {
     @GetMapping("/seat-locks")
     public ResponseEntity<?> getSeatLocks(@RequestParam Long lichChieuId) {
         LocalDateTime now = LocalDateTime.now();
-        List<SeatLock> locks = seatLockRepository.findActiveByLichChieu(lichChieuId, now);
+        List<SeatLock> locks = seatLockService.findActiveByLichChieu(lichChieuId);
         // Enrich with seat label and user info
         List<Map<String, Object>> result = locks.stream().map(lock -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -2044,7 +2170,7 @@ public class AdminController {
             m.put("expiresAt",   lock.getExpiresAt());
             m.put("maDatVe",     lock.getMaDatVe());
             // Attach seat label (e.g. "B6") from GheNgoi
-            gheNgoiRepository.findById(lock.getGheNgoiId()).ifPresent(ghe -> {
+            gheNgoiService.findById(lock.getGheNgoiId()).ifPresent(ghe -> {
                 m.put("hangGhe",  (ghe.getHangGhe() != null ? ghe.getHangGhe().trim() : ""));
                 m.put("soGhe",    ghe.getSoGhe());
                 m.put("loaiGhe",  ghe.getLoaiGhe());
@@ -2052,7 +2178,7 @@ public class AdminController {
             });
             // Attach user email/name if available
             if (lock.getNguoiDungId() != null) {
-                nguoiDungRepository.findById(lock.getNguoiDungId()).ifPresent(u -> {
+                nguoiDungService.findById(lock.getNguoiDungId()).ifPresent(u -> {
                     m.put("email", u.getEmail());
                     m.put("hoTen", u.getHoTen());
                 });
@@ -2068,10 +2194,10 @@ public class AdminController {
      */
     @DeleteMapping("/seat-locks/{lockId}")
     public ResponseEntity<?> releaseSeatLock(@PathVariable Long lockId) {
-        if (!seatLockRepository.existsById(lockId)) {
+        if (!seatLockService.existsById(lockId)) {
             return ResponseEntity.notFound().build();
         }
-        seatLockRepository.deleteById(lockId);
+        seatLockService.deleteById(lockId);
         return ResponseEntity.ok(Map.of("message", "Đã giải phóng ghế"));
     }
 
@@ -2081,7 +2207,7 @@ public class AdminController {
      */
     @GetMapping("/config/seat-lock-minutes")
     public ResponseEntity<?> getSeatLockMinutes() {
-        int minutes = systemConfigRepository.findById("SEAT_LOCK_MINUTES")
+        int minutes = systemConfigService.findById("SEAT_LOCK_MINUTES")
                 .map(c -> {
                     try { return Integer.parseInt(c.getConfigValue()); }
                     catch (NumberFormatException e) { return 10; }
@@ -2105,10 +2231,10 @@ public class AdminController {
         if (minutes < 1 || minutes > 60) {
             return ResponseEntity.badRequest().body("minutes phải trong khoảng 1–60");
         }
-        SystemConfig config = systemConfigRepository.findById("SEAT_LOCK_MINUTES")
+        SystemConfig config = systemConfigService.findById("SEAT_LOCK_MINUTES")
                 .orElseGet(() -> { SystemConfig c = new SystemConfig(); c.setConfigKey("SEAT_LOCK_MINUTES"); return c; });
         config.setConfigValue(String.valueOf(minutes));
-        systemConfigRepository.save(config);
+        systemConfigService.save(config);
         return ResponseEntity.ok(Map.of("minutes", minutes));
     }
 
@@ -2125,23 +2251,23 @@ public class AdminController {
     @GetMapping("/seat-map")
     public ResponseEntity<?> getSeatMap(@RequestParam Long lichChieuId) {
         // 1. Resolve showtime → room
-        LichChieu lc = lichChieuRepository.findById(lichChieuId).orElse(null);
+        LichChieu lc = lichChieuService.findById(lichChieuId).orElse(null);
         if (lc == null) return ResponseEntity.notFound().build();
         Long phongChieuId = lc.getPhongChieu().getId();
 
         // 2. All seats in the room
-        List<GheNgoi> allSeats = gheNgoiRepository.findByPhongChieuId(phongChieuId);
+        List<GheNgoi> allSeats = gheNgoiService.findByPhongChieuId(phongChieuId);
 
         // 3. Active seat locks for this showtime
         LocalDateTime now = LocalDateTime.now();
-        List<SeatLock> activeLocks = seatLockRepository.findActiveByLichChieu(lichChieuId, now);
+        List<SeatLock> activeLocks = seatLockService.findActiveByLichChieu(lichChieuId);
         // Map: gheNgoiId → SeatLock (for O(1) lookup)
         Map<Long, SeatLock> lockMap = activeLocks.stream()
                 .collect(Collectors.toMap(SeatLock::getGheNgoiId, s -> s, (a, b) -> a));
 
         // 4. Booked seats from ChiTietDatGhe linked to confirmed/paid bookings
         //    (only non-cancelled bookings count as holding the seat)
-        Set<Long> bookedSeatIds = chiTietDatGheRepository.findByLichChieuId(lichChieuId)
+        Set<Long> bookedSeatIds = lichChieuService.findChiTietDatGheByLichChieuId(lichChieuId)
                 .stream()
                 .filter(ct -> {
                     DatVe dv = ct.getDatVe();

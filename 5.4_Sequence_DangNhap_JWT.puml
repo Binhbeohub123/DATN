@@ -1,0 +1,82 @@
+@startuml Sequence_Diagram_DangNhap
+skinparam defaultFontName "Consolas"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam SequenceLifeLineBorderColor Black
+skinparam SequenceArrowColor Black
+skinparam SequenceParticipantBackgroundColor White
+skinparam SequenceDividerBackgroundColor #E3F2FD
+
+title Sequence Diagram – Đăng nhập & Xác thực JWT
+
+actor "Người dùng" as User
+participant "Vue.js\n(Frontend)" as FE
+participant "AuthController" as AC
+participant "AuthService" as AS
+participant "UserRepository" as UR
+participant "JwtUtil" as JWT
+database "SQL Server\n(NguoiDung)" as DB
+
+== 1. Đăng ký tài khoản ==
+User -> FE : Nhập email, mật khẩu, xác nhận OTP
+FE -> AC : POST /api/auth/register\n{email, matKhau, hoTen, soDienThoai, ngaySinh}
+AC -> AS : register(dto)
+AS -> UR : findByEmail(email)
+UR --> AS : null (chưa tồn tại)
+AS -> AS : BCryptPasswordEncoder.encode(matKhau)
+AS -> DB : INSERT NguoiDung\n(vaiTro=CUSTOMER, trangThai=active)
+DB --> AS : OK
+AS -> AS : gstraotool.taoMaXacNhan(email)\n+ javaMailSender.sendOtp()
+AS --> AC : { message: "Đã gửi OTP" }
+AC --> FE : 200 OK
+FE --> User : Nhập mã OTP
+
+User -> FE : Nhập mã OTP
+FE -> AC : POST /api/auth/verify-otp\n{email, otpCode}
+AC -> AS : verifyOtp(email, otpCode)
+AS -> DB : Cập nhật NguoiDung.daXacNhanEmail = true
+AS --> AC : { message: "Xác thực thành công" }
+AC --> FE : 200 OK
+
+== 2. Đăng nhập ==
+User -> FE : Nhập email + mật khẩu
+FE -> AC : POST /api/auth/login\n{email, matKhau}
+AC -> AS : login(email, matKhau)
+AS -> UR : findByEmail(email)
+UR --> AS : NguoiDung (daXacNhanEmail=true, trangThai=active)
+AS -> AS : BCryptPasswordEncoder.matches\n(matKhau, hashedPassword)
+AS -> JWT : generateToken(email, vaiTro)
+JWT --> AS : JWT token (24h expiry)
+AS --> AC : { token, email, vaiTro, nguoiDungId }
+AC --> FE : 200 OK
+FE -> FE : localStorage.setItem('token')\nauthStore.setUser(...)
+
+== 3. Xác thực mọi request API ==
+FE -> FE : Axios interceptor\naxios.interceptors.request.use()
+note right : Đính header\nAuthorization: Bearer {token}
+
+FE -> FE : GET / POST /api/...
+FE -> FE : JwtAuthenticationFilter\ndoFilterInternal(request, response)
+note right : 1. Lấy header Authorization\n2. Cắt prefix "Bearer "\n3. jwtUtil.extractEmail(token)\n4. jwtUtil.validateToken(token)\n5. Tạo Authentication\n6. SecurityContextHolder.setContext()
+FE -> FE : Spring Security Chain\nXác thực thành công
+
+== 4. Phân quyền theo vai trò ==
+note over FE
+  Controller kiểm tra vai trò:
+  @PreAuthorize("hasRole('ADMIN')")
+  → CHỈ ADMIN mới gọi được
+  /api/admin/**
+  
+  @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+  → STAFF + ADMIN gọi được
+  
+  @PreAuthorize("isAuthenticated()")
+  → Mọi người đã đăng nhập
+end note
+
+== 5. Đăng xuất ==
+User -> FE : Nhấn "Đăng xuất"
+FE -> FE : localStorage.removeItem('token')\nauthStore.logout()
+note right : Xóa JWT khỏi client\nKhông gọi API logout\n(JWT stateless)
+
+@enduml

@@ -1,243 +1,57 @@
 <template>
   <div class="home">
     <!-- NAV -->
-    <nav class="nav">
-      <div class="nav-island">
-        <router-link to="/" class="logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
-          <span class="logo-text">Poly<span class="logo-accent">Cinema</span></span>
-        </router-link>
-
-        <!-- Desktop tabs -->
-        <nav class="nav-tabs" aria-label="Chọn nội dung" role="tablist">
-          <button
-            :class="['main-tab', { active: mainTab === 'phim' }]"
-            @click="mainTab = 'phim'"
-            :aria-selected="mainTab === 'phim'"
-            role="tab"
-            aria-controls="main-panel-phim"
-            id="main-tab-phim"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+    <SiteHeader ref="siteHeaderRef" :t="t" :lang="lang" @search-click="openGlobalSearch" @toggle-lang="toggleLang">
+      <template #tabs>
+        <div class="nav-item-dropdown" @mouseenter="phimDropdownOpen = true" @mouseleave="phimDropdownOpen = false">
+          <button class="main-tab" role="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
             <span class="main-tab-label">{{ t('tabPhim') }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <button
-            :class="['main-tab', { active: mainTab === 'rap_chieu' }]"
-            @click="mainTab = 'rap_chieu'"
-            :aria-selected="mainTab === 'rap_chieu'"
-            role="tab"
-            aria-controls="main-panel-rap"
-            id="main-tab-rap"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span class="main-tab-label">{{ t('tabRap') }}</span>
-          </button>
-          <button
-            :class="['main-tab', { active: mainTab === 'khuyen_mai' }]"
-            @click="mainTab = 'khuyen_mai'"
-            :aria-selected="mainTab === 'khuyen_mai'"
-            role="tab"
-            aria-controls="main-panel-khuyen-mai"
-            id="main-tab-khuyen-mai"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            <span class="main-tab-label">{{ t('tabKhuyenMai') }}</span>
-          </button>
-          <button
-            :class="['main-tab', { active: mainTab === 'gioi_thieu' }]"
-            @click="mainTab = 'gioi_thieu'"
-            :aria-selected="mainTab === 'gioi_thieu'"
-            role="tab"
-            aria-controls="main-panel-gioi-thieu"
-            id="main-tab-gioi-thieu"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span class="main-tab-label">{{ t('tabGioiThieu') }}</span>
-          </button>
-        </nav>
-
-        <!-- Desktop nav-actions -->
-        <div class="nav-actions">
-          <ThemeToggle />
-          <!-- Global search trigger -->
-          <button class="icon-btn gs-trigger" @click="openGlobalSearch" :aria-label="t('searchPlaceholder')" title="Tìm kiếm (/)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </button>
-          <button class="icon-btn lang-toggle" @click="toggleLang" :aria-label="lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'" :title="lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'">
-            <span class="lang-flag" v-if="lang === 'vi'">
-              <svg width="22" height="15" viewBox="0 0 60 40" aria-hidden="true">
-                <rect width="60" height="40" fill="#FFFFFF"/>
-                <rect y="0" width="60" height="4" fill="#B22234"/><rect y="8" width="60" height="4" fill="#B22234"/>
-                <rect y="16" width="60" height="4" fill="#B22234"/><rect y="24" width="60" height="4" fill="#B22234"/>
-                <rect y="32" width="60" height="4" fill="#B22234"/>
-                <rect width="26" height="22" fill="#3C3B6E"/>
-              </svg>
-            </span>
-            <span class="lang-flag" v-else>
-              <svg width="22" height="15" viewBox="0 0 30 20" aria-hidden="true">
-                <rect width="30" height="20" fill="#DA251D"/>
-                <path d="M15 3.2l1.5 4.6h4.9l-4 2.9 1.5 4.6L15 12.4l-4 2.9 1.5-4.6-4-2.9h4.9z" fill="#FFD200"/>
-              </svg>
-            </span>
-          </button>
-          <template v-if="!authStore.isLoggedIn">
-            <router-link to="/auth" class="btn btn-ghost">{{ t('login') }}</router-link>
-            <router-link to="/auth?mode=register" class="btn btn-primary btn-bib">{{ t('register') }}</router-link>
-          </template>
-          <template v-else>
-            <div class="user-menu-wrapper">
-              <button class="user-menu" @click.stop="showDropdown = !showDropdown" :aria-expanded="showDropdown" aria-haspopup="true">
-                <div class="avatar">
-                  <img v-if="authStore.user?.anhDaiDien" :src="authStore.user.anhDaiDien" :alt="authStore.userInitials" class="avatar-img" @error="e => e.target.style.display='none'" />
-                  <span v-else>{{ authStore.userInitials }}</span>
-                </div>
-                <span class="user-name">{{ authStore.user?.hoTen || authStore.user?.email }}</span>
-                <span class="chevron" aria-hidden="true">{{ showDropdown ? '▲' : '▼' }}</span>
-              </button>
-              <div v-if="showDropdown" class="dropdown glass-card" role="menu">
-                <router-link to="/profile" class="dropdown-item" @click="showDropdown=false" role="menuitem">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  {{ t('profile') }}
-                </router-link>
-                <router-link v-if="authStore.userRole !== 'STAFF'" to="/my-tickets" class="dropdown-item" @click="showDropdown=false" role="menuitem">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
-                  {{ t('tickets') }}
-                </router-link>
-                <router-link v-if="authStore.userRole !== 'STAFF'" to="/transaction-history" class="dropdown-item" @click="showDropdown=false" role="menuitem">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><path d="M9 12h6M9 16h4"/></svg>
-                  Lịch sử GD
-                </router-link>
-                <a v-if="authStore.isAdmin" href="/admin" class="dropdown-item" @click="showDropdown=false" role="menuitem">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><circle cx="12" cy="12" r="8"/></svg>
-                  Admin Panel
-                </a>
-                <router-link v-if="authStore.userRole === 'STAFF' || authStore.isAdmin" to="/staff/dashboard" class="dropdown-item" @click="showDropdown=false" role="menuitem">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
-                  Khu vực nhân viên
-                </router-link>
-                <hr class="dropdown-hr" />
-                <a href="#" @click.prevent="authStore.logout(); showDropdown=false" class="dropdown-item logout" role="menuitem">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                  {{ t('logout') }}
-                </a>
-              </div>
+          <transition name="dd-fade">
+            <div v-show="phimDropdownOpen" class="nav-dropdown">
+              <router-link to="/phim-dangchieu" class="nav-dropdown__item" @click="phimDropdownOpen = false">Đang Chiếu</router-link>
+              <router-link to="/phim-sapchieu" class="nav-dropdown__item" @click="phimDropdownOpen = false">Sắp Chiếu</router-link>
             </div>
-          </template>
+          </transition>
         </div>
-
-        <!-- Mobile hamburger -->
-        <button class="hamburger" @click.stop="showMobileMenu = !showMobileMenu" :aria-expanded="showMobileMenu" aria-label="Menu">
-          <span :class="['ham-line', { 'ham-line--open1': showMobileMenu }]"></span>
-          <span :class="['ham-line', { 'ham-line--open2': showMobileMenu }]"></span>
-          <span :class="['ham-line', { 'ham-line--open3': showMobileMenu }]"></span>
+        <button :class="['main-tab', { active: mainTab === 'rap_chieu' }]" @click="mainTab = 'rap_chieu'" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span class="main-tab-label">{{ t('tabRap') }}</span>
         </button>
-      </div>
-    </nav>
-
-    <!-- Mobile drawer -->
-    <transition name="drawer">
-      <div v-if="showMobileMenu" class="mobile-drawer" @click.self="showMobileMenu=false">
-        <div class="drawer-panel">
-          <div v-if="authStore.isLoggedIn" class="drawer-user">
-            <div class="drawer-avatar">{{ authStore.userInitials }}</div>
-            <div>
-              <p class="drawer-name">{{ authStore.user?.hoTen || authStore.user?.email }}</p>
-              <p class="drawer-level">{{ authStore.user?.capDoThanhVien || 'Thường' }}</p>
-            </div>
-          </div>
-          <div class="drawer-links">
-            <div class="drawer-theme-row">
-              <ThemeToggle show-label />
-            </div>
-            <button class="icon-btn drawer-theme-btn" @click="toggleLang">🌐 {{ lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt' }}</button>
-          </div>
-          <div class="drawer-tabs">
-            <button
-              :class="['drawer-item', { active: mainTab === 'phim' }]"
-              @click="mainTab = 'phim'; showMobileMenu = false"
-              role="tab"
-              aria-selected="mainTab === 'phim'"
-              aria-controls="main-panel-phim"
-              id="drawer-tab-phim"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-              {{ t('tabPhim') }}
-            </button>
-            <button
-              :class="['drawer-item', { active: mainTab === 'rap_chieu' }]"
-              @click="mainTab = 'rap_chieu'; showMobileMenu = false"
-              role="tab"
-              aria-selected="mainTab === 'rap_chieu'"
-              aria-controls="main-panel-rap"
-              id="drawer-tab-rap"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              {{ t('tabRap') }}
-            </button>
-            <button
-              :class="['drawer-item', { active: mainTab === 'khuyen_mai' }]"
-              @click="mainTab = 'khuyen_mai'; showMobileMenu = false"
-              role="tab"
-              aria-selected="mainTab === 'khuyen_mai'"
-              aria-controls="main-panel-khuyen-mai"
-              id="drawer-tab-khuyen-mai"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              {{ t('tabKhuyenMai') }}
-            </button>
-            <button
-              :class="['drawer-item', { active: mainTab === 'gioi_thieu' }]"
-              @click="mainTab = 'gioi_thieu'; showMobileMenu = false"
-              role="tab"
-              aria-selected="mainTab === 'gioi_thieu'"
-              aria-controls="main-panel-gioi-thieu"
-              id="drawer-tab-gioi-thieu"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              {{ t('tabGioiThieu') }}
-            </button>
-          </div>
-          <hr class="drawer-hr" />
-          <template v-if="!authStore.isLoggedIn">
-            <router-link to="/auth" class="drawer-item" @click="showMobileMenu=false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-              Đăng nhập
-            </router-link>
-            <router-link to="/auth?mode=register" class="drawer-item drawer-item--primary" @click="showMobileMenu=false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-              Đăng ký
-            </router-link>
-          </template>
-          <template v-else>
-            <router-link to="/profile" class="drawer-item" @click="showMobileMenu=false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Hồ sơ
-            </router-link>
-            <router-link v-if="authStore.userRole !== 'STAFF'" to="/my-tickets" class="drawer-item" @click="showMobileMenu=false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
-              Vé của tôi
-            </router-link>
-            <router-link v-if="authStore.userRole !== 'STAFF'" to="/transaction-history" class="drawer-item" @click="showMobileMenu=false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><path d="M9 12h6M9 16h4"/></svg>
-              Lịch sử GD
-            </router-link>
-            <a v-if="authStore.isAdmin" href="/admin" class="drawer-item" @click="showMobileMenu=false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><circle cx="12" cy="12" r="8"/></svg>
-              Admin Panel
-            </a>
-            <router-link v-if="authStore.userRole === 'STAFF' || authStore.isAdmin" to="/staff/dashboard" class="drawer-item" @click="showMobileMenu=false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>
-              Khu vực nhân viên
-            </router-link>
-            <hr class="drawer-hr" />
-            <a href="#" @click.prevent="authStore.logout(); showMobileMenu=false" class="drawer-item drawer-item--danger">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Đăng xuất
-            </a>
-          </template>
-        </div>
-      </div>
-    </transition>
+        <button :class="['main-tab', { active: mainTab === 'khuyen_mai' }]" @click="mainTab = 'khuyen_mai'" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span class="main-tab-label">{{ t('tabKhuyenMai') }}</span>
+        </button>
+        <button :class="['main-tab', { active: mainTab === 'gioi_thieu' }]" @click="mainTab = 'gioi_thieu'" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span class="main-tab-label">{{ t('tabGioiThieu') }}</span>
+        </button>
+      </template>
+      <template #drawer-tabs>
+        <router-link to="/phim-dangchieu" class="drawer-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+          Đang Chiếu
+        </router-link>
+        <router-link to="/phim-sapchieu" class="drawer-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+          Sắp Chiếu
+        </router-link>
+        <button :class="['drawer-item', { active: mainTab === 'rap_chieu' }]" @click="mainTab = 'rap_chieu'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          {{ t('tabRap') }}
+        </button>
+        <button :class="['drawer-item', { active: mainTab === 'khuyen_mai' }]" @click="mainTab = 'khuyen_mai'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          {{ t('tabKhuyenMai') }}
+        </button>
+        <button :class="['drawer-item', { active: mainTab === 'gioi_thieu' }]" @click="mainTab = 'gioi_thieu'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {{ t('tabGioiThieu') }}
+        </button>
+      </template>
+    </SiteHeader>
 
     <!-- ── Global Search Overlay ───────────────────────────────────── -->
     <transition name="gs-fade">
@@ -428,26 +242,6 @@
     <section class="section" aria-labelledby="movies-title">
       <div class="section-header">
         <h2 class="section-title" id="movies-title">{{ t('movies') }} <span>{{ t('schedule') }}</span></h2>
-      </div>
-
-      <!-- Tab bar always visible, regardless of search state -->
-      <div class="tabs" role="tablist" :aria-label="t('movieTabs')">
-        <button
-          :class="['tab', { active: activeTab === 'dang_chieu' }]"
-          @click="activeTab = 'dang_chieu'"
-          role="tab"
-          :aria-selected="activeTab === 'dang_chieu'"
-          id="tab-dang-chieu"
-          aria-controls="panel-dang-chieu"
-        >{{ t('nowShowing') }}</button>
-        <button
-          :class="['tab', { active: activeTab === 'sap_chieu' }]"
-          @click="activeTab = 'sap_chieu'"
-          role="tab"
-          :aria-selected="activeTab === 'sap_chieu'"
-          id="tab-sap-chieu"
-          aria-controls="panel-sap-chieu"
-        >{{ t('comingSoon') }}</button>
       </div>
 
       <!-- Default grid (no search) -->
@@ -805,79 +599,7 @@
     </div><!-- /PANEL: GIỚI THIỆU -->
 
     <!-- FOOTER -->
-    <footer class="footer">
-      <!-- Hero CTA -->
-      <div class="footer-hero">
-        <div class="footer-hero__copy">
-          <p class="footer-hero__tag">BE HAPPY, BE A STAR</p>
-          <p class="footer-hero__sub">{{ t('footerTagline') }}</p>
-        </div>
-        <div class="footer-hero__actions">
-          <button class="footer-btn footer-btn--primary" @click="goFooterMovies">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-            {{ t('footerBuyTickets') }}
-          </button>
-          <button class="footer-btn footer-btn--ghost" @click="goFooterMovies">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 2h7l-1 7h-5l-1-7z"/><path d="M5 3h14M7 9h10l1.5 4.5-1 4H6.5l-1-4L7 9z"/><path d="M9 17.5V22M15 17.5V22"/></svg>
-            {{ t('footerBuyPopcorn') }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Link columns -->
-      <div class="footer-grid">
-        <div class="footer-col">
-          <h4 class="footer-col__title">{{ t('footerMovies') }}</h4>
-          <button class="footer-link" @click="goFooterMoviesTab('dang_chieu')">{{ t('nowShowing') }}</button>
-          <button class="footer-link" @click="goFooterMoviesTab('sap_chieu')">{{ t('comingSoon') }}</button>
-          <button class="footer-link" @click="goFooterMovies">{{ t('bookNow') }}</button>
-        </div>
-
-        <div class="footer-col">
-          <h4 class="footer-col__title">{{ t('footerAccount') }}</h4>
-          <template v-if="!authStore.isLoggedIn">
-            <router-link to="/auth" class="footer-link" @click="closeFooterMenus">{{ t('login') }}</router-link>
-            <router-link to="/auth?mode=register" class="footer-link" @click="closeFooterMenus">{{ t('register') }}</router-link>
-          </template>
-          <template v-else>
-            <router-link to="/profile" class="footer-link" @click="closeFooterMenus">{{ t('profile') }}</router-link>
-            <router-link v-if="authStore.userRole !== 'STAFF'" to="/my-tickets" class="footer-link" @click="closeFooterMenus">{{ t('tickets') }}</router-link>
-            <router-link v-if="authStore.userRole !== 'STAFF'" to="/transaction-history" class="footer-link" @click="closeFooterMenus">Lịch sử GD</router-link>
-          </template>
-        </div>
-
-        <div class="footer-col">
-          <h4 class="footer-col__title">{{ t('footerExplore') }}</h4>
-          <button class="footer-link" @click="goFooterTab('rap_chieu')">{{ t('tabRap') }}</button>
-          <button class="footer-link" @click="goFooterTab('khuyen_mai')">{{ t('tabKhuyenMai') }}</button>
-          <button class="footer-link" @click="goFooterTab('gioi_thieu')">{{ t('tabGioiThieu') }}</button>
-        </div>
-
-        <div class="footer-col">
-          <h4 class="footer-col__title">{{ t('footerTheaters') }}</h4>
-          <template v-if="movieStore.cinemas.length">
-            <button
-              v-for="cinema in movieStore.cinemas.slice(0, 5)"
-              :key="cinema.id"
-              class="footer-link footer-link--truncate"
-              :title="cinema.tenRap"
-              @click="router.push('/rap/' + cinema.id)"
-            >{{ cinema.tenRap }}</button>
-          </template>
-          <button class="footer-link" @click="goFooterTab('rap_chieu')">{{ t('footerAllTheaters') }}</button>
-        </div>
-      </div>
-
-      <!-- Language + legal -->
-      <div class="footer-bottom">
-        <div class="footer-lang">
-          <button :class="['footer-lang__btn', { active: lang === 'vi' }]" @click="switchLang('vi')">VI</button>
-          <span class="footer-lang__sep">|</span>
-          <button :class="['footer-lang__btn', { active: lang === 'en' }]" @click="switchLang('en')">EN</button>
-        </div>
-        <p class="footer-copy">&copy; 2026 PolyCinema. {{ t('allRights') }}</p>
-      </div>
-    </footer>
+    <SiteFooter :t="t" :lang="lang" :cinemas="movieStore.cinemas" @toggle-lang="switchLang" @footer-nav="handleFooterNav" />
   </div>
 
   <!-- Confirm modal (teleported to body, shared with cinema cards) -->
@@ -890,7 +612,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useMovieStore } from '@/stores/movieStore'
 import { useBookingStore } from '@/stores/bookingStore'
-import ThemeToggle from '@/components/ThemeToggle.vue'
+import SiteHeader from '@/components/SiteHeader.vue'
+import SiteFooter from '@/components/SiteFooter.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import DayChip from '@/components/DayChip.vue'
 import { useConfirmModal } from '@/composables/useConfirmModal'
@@ -902,63 +625,48 @@ const movieStore = useMovieStore()
 const bookingStore = useBookingStore()
 const { open: openConfirmModal } = useConfirmModal()
 
-const lang = ref(localStorage.getItem('poly_lang') || 'vi')
+const lang = ref((() => { const v = localStorage.getItem('poly_lang'); return (v === 'vi' || v === 'en') ? v : 'vi' })())
 const activeTab = ref('dang_chieu')
 const mainTab = ref('phim')    // top-level: 'phim' | 'rap_chieu'
-const showDropdown = ref(false)
-const showMobileMenu = ref(false)
+const phimDropdownOpen = ref(false)
+const siteHeaderRef = ref(null)
 const bannerIndex = ref(0)
 let bannerTimer = null
 
-// Close dropdown when clicking outside
-const closeDropdown = (e) => {
-  if (!e.target.closest('.user-menu-wrapper') && !e.target.closest('.dropdown')) {
-    showDropdown.value = false
-  }
-  if (!e.target.closest('.hamburger') && !e.target.closest('.drawer-panel')) {
-    showMobileMenu.value = false
-  }
-}
-
 // ── Footer helpers ─────────────────────────────────────────────
-const closeFooterMenus = () => {
-  showDropdown.value = false
-  showMobileMenu.value = false
-}
-
-function goFooterMovies() {
-  closeFooterMenus()
-  mainTab.value = 'phim'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-function goFooterMoviesTab(tab) {
-  closeFooterMenus()
-  mainTab.value = 'phim'
-  activeTab.value = tab
-  nextTick(() => {
-    const el = document.getElementById('movies-title')
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
-}
-
-function goFooterTab(tab) {
-  closeFooterMenus()
-  mainTab.value = tab
-  const targetId = {
-    rap_chieu: 'cinemas-title',
-    khuyen_mai: 'promos-title',
-    gioi_thieu: 'gioi-thieu-title'
-  }[tab]
-  const panelId = {
-    rap_chieu: 'main-panel-rap',
-    khuyen_mai: 'main-panel-khuyen-mai',
-    gioi_thieu: 'main-panel-gioi-thieu'
-  }[tab]
-  nextTick(() => {
-    const el = (targetId && document.getElementById(targetId)) || (panelId && document.getElementById(panelId))
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
+function handleFooterNav({ action, tab }) {
+  siteHeaderRef.value?.closeAll()
+  if (action === 'movies') {
+    mainTab.value = 'phim'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } else if (action === 'movies-tab') {
+    if (tab === 'sap_chieu') {
+      router.push('/phim-sapchieu')
+    } else {
+      mainTab.value = 'phim'
+      activeTab.value = tab
+      nextTick(() => {
+        const el = document.getElementById('movies-title')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+  } else if (action === 'tab') {
+    mainTab.value = tab
+    const targetId = {
+      rap_chieu: 'cinemas-title',
+      khuyen_mai: 'promos-title',
+      gioi_thieu: 'gioi-thieu-title'
+    }[tab]
+    const panelId = {
+      rap_chieu: 'main-panel-rap',
+      khuyen_mai: 'main-panel-khuyen-mai',
+      gioi_thieu: 'main-panel-gioi-thieu'
+    }[tab]
+    nextTick(() => {
+      const el = (targetId && document.getElementById(targetId)) || (panelId && document.getElementById(panelId))
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 }
 
 function switchLang(next) {
@@ -971,7 +679,8 @@ const translations = {
   en: { login: 'Login', register: 'Register', profile: 'Profile', tickets: 'My Tickets', logout: 'Logout', movies: 'Movie', schedule: 'Schedule', now: 'Featured', nowShowing: 'Now Showing', comingSoon: 'Coming Soon', bookNow: 'Book Now', bookNowCta: 'Book Now', viewDetail: 'View Details', loading: 'Loading', promoTitle: 'Tuesday Offer', promoDesc: '30% off all tickets on Tuesday', joinNow: 'Join Now', allRights: 'All rights reserved.', featured: 'Top', topRated: 'Rated Movies', noMovies: 'No movies available', searchPlaceholder: 'Search movies...', clearSearch: 'Clear search', noResults: 'No movies found', searchResults: 'Search results', movieTabs: 'Movie categories', cinemaSystem: 'Cinema', cinemaNetwork: 'Network', noCinemas: 'No cinemas available', viewMap: 'View map', scrollLeft: 'Scroll left', scrollRight: 'Scroll right', tabPhim: 'Movies', tabRap: 'Cinemas', tabKhuyenMai: 'Promotions', promoActive: 'Active', noPromos: 'No active promotions', promoAppliesTo: 'Applies to', promoMin: 'Min. order', promoSystemWide: 'System-wide', chooseMovie: 'Browse movies', tabGioiThieu: 'About Us', footerTagline: 'Book fast, tasty combos, complete entertainment', footerBuyTickets: 'Buy Tickets', footerBuyPopcorn: 'Popcorn Combos', footerMovies: 'Movies', footerAccount: 'Account', footerExplore: 'Explore', footerTheaters: 'Cinema System', footerAllTheaters: 'All cinemas' }
 }
 
-const t = (key) => translations[lang.value][key] || key
+const langSafe = computed(() => translations[lang.value] ? lang.value : 'vi')
+const t = (key) => translations[langSafe.value]?.[key] || key
 const displayMovies = computed(() => activeTab.value === 'dang_chieu' ? movieStore.phimDangChieu : movieStore.phimSapChieu)
 const isLoading = computed(() => activeTab.value === 'dang_chieu' ? movieStore.loading.dangChieu : movieStore.loading.sapChieu)
 const isError = computed(() => activeTab.value === 'dang_chieu' ? movieStore.error.dangChieu : movieStore.error.sapChieu)
@@ -1486,7 +1195,6 @@ onMounted(() => {
   movieStore.fetchBanners()
   fetchPromos()
   fetchGioiThieu()
-  document.addEventListener('click', closeDropdown)
   document.addEventListener('keydown', onKeySlash)
   // Attempt immediate attach (works if data was already cached)
   setTimeout(() => {
@@ -1499,7 +1207,6 @@ watch(mainCarouselRef, (el) => attachWheelScroll(el))
 
 onUnmounted(() => {
   if (bannerTimer) clearInterval(bannerTimer)
-  document.removeEventListener('click', closeDropdown)
   document.removeEventListener('keydown', onKeySlash)
   detachWheelScroll(mainCarouselRef.value)
 })
@@ -1513,363 +1220,6 @@ onUnmounted(() => {
   font-family: 'Raleway', sans-serif;
   transition: background 0.25s ease, color 0.25s ease;
 }
-
-.nav {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 12px 40px;
-  background: transparent;
-}
-
-.nav-island {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  width: 100%;
-  max-width: 1400px;
-  border-radius: var(--radius-pill);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  background: rgba(5, 5, 8, 0.85);
-  padding: 8px 20px;
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-}
-
-.logo {
-  text-decoration: none;
-  color: var(--text-primary, #f1f5f9);
-  font-weight: 700;
-  font-size: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.logo-text {
-  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary, #f1f5f9);
-  letter-spacing: -0.02em;
-}
-
-.logo-accent { color: var(--electric, #29bcea); }
-
-.logo span { color: var(--accent); }
-
-.drawer-theme-row {
-  margin-bottom: 4px;
-}
-
-.nav-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
-
-.icon-btn {
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  background: var(--glass-bg, rgba(255,255,255,0.04));
-  color: var(--electric, #29bcea);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.icon-btn:hover { border-color: var(--electric, #29bcea); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); }
-
-.lang-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; }
-.lang-flag { display: inline-flex; border-radius: 3px; overflow: hidden; }
-.lang-flag svg { display: block; }
-
-.btn {
-  min-height: 44px;
-  padding: 10px 18px;
-  border-radius: 4px;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary, #94a3b8);
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-
-.btn-ghost:hover { background: var(--glass-bg, rgba(255,255,255,0.04)); color: var(--text-primary, #f1f5f9); border-color: var(--electric, #29bcea); }
-
-.btn-primary {
-  background: var(--electric, #29bcea);
-  color: var(--on-accent, #ffffff);
-  border: none;
-}
-
-.btn-primary:hover { background: var(--electric-hover, #1a9fbd); }
-
-/* .btn-bib styles are provided by cinema.css; these supplement in nav context */
-.btn-bib {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 20px;
-  background: var(--electric, #29bcea);
-  color: var(--on-accent, #ffffff);
-  border: none;
-  border-radius: var(--radius-sm, 6px);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  outline: 1.5px solid rgba(41,188,234,0.45);
-  outline-offset: 3px;
-  transition: transform 0.3s var(--spring, cubic-bezier(0.34,1.56,0.64,1)),
-              box-shadow 0.3s var(--ease-out, cubic-bezier(0.4,0,0.2,1)),
-              outline-offset 0.3s var(--spring, cubic-bezier(0.34,1.56,0.64,1));
-  will-change: transform;
-  text-decoration: none;
-}
-
-.btn-bib:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px var(--electric-glow, rgba(41,188,234,0.30));
-  outline-offset: 5px;
-}
-
-.btn-white {
-  background: #ffffff;
-  color: #29bcea;
-  border: 1px solid #ffffff;
-}
-
-.btn-white:hover { background: #f7f7f7; }
-
-.user-menu-wrapper { position: relative; }
-
-.user-menu {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  background: var(--glass-bg, rgba(255,255,255,0.04));
-  user-select: none;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.user-menu:hover { border-color: var(--electric, #29bcea); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); }
-
-.user-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary, #f1f5f9);
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chevron { font-size: 10px; color: var(--text-ghost, rgba(241,245,249,0.45)); }
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #29bcea;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 12px;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.avatar-img { width: 100%; height: 100%; object-fit: cover; }
-
-.dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--glass-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  backdrop-filter: var(--glass-blur, blur(20px));
-  -webkit-backdrop-filter: var(--glass-blur, blur(20px));
-  border-radius: var(--radius-md, 12px);
-  min-width: 220px;
-  z-index: 200;
-  overflow: hidden;
-  box-shadow: var(--shadow-lg, 0 12px 40px rgba(0,0,0,0.55));
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  color: var(--text-secondary, #94a3b8);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  transition: background 0.15s, color 0.15s;
-  cursor: pointer;
-}
-
-.dropdown-item:not(:last-child) { border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.08)); }
-
-.dropdown-item:hover { background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); color: var(--text-primary, #f1f5f9); }
-
-.dropdown-item.logout { color: #f87171; }
-
-.dropdown-hr { border: none; border-top: 1px solid var(--glass-border, rgba(255,255,255,0.08)); margin: 0; }
-
-.hamburger {
-  display: none;
-  flex-direction: column;
-  gap: 5px;
-  padding: 8px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-primary, #f1f5f9);
-  margin-left: auto;
-}
-
-.ham-line {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: currentColor;
-  border-radius: 2px;
-  transition: transform 0.25s, opacity 0.25s;
-}
-
-.ham-line--open1 { transform: translateY(7px) rotate(45deg); }
-.ham-line--open2 { opacity: 0; }
-.ham-line--open3 { transform: translateY(-7px) rotate(-45deg); }
-
-.mobile-drawer {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  justify-content: flex-end;
-}
-
-.drawer-panel {
-  width: 280px;
-  background: var(--surface-1, #0f0f17);
-  border-left: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  height: 100%;
-  padding: 24px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-}
-
-.drawer-user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0 16px;
-  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  margin-bottom: 4px;
-}
-
-.drawer-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--gold, #C9A84C);
-  color: #0D0D0D;
-  font-size: 16px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.drawer-name { font-size: 14px; font-weight: 700; color: var(--text-primary, #f1f5f9); margin: 0; }
-.drawer-level { font-size: 11px; color: var(--text-secondary, #94a3b8); margin: 0; }
-.drawer-links { display: flex; flex-direction: column; gap: 4px; }
-
-.drawer-tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 8px;
-}
-
-.drawer-tabs .drawer-item.active {
-  background: rgba(41,188,234,0.12);
-  color: var(--electric, #29bcea);
-}
-
-.drawer-theme-btn {
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  font-size: 13px;
-  background: var(--glass-bg, rgba(255,255,255,0.04));
-  border-radius: var(--radius-sm, 6px);
-  color: var(--text-secondary, #94a3b8);
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  cursor: pointer;
-}
-
-.drawer-hr { border: none; border-top: 1px solid var(--glass-border, rgba(255,255,255,0.08)); margin: 6px 0; }
-
-.drawer-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm, 6px);
-  color: var(--text-secondary, #94a3b8);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  transition: background 0.15s, color 0.15s;
-  cursor: pointer;
-  border: none;
-  background: none;
-  width: 100%;
-}
-
-.drawer-item:hover { background: var(--glass-bg, rgba(255,255,255,0.04)); color: var(--text-primary, #f1f5f9); }
-
-.drawer-item--primary {
-  background: var(--gold, #C9A84C);
-  color: #0D0D0D;
-}
-.drawer-item--primary:hover { background: var(--gold-bright, #F5D17E); color: #0D0D0D; }
-
-.drawer-item--danger { color: #f87171; }
-.drawer-item--danger:hover { background: rgba(248,113,113,0.08); color: #f87171; }
-
-.drawer-enter-active, .drawer-leave-active { transition: opacity 0.2s; }
-.drawer-enter-active .drawer-panel, .drawer-leave-active .drawer-panel { transition: transform 0.25s; }
-.drawer-enter-from, .drawer-leave-to { opacity: 0; }
-.drawer-enter-from .drawer-panel, .drawer-leave-to .drawer-panel { transform: translateX(100%); }
 
 .hero-stage {
   position: relative;
@@ -2028,38 +1378,6 @@ onUnmounted(() => {
 
 .section { padding: 60px 40px; max-width: 1400px; margin: 0 auto; }
 
-/* ── Top-level tabs inside the nav bar (Phim | Rạp Chiếu | ...) ── */
-.nav-tabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 20px;
-}
-
-.nav-tabs .main-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: none;
-  border: none;
-  border-radius: var(--radius-pill, 999px);
-  color: var(--text-secondary, #94a3b8);
-  font-size: 14px;
-  font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.2s, background 0.2s;
-}
-
-.nav-tabs .main-tab:hover { color: var(--text-primary, #f1f5f9); background: var(--glass-bg, rgba(255,255,255,0.06)); }
-
-.nav-tabs .main-tab.active {
-  color: var(--electric, #29bcea);
-  background: rgba(41,188,234,0.12);
-}
-
 .section-header {
   display: flex;
   align-items: flex-start;
@@ -2163,6 +1481,8 @@ onUnmounted(() => {
 .tab:hover { color: var(--text-primary, #f1f5f9); }
 
 .tab.active { color: var(--electric, #29bcea); border-bottom-color: var(--electric, #29bcea); }
+.tab--link { text-decoration: none; font-size: inherit; font-weight: inherit; font-family: inherit; }
+.tab--link:hover { color: var(--text-primary, #f1f5f9); }
 
 /* ── Carousel (replaces .movie-grid) ─────────────────────── */
 .carousel-wrapper {
@@ -2684,13 +2004,6 @@ onUnmounted(() => {
 .qb-book-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .qb-book-btn:hover:not(:disabled) { background: var(--electric-hover, #1a9fbd); }
 
-.footer {
-  background: #0a0a0f;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  color: var(--text-secondary, #94a3b8);
-  padding: 0;
-}
-
 #movies-title {
   scroll-margin-top: 110px;
 }
@@ -2700,175 +2013,7 @@ onUnmounted(() => {
   scroll-margin-top: 110px;
 }
 
-/* ── Footer hero (Tầng 1) ─────────────────────────────────── */
-.footer-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 56px 40px 40px;
-}
-.footer-hero__tag {
-  margin: 0 0 8px;
-  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
-  font-size: clamp(28px, 4vw, 44px);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: 0.5px;
-  color: #fff;
-}
-.footer-hero__sub {
-  margin: 0;
-  font-size: 15px;
-  color: var(--text-secondary, #94a3b8);
-}
-.footer-hero__actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.footer-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 22px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill, 999px);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.25s var(--ease-out, cubic-bezier(0.4,0,0.2,1)), box-shadow 0.25s, background 0.25s, border-color 0.25s, color 0.25s;
-}
-.footer-btn--primary {
-  background: var(--electric, #29bcea);
-  color: #fff;
-  box-shadow: var(--glow-elec, 0 0 16px rgba(41,188,234,0.30));
-}
-.footer-btn--primary:hover {
-  background: var(--electric-hover, #1a9fbd);
-  transform: translateY(-2px);
-  box-shadow: 0 0 28px var(--electric-glow, rgba(41,188,234,0.30));
-}
-.footer-btn--ghost {
-  background: var(--glass-bg, rgba(255,255,255,0.04));
-  border-color: var(--glass-border, rgba(255,255,255,0.08));
-  color: #fff;
-}
-.footer-btn--ghost:hover {
-  background: var(--gold-soft, rgba(201,168,76,0.10));
-  border-color: var(--gold, #C9A84C);
-  color: var(--gold-bright, #F5D17E);
-  transform: translateY(-2px);
-}
-
-/* ── Link columns (Tầng 2) ───────────────────────────────── */
-.footer-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 40px 40px 48px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  text-align: left;
-}
-.footer-col__title {
-  margin: 0 0 14px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--text-primary, #f1f5f9);
-}
-.footer-link {
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 6px 0;
-  background: none;
-  border: none;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14px;
-  color: var(--text-secondary, #94a3b8);
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-.footer-link:hover {
-  color: var(--electric, #29bcea);
-}
-.footer-link--truncate {
-  max-width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-/* ── Bottom bar (Tầng 3) ─────────────────────────────────── */
-.footer-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px 40px 28px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.footer-lang {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.footer-lang__btn {
-  padding: 5px 10px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm, 6px);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  color: var(--text-ghost, rgba(241,245,249,0.45));
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
-}
-.footer-lang__btn:hover {
-  color: var(--text-primary, #f1f5f9);
-}
-.footer-lang__btn.active {
-  color: var(--electric, #29bcea);
-  border-color: rgba(41,188,234,0.35);
-  background: var(--electric-soft, rgba(41,188,234,0.08));
-}
-.footer-lang__sep {
-  color: var(--text-ghost, rgba(241,245,249,0.45));
-}
-.footer-copy {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text-ghost, rgba(241,245,249,0.45));
-}
-
 @media (max-width: 768px) {
-  .footer-hero { flex-direction: column; align-items: flex-start; padding: 40px 20px 32px; }
-  .footer-grid { grid-template-columns: 1fr; gap: 24px; padding: 32px 20px 36px; }
-  .footer-bottom { padding: 18px 20px 24px; }
-}
-
-@media (max-width: 768px) {
-  .nav { padding: 8px 16px; }
-  .nav-island { padding: 6px 14px; border-radius: var(--radius-lg, 20px); }
-  .nav-actions { display: none; }
-  .nav-tabs { margin-left: 8px; gap: 2px; }
-  .nav-tabs .main-tab { padding: 8px 12px; font-size: 13px; gap: 6px; }
-  .hamburger { display: flex; }
   .hero-stage { min-height: 280px; }
   .hero-content { left: 5%; right: 5%; max-width: 100%; }
   .section { padding: 40px 20px; }
@@ -3379,5 +2524,4 @@ kbd {
   .gs-overlay { padding: 60px 12px 12px; }
   .gs-panel { max-height: 80vh; }
 }
-
 </style>

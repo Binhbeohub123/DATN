@@ -78,6 +78,7 @@ public class SecurityConfig {
                     "/api/thanh-toan/payos/confirm",
                     "/api/thanh-toan/zalopay/callback",
                     "/api/thanh-toan/zalopay/redirect",
+                    "/ws/**",
                     "/oauth2/**",
                     "/login/**",
                     "/",

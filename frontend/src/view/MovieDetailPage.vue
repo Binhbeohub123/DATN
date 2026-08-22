@@ -87,10 +87,13 @@
       <!-- Trailer -->
       <div v-if="movie.trailer" class="section">
         <h2 class="section-title">Trailer</h2>
-        <div class="trailer-wrap">
-          <iframe :src="embedUrl(movie.trailer)" frameborder="0" allowfullscreen title="Trailer"></iframe>
-        </div>
+        <button class="trailer-btn" @click="showTrailerModal = true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Xem Trailer
+        </button>
       </div>
+
+      <VideoModal :visible="showTrailerModal" :url="movie?.trailer || ''" @close="showTrailerModal = false" />
 
       <!-- ── Schedule Section ── -->
       <div class="section schedule-section" id="schedule">
@@ -226,6 +229,7 @@ import { useBookingStore } from '@/stores/bookingStore'
 import { useAuthStore } from '@/stores/authStore'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import DayChip from '@/components/DayChip.vue'
+import VideoModal from '@/components/VideoModal.vue'
 import api from '@/services/api'
 import { fmtTime12 } from '@/utils/homeHelpers'
 
@@ -237,6 +241,7 @@ const authStore    = useAuthStore()
 
 // ── reactive state ──────────────────────────────────────────
 const movie           = ref(null)
+const showTrailerModal = ref(false)
 const loadingMovie    = ref(false)
 const movieError      = ref('')
 const schedules       = ref([])
@@ -663,12 +668,14 @@ watch(() => route.params.id, async (id) => {
 .description { font-size: 14px; line-height: 1.8; color: var(--text-secondary, #94a3b8); margin: 0; }
 
 /* ── trailer ──────────────────────────────────────────────── */
-.trailer-wrap {
-  position: relative; width: 100%; padding-bottom: 56.25%; height: 0;
-  border-radius: var(--radius-md, 12px); overflow: hidden;
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+.trailer-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(229,9,20,0.15); color: #e50914;
+  border: 1px solid rgba(229,9,20,0.35); border-radius: 10px;
+  padding: 10px 20px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
-.trailer-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.trailer-btn:hover { background: #e50914; color: #fff; border-color: #e50914; }
 
 /* ── schedule ─────────────────────────────────────────────── */
 .schedule-section { padding-bottom: 40px; }

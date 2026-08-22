@@ -8,8 +8,8 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.polycinema.backend.entity.DatVe;
-import com.polycinema.backend.repository.DatVeRepository;
-import com.polycinema.backend.repository.NguoiDungRepository;
+import com.polycinema.backend.service.AuthService;
+import com.polycinema.backend.service.DatVeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -23,41 +23,29 @@ import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * GET /api/ve/{maVe}/qr
- * Generates a QR code PNG for the given booking code.
- * Only the booking owner or an admin may request it.
- */
 @RestController
 @RequestMapping("/api/ve")
 @RequiredArgsConstructor
 public class VeController {
 
-    private final DatVeRepository datVeRepository;
-    private final NguoiDungRepository nguoiDungRepository;
+    private final DatVeService datVeService;
+    private final AuthService authService;
 
     @GetMapping(value = "/{maVe}/qr", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getQrCode(@PathVariable String maVe) {
-        // ── Resolve caller identity ──────────────────────────────
-        Long callerUserId = getUserIdFromToken();
-        String callerRole  = getRoleFromToken();
-        boolean isAdmin    = "ADMIN".equals(callerRole);
+        Long callerUserId = authService.getUserIdFromToken();
+        String callerRole = getRoleFromToken();
+        boolean isAdmin = "ADMIN".equals(callerRole);
 
-        // ── Find booking ─────────────────────────────────────────
-        DatVe datVe = datVeRepository.findByMaDatVe(maVe).orElse(null);
-        if (datVe == null) {
-            return ResponseEntity.notFound().build();
-        }
+        DatVe datVe = datVeService.findByMaDatVe(maVe);
+        if (datVe == null) return ResponseEntity.notFound().build();
 
-        // ── Authorization: owner or admin ─────────────────────────
         if (!isAdmin && (callerUserId == null || !callerUserId.equals(datVe.getNguoiDung().getId()))) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        // ── QR content: booking code + movie + showtime ───────────
-        String qrContent = buildQrContent(datVe);
+        String qrContent = datVe.getMaDatVe();
 
-        // ── Generate QR PNG via ZXing ─────────────────────────────
         try {
             Map<EncodeHintType, Object> hints = new HashMap<>();
             hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
@@ -74,32 +62,10 @@ public class VeController {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.IMAGE_PNG);
             headers.setContentLength(png.length);
-            // Cache for 1 hour — QR content doesn't change after booking is created
             headers.set(HttpHeaders.CACHE_CONTROL, "max-age=3600, private");
             return new ResponseEntity<>(png, headers, HttpStatus.OK);
-
         } catch (WriterException | java.io.IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    // ── QR content: just the booking code — machine-parseable for check-in ──
-    private String buildQrContent(DatVe datVe) {
-        return datVe.getMaDatVe();
-    }
-
-    // ── JWT helpers (principal = email string) ────────────────────
-    private Long getUserIdFromToken() {
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || !auth.isAuthenticated()) return null;
-            Object principal = auth.getPrincipal();
-            if (!(principal instanceof String)) return null;
-            String email = (String) principal;
-            if ("anonymousUser".equals(email)) return null;
-            return nguoiDungRepository.findByEmail(email).map(u -> u.getId()).orElse(null);
-        } catch (Exception e) {
-            return null;
         }
     }
 
@@ -111,8 +77,6 @@ public class VeController {
                     .findFirst()
                     .map(a -> a.getAuthority().replace("ROLE_", ""))
                     .orElse("");
-        } catch (Exception e) {
-            return "";
-        }
+        } catch (Exception e) { return ""; }
     }
 }

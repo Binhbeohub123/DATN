@@ -1,0 +1,68 @@
+@startuml Sequence_Diagram_ZaloPay
+skinparam defaultFontName "Consolas"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam SequenceLifeLineBorderColor Black
+skinparam SequenceArrowColor Black
+skinparam SequenceParticipantBackgroundColor White
+skinparam SequenceDividerBackgroundColor #E3F2FD
+
+title Sequence Diagram – Thanh toán qua ZaloPay
+
+actor "Khách hàng" as KH
+participant "Vue.js\n(Frontend)" as FE
+participant "ThanhToan\nController" as TC
+participant "ThanhToan\nService" as TS
+participant "ZaloPay\nService" as ZS
+participant "ZaloPay\nAPI Sandbox" as ZP
+participant "EmailService" as ES
+database "SQL Server\n(DatVe, ThanhToan)" as DB
+
+== 1. Tạo đơn đặt vé ==
+KH -> FE : Chọn ghế + combo, nhấn "Thanh toán"
+FE -> FE : POST /api/dat-ve (JWT)\n{lichChieuId, gheIds[], sanPhamIds[], khuyenMaiId?, diemTichLuy}
+note right: Tạo DatVe (pending)\n+ ChiTietDatGhe\n+ ChiTietDatSanPham
+
+== 2. Tạo link thanh toán ZaloPay ==
+KH -> FE : Chọn ZaloPay, nhấn "Xác nhận"
+FE -> TC : POST /api/thanh-toan/zalopay/create\ndatVeId, frontendOrigin
+TC -> TS : createZaloPayPayment(datVeId, frontendOrigin)
+TS -> DB : Tìm DatVe theo datVeId
+DB --> TS : DatVe (status=pending)
+
+TS -> ZS : createPaymentRequest(amount, orderCode, returnUrl)
+note right
+  ZaloPay API v2
+  app_id = 2553
+  key1 = từ application.yml
+  HMAC-SHA256 xác thực
+  Tạo order với amount, callbackUrl
+end note
+ZS -> ZP : POST https://sandbox.zalopay.com.vn/v0001/create
+ZP --> ZS : { zp_trans_token, order_url }
+ZS --> TS : orderUrl
+TS -> DB : Tạo bản ghi ThanhToan\n(phuongThuc='zalopay', trangThai='pending')
+TC --> FE : { orderUrl: "https://sandbox.zalopay.com.vn/..." }
+FE --> KH : Chuyển hướng đến ZaloPay
+
+== 3. Khách hàng thanh toán ==
+KH -> ZP : Nhập mã OTP / xác nhận trên ZaloPay App\nthực hiện thanh toán
+
+== 4. IPN Callback (server-to-server) ==
+ZP -> TC : POST /zalopay/callback\n{app_id, app_trans_id, amount, status, ...}
+TC -> ZS : handleZaloPayCallback(data)
+ZS -> ZS : Xác thực MAC bằng key2\n(SHA256 + HMAC)
+ZS -> DB : Cập nhật ThanhToan.trangThai = 'success'\nCập nhật DatVe.trangThaiThanhToan = 'paid'
+
+== 5. Gửi vé ==
+ZS -> ES : sendBookingConfirmation(datVe)
+ES -> KH : Gửi email xác nhận vé\n+ mã QR vé điện tử
+ZS --> TC : { return_code: 1 }
+TC --> ZP : 200 OK
+
+== 6. Redirect kết quả ==
+ZP -> FE : Redirect về /payment-result/{bookingId}
+FE -> FE : GET /api/ve/{maVe}/qr
+note right : Hiển thị vé điện tử + mã QR\n+ thông tin phim, ghế, combo
+
+@enduml

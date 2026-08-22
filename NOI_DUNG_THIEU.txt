@@ -1,0 +1,237 @@
+================================================================================
+TOÀN BỘ NỘI DUNG THIẾU — Copy dán vào gg.docx theo vị trí từng mục
+================================================================================
+
+
+================================================================================
+PHẦN 1 — 1.1 Ý NGHĨA CỦA ĐỀ TÀI
+(Vị trí: ngay sau "Đối tượng sử dụng", trước "Các chức năng chính")
+================================================================================
+
+Về mặt thực tiễn, hệ thống giúp rạp chiếu phim số hóa quy trình bán vé, quản lý phim, lịch chiếu và doanh thu thay vì quản lý thủ công. Khách hàng được trải nghiệm đặt vé nhanh chóng, tiện lợi trên mọi thiết bị, đồng thời nhận vé điện tử qua email giúp giảm thiểu giấy tờ và thời gian chờ đợi. Hệ thống cũng hỗ trợ nhân viên tại quầy bán vé, check-in QR và quản lý ca làm việc hiệu quả hơn.
+
+Về mặt học thuật, đề tài là cơ hội để vận dụng kiến thức về lập trình web (Spring Boot, Vue.js), thiết kế REST API, cơ sở dữ liệu quan hệ (SQL Server), xác thực bảo mật (JWT, Spring Security) và kiến trúc 3 lớp vào một bài toán thực tế. Qua quá trình thực hiện, nhóm được củng cố kỹ năng phân tích, thiết kế và triển khai ứng dụng web hoàn chỉnh, đáp ứng yêu cầu của môi trường kinh doanh hiện đại.
+
+
+================================================================================
+PHẦN 3 — 3.1 MÔ TẢ SƠ ĐỒ TRIỂN KHAI HỆ THỐNG
+(Vị trí: ngay sau heading "Mô tả sơ đồ" hiện đang bỏ trống)
+================================================================================
+
+Mô hình triển khai phần mềm mô tả cách các thành phần của hệ thống PolyCinema được tổ chức và kết nối với nhau. Hệ thống được xây dựng theo kiến trúc 3 lớp (Client – Server – Database), trong đó:
+
+- Tầng Client (Frontend): Người dùng truy cập website thông qua trình duyệt web. Giao diện được xây dựng bằng Vue.js 3 (Composition API), tổ chức theo mô hình Single Page Application (SPA). Axios được cấu hình tập trung tại services/api.js, tự động gắn JWT (Authorization: Bearer …) từ localStorage vào mỗi request. Vue Router có route guard kiểm tra meta.requiresAuth cho các trang cần đăng nhập và kiểm tra vai trò ADMIN khi vào /admin/*.
+
+- Tầng Server (Backend): Ứng dụng Spring Boot 3.5 với JDK 17 chạy trên Tomcat (cổng 8080). Tầng Controller nhận request REST API và ánh xạ URL qua @RestController. Tầng Service xử lý nghiệp vụ và sử dụng Repository qua dependency injection. Tầng Repository kế thừa JpaRepository, tự động ánh xạ Entity ↔ bảng SQL Server. Xác thực dùng Spring Security + JWT (JwtAuthenticationFilter chặn mọi request, trích token từ header Authorization, xác thực chữ ký bằng JwtUtil, đưa email + vai trò vào SecurityContext). Phân quyền theo vai trò CUSTOMER/STAFF/ADMIN bằng @PreAuthorize("hasRole('ADMIN')") ở các API quản trị.
+
+- Tầng Database: SQL Server Express (instance SQLEXPRESS), tên database rapphim6, gồm 24 bảng. Schema được quản lý thủ công bằng script SQL (ddl-auto=none) để đảm bảo đúng ràng buộc đã thiết kế ở ERD. Cấu hình UTF-8 xuyên suốt để xử lý đúng tiếng Việt có dấu.
+
+Bên cạnh đó, hệ thống tích hợp cổng thanh toán PayOS (SDK vn.payos 2.0.1) và ZaloPay để xử lý thanh toán trực tuyến, EmailService (Jakarta Mail + SMTP) để gửi email xác nhận vé điện tử kèm mã QR. Hệ thống cũng tích hợp Spring Security + OAuth2 (Google Login) để hỗ trợ đăng nhập bằng tài khoản Google.
+
+Giao diện được tổ chức theo layout gồm 4 vùng chính: Header (điều hướng + tài khoản), Sidebar (chỉ hiển thị ở khu vực Admin), Main Content (nội dung thay đổi theo route) và Footer. Theme sáng/tối được quản lý qua Pinia store và CSS design token riêng (assets/tokens.css).
+
+
+================================================================================
+PHẦN 3 — 3.2.1 MÔ TẢ SƠ ĐỒ USE CASE TỔNG QUAN
+(Vị trí: thay thế đoạn "Mô tả ngắn gọn" hiện có)
+================================================================================
+
+Sơ đồ Use Case tổng quan thể hiện các chức năng chính của hệ thống PolyCinema và sự tương tác giữa các tác nhân với hệ thống. Hệ thống có bốn tác nhân chính gồm: Khách vãng lai (Guest), Khách hàng đã đăng ký (Customer), Nhân viên (Staff) và Quản trị viên (Admin).
+
+Khách vãng lai có thể xem danh sách phim, xem chi tiết phim, tìm kiếm phim theo tên hoặc thể loại, xem lịch chiếu và giá vé, xem banner khuyến mãi. Sau khi đăng ký và đăng nhập thành công, khách hàng được phép đặt vé trực tuyến (chọn phim → chọn suất chiếu → chọn ghế → mua combo bắp nước → áp dụng khuyến mãi/điểm tích lũy → thanh toán → nhận vé QR), xem lịch sử đặt vé, hủy vé theo chính sách, quản lý thông tin cá nhân và nhận thông báo khuyến mãi.
+
+Nhân viên chịu trách nhiệm bán vé tại quầy, quét mã QR vé để xác nhận, thanh toán tại quầy (tiền mặt/thẻ), bán bắp nước & combo, xem báo cáo ca làm việc và lịch phân ca. Quản trị viên có quyền quản lý toàn bộ hệ thống bao gồm: quản lý phim (thêm/sửa/xóa), quản lý rạp, phòng chiếu, sơ đồ ghế, lịch chiếu, giá vé, banner quảng cáo, đặt vé (duyệt/hủy), combo sản phẩm, người dùng & nhân viên, khuyến mãi/voucher, báo cáo & thống kê doanh thu và gửi thông báo Email.
+
+Sơ đồ sử dụng quan hệ «include» để thể hiện các chức năng bắt buộc (ví dụ: "Đặt vé" includes "Thanh toán") và «extend» để thể hiện các chức năng mở rộng (ví dụ: "Áp dụng khuyến mãi" extend "Đặt vé"). Sơ đồ là cơ sở để phân tích yêu cầu và thiết kế các chức năng của hệ thống một cách đầy đủ và nhất quán.
+
+
+================================================================================
+PHẦN 3 — 3.2.2 MÔ TẢ USE CASE KHÁCH HÀNG
+(Vị trí: thay thế đoạn mô tả hiện có)
+================================================================================
+
+Các chức năng mà Khách hàng (Customer) có thể thực hiện sau khi truy cập hệ thống PolyCinema. Khách hàng có thể đăng ký tài khoản bằng email, nhận OTP xác thực email, đăng nhập vào hệ thống để sử dụng các chức năng đặt vé và quản lý tài khoản. Sau khi xác thực thành công, khách hàng có thể xem danh sách phim đang chiếu và sắp chiếu, tìm kiếm phim theo tên hoặc thể loại, xem chi tiết phim kèm trailer và đánh giá, xem lịch chiếu theo ngày/rạp/phim, xem sơ đồ ghế (chỉ xem) và xem giá vé.
+
+Khi quyết định đặt vé, khách hàng chọn suất chiếu, chọn ghế ngồi trên sơ đồ phòng chiếu (hỗ trợ ghế thường, VIP, cặp đôi, khuyết tật), chọn thêm combo bắp nước (tuỳ chọn), áp dụng mã giảm giá hoặc sử dụng điểm tích lũy, rồi lựa chọn phương thức thanh toán (PayOS hoặc ZaloPay). Hệ thống xử lý thanh toán qua cổng thanh toán bên ngoài, nhận webhook xác nhận, cập nhật trạng thái đơn đặt vé và gửi email vé điện tử kèm mã QR.
+
+Ngoài ra, khách hàng còn có thể xem lịch sử đặt vé, hủy vé theo chính sách của rạp (đơn chưa thanh toán mới được hủy), xem và cập nhật thông tin cá nhân, đổi mật khẩu và nhận thông báo khuyến mãi. Các chức năng được liên kết với nhau thông qua quan hệ «include» và «extend», giúp thể hiện rõ các chức năng bắt buộc và các chức năng chỉ được thực hiện trong những điều kiện nhất định.
+
+
+================================================================================
+PHẦN 3 — 3.2.3 MÔ TẢ USE CASE QUẢN TRỊ + NHÂN VIÊN
+(Vị trí: thay thế đoạn mô tả hiện có)
+================================================================================
+
+Sơ đồ Use Case dành cho Quản trị viên (Admin) và Nhân viên (Staff) của hệ thống PolyCinema. Sau khi đăng nhập, quản trị viên có quyền truy cập và sử dụng toàn bộ các chức năng quản trị thông qua giao diện Admin Dashboard.
+
+Đối với quản lý nội dung, quản trị viên có thể thêm, sửa, xóa phim (xóa mềm bằng cờ IsDeleted), quản lý poster và trailer, quản lý thể loại phim (TheLoai) và định dạng chiếu (DinhDang). Quản lý rạp chiếu, phòng chiếu và sơ đồ ghế ngồi (bao gồm từng hàng ghế, số ghế, loại ghế và hệ số giá). Quản lý lịch chiếu phim theo từng phòng, ngày và khung giờ, kiểm tra trùng lịch chiếu tự động. Quản lý giá vé cơ bản theo suất chiếu.
+
+Đối với quản lý vận hành, quản trị viên quản lý đặt vé (duyệt/hủy), quản lý người dùng và nhân viên (tài khoản, phân quyền CUSTOMER/STAFF/ADMIN, khóa/mở khóa tài khoản), quản lý combo bắp nước và sản phẩm (sản phẩm kèm đặt vé), quản lý banner quảng cáo, quản lý chương trình khuyến mãi và voucher. Đối với báo cáo, quản trị viên xem thống kê doanh thu theo ngày/tháng/năm, phim bán chạy, tình hình kinh doanh và xuất báo cáo ra file Excel (Apache POI).
+
+Nhân viên (Staff) có các chức năng: bán vé tại quầy (POS), quét mã QR vé để xác nhận tại cửa, thanh toán tại quầy (tiền mặt/thẻ/chuyển khoản), bán bắp nước & combo tại quầy, xem báo cáo ca làm việc (doanh thu ca, số vé bán, sự cố) và xem lịch phân ca.
+
+
+================================================================================
+PHẦN 3 — 3.3.1 BẢNG SRS CHI TIẾT — KHÁCH HÀNG
+(Vị trí: thay thế nội dung "Use Case 1: ..." hiện có bằng bảng)
+================================================================================
+
+| STT  | Use Case                       | Mục tiêu                                          | Đối tượng       | Input chính                                    | Quy trình xử lý chính |
+|------|--------------------------------|---------------------------------------------------|-----------------|------------------------------------------------|------------------------|
+| UC01 | Xem lịch chiếu và thông tin phim | Hiển thị danh sách phim và lịch chiếu            | Tất cả người dùng | Thể loại, ngày, rạp                            | Truy cập trang → Lọc phim/lịch → Hiển thị danh sách |
+| UC02 | Đặt vé xem phim                | Cho phép khách hàng đặt vé trực tuyến             | Khách hàng       | Phim, suất chiếu, ghế ngồi                     | Chọn phim → Chọn suất → Chọn ghế → Tạo DatVe (pending) → SeatLock |
+| UC03 | Mua bắp nước/combo             | Thêm sản phẩm đi kèm khi đặt vé                   | Khách hàng       | Sản phẩm, số lượng                              | Chọn combo → Thêm vào ChiTietDatSanPham → Tính tổng tiền |
+| UC04 | Áp dụng khuyến mãi/điểm tích lũy | Giảm giá khi đặt vé                              | Khách hàng       | Mã khuyến mãi hoặc số điểm tích lũy            | Nhập mã → Kiểm tra hiệu lực → Tính TienGiamKhuyenMai hoặc TienGiamTuDiem |
+| UC05 | Thanh toán trực tuyến           | Xử lý thanh toán qua PayOS hoặc ZaloPay           | Khách hàng       | Phương thức (PayOS / ZaloPay)                  | POST /api/thanh-toan/payos/create hoặc /zalopay/create → Chuyển cổng → Webhook callback → Cập nhật trạng thái |
+| UC06 | Nhận vé điện tử                 | Gửi vé QR qua email sau khi thanh toán thành công | Hệ thống         | DatVe đã paid                                  | EmailService.sendBookingConfirmation() → Gửi email kèm mã QR |
+| UC07 | Xem lịch sử đặt vé             | Cho phép khách xem các đơn đã đặt                 | Khách hàng       | userId (từ JWT)                                | GET /api/dat-ve → Lấy danh sách DatVe theo userId |
+| UC08 | Hủy vé                         | Hủy đơn chưa thanh toán                           | Khách hàng       | datVeId                                        | Kiểm tra trạng thái → Nếu unpaid: cập nhật cancelled → Giải phóng ghế |
+| UC09 | Quản lý tài khoản cá nhân      | Cập nhật thông tin và mật khẩu                    | Khách hàng       | Họ tên, SĐT, ngày sinh, ảnh, mật khẩu cũ/mới  | PUT /api/auth/profile hoặc POST /api/auth/change-password |
+
+
+================================================================================
+PHẦN 3 — 3.3.2 BẢNG SRS CHI TIẾT — QUẢN TRỊ + NHÂN VIÊN
+(Vị trí: thay thế nội dung hiện có bằng bảng)
+================================================================================
+
+| STT    | Use Case                        | Mục tiêu                                         | Đối tượng   | Input chính                                   | Quy trình xử lý chính |
+|--------|---------------------------------|--------------------------------------------------|-------------|-----------------------------------------------|------------------------|
+| UC-A01 | Đăng nhập Admin/Staff           | Xác thực quản trị viên hoặc nhân viên            | Admin/Staff | Email, mật khẩu                               | POST /api/auth/login → Kiểm tra BCrypt → Trả JWT kèm vai trò |
+| UC-A02 | Quản lý phim                   | Thêm, sửa, xóa (mềm) thông tin phim             | Admin       | Tên phim, poster, trailer, thể loại, đạo diễn… | POST/PUT/DELETE /api/admin/phim → soft delete bằng IsDeleted |
+| UC-A03 | Quản lý rạp và phòng chiếu     | Quản lý hệ thống rạp – phòng – ghế              | Admin       | Tên rạp, tên phòng, sơ đồ ghế                 | CRUD /api/admin/rap-chieu, /phong-chieu, /ghe-ngoi |
+| UC-A04 | Quản lý lịch chiếu             | Tạo và điều chỉnh lịch chiếu, kiểm tra trùng    | Admin       | PhimId, PhongChieuId, thời gian bắt đầu/kết thúc | POST/PUT /api/admin/lich-chieu → CHECK UNIQUE (PhongChieuId + ThoiGianBatDau) |
+| UC-A05 | Quản lý đặt vé                 | Xem danh sách đơn, duyệt/hủy vé                  | Admin/Staff | datVeId, trạng thái mới                       | GET /api/admin/dat-ve → Cập nhật trạng thái → Hoàn tiền nếu hủy |
+| UC-A06 | Quản lý người dùng             | Xem danh sách, khóa/mở khóa tài khoản           | Admin       | userId, hành động (lock/unlock)               | GET /api/admin/users → PUT /api/admin/users/{id}/lock hoặc /unlock |
+| UC-A07 | Quản lý khuyến mãi             | Tạo/sửa/xóa chương trình khuyến mãi             | Admin       | Tên KM, phần trăm giảm, thời hạn              | CRUD /api/khuyen-mai |
+| UC-A08 | Quản lý banner                 | Thêm/sửa/xóa banner quảng cáo                   | Admin       | Ảnh banner, URL đích, trạng thái hiển thị      | CRUD /api/admin/banner |
+| UC-A09 | Báo cáo doanh thu              | Xem thống kê và xuất Excel                       | Admin       | Khoảng ngày/tháng/năm                         | GET /api/admin/doanh-thu → GET /api/admin/report/export (Apache POI) |
+| UC-A10 | Bán vé tại quầy (POS)          | Nhân viên bán vé trực tiếp                        | Staff       | Phim, suất chiếu, ghế, tiền mặt/thẻ           | Tạo DatVe + ThanhToan tại quầy → In hóa đơn |
+| UC-A11 | Quét QR check-in               | Xác nhận vé hợp lệ tại cửa                       | Staff       | Mã QR từ vé điện tử                           | Quét mã QR → GET /api/ve/{maVe}/qr → Xác nhận trạng thái |
+| UC-A12 | Bán bắp nước tại quầy          | Bán sản phẩm đi kèm                              | Staff       | Sản phẩm, số lượng                             | Tạo đơn hàng tại quầy → Cập nhật tồn kho |
+
+
+================================================================================
+PHẦN 2 — MÔ TẢ CÁC CHUỖI CHỨC NĂNG (6 QUY TRÌNH NGHIỆP VỤ)
+(Vị trí: ngay sau phần yêu cầu vai trò, trước 2.2 Kế hoạch dự án)
+================================================================================
+
+Mô tả các chuỗi chức năng
+
+Quy trình đặt vé trực tuyến
+Khách truy cập hệ thống → Xem danh sách phim → Chọn phim → Xem lịch chiếu → Chọn suất chiếu → Chọn ghế ngồi → Chọn combo bắp nước (tuỳ chọn) → Nhập mã khuyến mãi/điểm tích lũy (tuỳ chọn) → Chọn phương thức thanh toán (PayOS hoặc ZaloPay) → Thanh toán thành công → Hệ thống tạo DatVe + ChiTietDatGhe + ChiTietDatSanPham → Sinh mã QR vé điện tử → Gửi email xác nhận → Khách nhận vé
+
+Quy trình bán vé tại quầy (POS)
+Nhân viên đăng nhập → Chọn chức năng bán vé tại quầy → Tìm kiếm phim/suất chiếu → Chọn ghế → Chọn combo bắp nước (tuỳ chọn) → Thanh toán (tiền mặt/thẻ/chuyển khoản) → Hệ thống tạo DatVe + ThanhToan tại quầy → In hóa đơn
+
+Quy trình xử lý đơn hàng
+Khách đặt vé online → DatVe ở trạng thái pending → Thanh toán thành công (webhook callback) → DatVe chuyển sang trạng thái paid → Nhân viên/Admin xem danh sách đơn → Xử lý (xác nhận/hủy) → Nếu hủy: hoàn tiền, giải phóng ghế
+
+Quy trình hủy vé
+Khách chọn đơn đặt vé muốn hủy → Kiểm tra trạng thái đơn (chỉ đơn unpaid mới được hủy) → Khách xác nhận hủy → DatVe chuyển sang trạng thái cancelled → Giải phóng ghế (xóa SeatLock) → Nếu đã thanh toán: xử lý hoàn tiền
+
+Quy trình quản lý phim
+Admin đăng nhập → Vào quản lý phim → Thêm phim mới (nhập tên, poster, trailer, thể loại, đạo diễn, diễn viên, thời lượng, ngôn ngữ, phân loại tuổi) → Lưu → Phim hiển thị trên trang chủ. Hoặc: Sửa thông tin phim → Cập nhật. Hoặc: Xóa mềm (IsDeleted = 1)
+
+Quy trình khuyến mãi
+Admin tạo chương trình khuyến mãi (tên KM, phần trăm giảm, thời hạn) → Lưu vào bảng KhuyenMai → Khách hàng nhập mã khuyến mãi khi đặt vé → Hệ thống kiểm tra hiệu lực → Tính số tiền giảm → Cập nhật tổng tiền thanh toán
+
+
+================================================================================
+PHẦN 7 — 7.X TÀI KHOẢN MẶC ĐỊNH
+(Vị trí: sau phần Newsql.sql, trước 7.4 Kết quả triển khai)
+================================================================================
+
+Tài khoản mặc định dùng để kiểm thử sau khi cài đặt:
+
+| Vai trò       | Email / Username     | Mật khẩu  | Mô tả                                      |
+|---------------|----------------------|------------|---------------------------------------------|
+| Admin         | admin@cinema.com     | Admin@123  | Quản trị toàn quyền, quản lý phim/lịch/triển khai |
+| Nhân viên     | staff@cinema.com     | Staff@123  | Bán vé tại quầy, check-in QR, báo cáo ca    |
+| Khách hàng    | user@cinema.com      | User@123   | Đặt vé online, xem lịch sử, quản lý tài khoản |
+
+
+================================================================================
+PHỤ LỤC — CẤU TRÚC THƯ MỤC DỰ ÁN
+(Vị trí: mục PHỤ LỤC hiện đang trống "…")
+================================================================================
+
+Cấu trúc thư mục dự án
+
+polyCinema/
+├── backend/
+│   └── src/main/java/com/polycinema/backend/
+│       ├── CinemaApplication.java
+│       ├── config/
+│       │   ├── SecurityConfig.java
+│       │   ├── PayOSConfig.java
+│       │   ├── EncodingConfig.java
+│       │   └── DataInitializer.java
+│       ├── controller/
+│       │   ├── AuthController.java
+│       │   ├── PhimController.java
+│       │   ├── LichChieuController.java
+│       │   ├── RapChieuController.java
+│       │   ├── BannerController.java
+│       │   ├── SanPhamController.java
+│       │   ├── DatVeController.java
+│       │   ├── ThanhToanController.java
+│       │   ├── VeController.java
+│       │   ├── KhuyenMaiController.java
+│       │   └── AdminController.java
+│       ├── service/
+│       │   ├── AuthService.java
+│       │   ├── DatVeService.java
+│       │   ├── ThanhToanService.java
+│       │   ├── PhimService.java
+│       │   ├── EmailService.java
+│       │   └── BookingExpiryService.java
+│       ├── repository/ (21 interface Repository)
+│       ├── entity/ (23 lớp Entity + 2 Id class)
+│       ├── dto/
+│       ├── util/JwtUtil.java
+│       └── security/JwtAuthenticationFilter.java
+├── frontend/
+│   └── src/
+│       ├── view/         (trang khách hàng)
+│       ├── Auth/         (đăng nhập/đăng ký)
+│       ├── admin/        (quản trị)
+│       ├── components/   (Toast, ThemeToggle…)
+│       ├── composables/  (useToast, useReveal…)
+│       ├── stores/       (authStore, bookingStore, movieStore, themeStore)
+│       ├── services/     (api.js, homeService.js)
+│       ├── router/       (Vue Router + route guard)
+│       └── assets/       (tokens.css, theme.css, dark-theme.css)
+├── Newsql.sql
+├── DEPLOYMENT_GUIDE.md
+├── API_DOCUMENTATION.md
+└── HƯỚNG_DẪN_SỬ_DỤNG.md
+
+
+================================================================================
+TÀI LIỆU THAM KHẢO
+(Vị trí: mục "TÀI LIỆU THAM KHẢO" hiện đang trống "…")
+================================================================================
+
+[1] Spring Boot Reference Documentation 3.5.x. VMware, Inc., 2025. https://docs.spring.io/spring-boot/docs/3.5.x/reference/html/
+
+[2] Spring Data JPA – Reference Documentation. VMware, Inc., 2025. https://docs.spring.io/spring-data/jpa/docs/3.5.x/reference/html/
+
+[3] Spring Security Reference. VMware, Inc., 2025. https://docs.spring.io/spring-security/reference/
+
+[4] Vue.js 3 – Official Documentation. 2025. https://vuejs.org/guide/introduction.html
+
+[5] Vue Router 5 – Official Documentation. 2025. https://router.vuejs.org/
+
+[6] PayOS Developer Documentation. VietPayment JSC, 2025. https://payos.vn/docs/
+
+[7] ZaloPay Developer Documentation. ZaloPay, 2025. https://developer.zalopay.vn/
+
+[8] Microsoft SQL Server 2022 Documentation. Microsoft Corporation, 2024. https://learn.microsoft.com/en-us/sql/
+
+[9] Hibernate ORM 6.x Reference Guide. Red Hat, Inc., 2024. https://docs.hibernate.org/orm/6.6/
+
+[10] Pressman R.S., Maxim B.R. Software Engineering: A Practitioner's Approach, 9th Edition. McGraw-Hill, 2019.
+
+================================================================================
+END
+================================================================================

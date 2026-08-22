@@ -4,6 +4,8 @@ import com.polycinema.backend.entity.NguoiDung;
 import com.polycinema.backend.repository.NguoiDungRepository;
 import com.polycinema.backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -376,5 +378,51 @@ public class AuthService {
         repo.save(u);
 
         return "Cập nhật thông tin thành công";
+    }
+
+    // ================= CHANGE PASSWORD =================
+    public String changePassword(String email, String currentPassword, String newPassword) {
+        if (email == null || email.isBlank()) return "Email không được để trống";
+        if (currentPassword == null || currentPassword.isBlank()) return "Mật khẩu hiện tại không được để trống";
+        if (newPassword == null || newPassword.length() < 6) return "Mật khẩu mới phải tối thiểu 6 ký tự";
+
+        email = email.trim().toLowerCase();
+
+        NguoiDung user = repo.findByEmail(email).orElse(null);
+        if (user == null) return "NOT_FOUND";
+
+        if (!encoder.matches(currentPassword, user.getMatKhauHash())) {
+            return "Mật khẩu hiện tại không đúng";
+        }
+
+        user.setMatKhauHash(encoder.encode(newPassword));
+        repo.save(user);
+
+        return "Đổi mật khẩu thành công";
+    }
+
+    // ================= JWT HELPERS =================
+    public String getEmailFromToken() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated()) {
+                if ("anonymousUser".equals(auth.getPrincipal())) return null;
+                Object principal = auth.getPrincipal();
+                if (principal instanceof String) return principal.toString();
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public Long getUserIdFromToken() {
+        String email = getEmailFromToken();
+        if (email == null) return null;
+        return repo.findByEmail(email).map(NguoiDung::getId).orElse(null);
+    }
+
+    public NguoiDung getNguoiDungById(Long id) {
+        return repo.findById(id).orElse(null);
     }
 }

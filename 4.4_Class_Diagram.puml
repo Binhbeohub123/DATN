@@ -1,0 +1,329 @@
+@startuml Class_Diagram
+skinparam defaultFontName "Consolas"
+skinparam defaultFontSize 10
+skinparam shadowing false
+skinparam ClassBorderColor Black
+skinparam ClassBackgroundColor White
+skinparam ArrowColor Black
+skinparam PackageBorderColor Black
+
+title Class Diagram – Hệ thống PolyCinema
+
+package "Entity Layer (entity/)" #FFFFE0 {
+
+  class NguoiDung {
+    - maNguoiDung : Long
+    - email : String
+    - matKhau : String
+    - hoTen : String
+    - soDienThoai : String
+    - ngaySinh : LocalDate
+    - anhDaiDien : String
+    - vaiTro : String {ADMIN/CUSTOMER/STAFF}
+    - trangThai : String {ACTIVE/LOCKED}
+    - daXacNhanEmail : Boolean
+    - diemTichLuy : Integer
+    - taiKhoanTichLuy : TaiKhoanTichLuy
+  }
+
+  class TaiKhoanTichLuy {
+    - id : Long
+    - soDiemHienCo : Integer
+    - tongDiemTichLuy : Integer
+    - ngayTao : LocalDateTime
+    - ngayCapNhat : LocalDateTime
+  }
+
+  class LichSuTichDiem {
+    - id : Long
+    - loaiGiaoDich : String {TICH_DIEM/DOI_QUA}
+    - soDiem : Integer
+    - ghiChu : String
+    - ngayTao : LocalDateTime
+  }
+
+  class Phim {
+    - maPhim : Long
+    - tenPhim : String
+    - daoDien : String
+    - dienVien : String
+    - moTa : String
+    - thoiLuongPhut : Integer
+    - namSanXuat : Integer
+    - ngonNgu : String
+    - hanDoTuoi : String
+    - anhPhim : String
+    - trailer : String
+    - ngayBatDauChieu : LocalDate
+    - ngayKetThucChieu : LocalDate
+    - IsDeleted : Boolean
+  }
+
+  class TheLoai {
+    - maTheLoai : Long
+    - tenTheLoai : String
+  }
+
+  class DinhDang {
+    - maDinhDang : Long
+    - tenDinhDang : String
+    - moTa : String
+  }
+
+  class RapChieu {
+    - maRap : Long
+    - tenRap : String
+    - diaChi : String
+    - soDienThoai : String
+    - trangThai : Boolean
+  }
+
+  class PhongChieu {
+    - maPhong : Long
+    - tenPhong : String
+    - soLuongGhe : Integer
+    - trangThai : Boolean
+    - rapChieu : RapChieu
+  }
+
+  class GheNgoi {
+    - maGhe : Long
+    - hangGhe : String
+    - soGhe : String
+    - loaiGhe : String {THUONG/VIP/CO_DAU/KHUYET_TAT}
+    - heSoGia : BigDecimal
+    - trangThai : Boolean
+    - phongChieu : PhongChieu
+  }
+
+  class SuatChieu {
+    - maSuatChieu : Long
+    - thoiGianBatDau : LocalDateTime
+    - thoiGianKetThuc : LocalDateTime
+    - giaVeCoBan : BigDecimal
+    - trangThai : Boolean
+    - phim : Phim
+    - phongChieu : PhongChieu
+  }
+
+  class DatVe {
+    - maDatVe : Long
+    - ngayDat : LocalDateTime
+    - tongTien : BigDecimal
+    - tienGiamKhuyenMai : BigDecimal
+    - tienGiamTuDiem : Integer
+    - thanhTien : BigDecimal
+    - trangThaiDatVe : String {PENDING/PAID/CANCELLED}
+    - trangThaiThanhToan : String {unpaid/paid/failed}
+    - ngayHetHan : LocalDateTime
+    - ghiChu : String
+    - nguoiDung : NguoiDung
+    - khuyenMai : KhuyenMai
+  }
+
+  class ChiTietDatGhe {
+    - id : Long
+    - datVe : DatVe
+    - gheNgoi : GheNgoi
+  }
+
+  class ChiTietDatSanPham {
+    - id : Long
+    - datVe : DatVe
+    - sanPham : SanPham
+    - soLuong : Integer
+    - donGia : BigDecimal
+    - thanhTien : BigDecimal
+  }
+
+  class SanPham {
+    - maSanPham : Long
+    - tenSanPham : String
+    - loaiSanPham : String {BAP/NUOC/KHAC}
+    - giaTien : BigDecimal
+    - hinhAnh : String
+    - trangThai : Boolean
+    - moTa : String
+    - maVach : String
+    - soLuongTon : Integer
+  }
+
+  class ThanhToan {
+    - maThanhToan : Long
+    - phuongThuc : String
+    - soTien : BigDecimal
+    - trangThai : String {pending/success/failed/refunded}
+    - ngayThanhToan : LocalDateTime
+    - ghiChu : String
+    - maGiaoDich : String
+    - datVe : DatVe
+  }
+
+  class KhuyenMai {
+    - maKhuyenMai : Long
+    - tenKhuyenMai : String
+    - moTa : String
+    - loaiKhuyenMai : String
+    - giaTriGiam : BigDecimal
+    - giamToiDa : BigDecimal
+    - ngayBatDau : LocalDate
+    - ngayKetThuc : LocalDate
+    - trangThai : Boolean
+    - soLuongApDung : Integer
+    - hanMucSuDung : Integer
+  }
+
+  class VnpayConfig {
+    - vnp_TmnCode : String
+    - vnp_HashSecret : String
+    - vnp_PayUrl : String
+    - vnp_ReturnUrl : String
+  }
+
+  class Banner {
+    - maBanner : Long
+    - hinhAnh : String
+    - tieuDe : String
+    - moTa : String
+    - lienKet : String
+    - trangThaiHienThi : Boolean
+    - thuTuHienThi : Integer
+  }
+
+  class Notification {
+    - id : Long
+    - tieuDe : String
+    - noiDung : String
+    - loai : String
+    - daDoc : Boolean
+    - ngayTao : LocalDateTime
+  }
+
+  class SeatLock {
+    - maGheNgoi : Long
+    - thoiGianHetHan : LocalDateTime
+  }
+
+  class SystemConfig {
+    - maCauHinh : Long
+    - tenCauHinh : String
+    - giaTri : String
+    - moTa : String
+  }
+}
+
+package "Repository Layer (repository/)" #E8F5E9 {
+  class NguoiDungRepository {
+    + findByEmail() : Optional<NguoiDung>
+    + existsByEmail() : Boolean
+    + existsByEmailAndMaNguoiDungNot() : Boolean
+  }
+  class PhimRepository {
+    + findByTenPhimContainingIgnoreCase()
+    + findByTenPhimContainingIgnoreCaseAndIsDeletedFalse()
+  }
+  class LichChieuRepository {
+    + findByPhim_MaPhim()
+    + findByPhongChieu_MaPhongChieu()
+    + findByThoiGianBatDauBetweenAndPhongChieu_MaPhongChieu()
+  }
+  class DatVeRepository {
+    + findByNguoiDung_MaNguoiDungOrderByNgayDatDesc()
+    + countByNguoiDung_MaNguoiDung()
+    + existsByNguoiDung_MaNguoiDungAndTrangThaiDatVe()
+  }
+  class ThanhToanRepository {
+    + findByDatVe_MaDatVe()
+    + save()
+  }
+  class GheNgoiRepository {
+    + findByPhongChieu_MaPhongChieu()
+    + findAvailableSeats()
+  }
+  class RapChieuRepository
+  class PhongChieuRepository
+  class SanPhamRepository
+  class KhuyenMaiRepository
+  class ChiTietDatGheRepository
+  class ChiTietDatSanPhamRepository
+  class BannerRepository
+  class NotificationRepository
+  class TicketQRCodeRepository
+  class SystemConfigRepository
+  class VnpayConfigRepository
+  class TicketRefundRepository
+  class TicketInvoiceRepository
+  class TicketStatisticsRepository
+  class SeatLockRepository
+  class GioiThieuRepository
+}
+
+package "Controller Layer (controller/)" #E3F2FD {
+  class AuthController
+  class PhimController
+  class LichChieuController
+  class RapChieuController
+  class DatVeController
+  class ThanhToanController
+  class VeController
+  class KhuyenMaiController
+  class AdminController
+  class BannerController
+}
+
+package "Security" #FCE4EC {
+  class JwtAuthenticationFilter {
+    - jwtUtil : JwtUtil
+    - userDetailsService : UserDetailsService
+    + doFilterInternal()
+  }
+  class JwtUtil {
+    - secret : String
+    - jwtExpirationMs : Long
+    + generateToken() : String
+    + extractEmail() : String
+    + validateToken() : Boolean
+  }
+  class SecurityConfig {
+    + securityFilterChain()
+    + passwordEncoder()
+  }
+}
+
+package "Config" #FFF3E0 {
+  class PayOSConfig {
+    - clientId : String
+    - apiKey : String
+    - checksumKey : String
+  }
+  class EncodingConfig
+  class DataInitializer
+}
+
+' ===== RELATIONSHIPS =====
+
+NguoiDung "1" --> "0..1" TaiKhoanTichLuy : có -
+TaiKhoanTichLuy "1" --> "0..*" LichSuTichDiem : có -
+NguoiDung "1" --> "0..*" DatVe : đặt -
+DatVe "1" --> "1" ThanhToan : thanh toán -
+DatVe "1" --> "0..*" ChiTietDatGhe : chứa -
+DatVe "1" --> "0..*" ChiTietDatSanPham : chứa -
+DatVe "0..1" --> "0..1" KhuyenMai : áp dụng -
+ChiTietDatGhe "1" --> "1" GheNgoi : chọn -
+ChiTietDatSanPham "1" --> "1" SanPham : mua -
+SuatChieu "1" --> "1" Phim : của -
+SuatChieu "1" --> "1" PhongChieu : tại -
+PhongChieu "1" --> "0..*" GheNgoi : chứa -
+PhongChieu "*" --> "1" RapChieu : thuộc về -
+Phim "*" --> "*" TheLoai : có - (Phim_TheLoai)
+Phim "*" --> "*" DinhDang : có - (Phim_DinhDang)
+KhuyenMai "*" --> "*" Phim : áp dụng cho - (KhuyenMai_Phim)
+
+JwtAuthenticationFilter --> JwtUtil : dùng -
+SecurityConfig --> JwtAuthenticationFilter : cấu hình -
+AuthController --> JwtUtil : tạo token -
+AdminController --> PhimRepository : quản lý -
+AdminController --> LichChieuRepository : quản lý -
+AdminController --> DatVeRepository : quản lý -
+
+@enduml

@@ -34,7 +34,6 @@
 
     <!-- ── Legend ── -->
     <div class="legend">
-      <div class="legend-item"><div class="seat-sample seat-sample--avail"></div><span>Trống</span></div>
       <div class="legend-item"><div class="seat-sample seat-sample--booked"></div><span>Đã đặt</span></div>
       <div class="legend-item"><div class="seat-sample seat-sample--locked"></div><span>Đang giữ</span></div>
       <div class="legend-item"><div class="seat-sample seat-sample--selected"></div><span>Đang chọn</span></div>
@@ -128,6 +127,7 @@ import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { fmtDateTime12 } from '@/utils/homeHelpers'
+import { useSeatWebSocket } from '@/composables/useSeatWebSocket'
 
 const router       = useRouter()
 const route        = useRoute()
@@ -138,6 +138,26 @@ const allSeats      = ref([])
 const lockedSeatIds = ref(new Set())   // seats locked by OTHER users
 const loading       = ref(false)
 const loadError     = ref('')
+
+// ── Real-time seat lock updates via WebSocket ──────────────────
+let seatWs = null   // { disconnect }
+
+function handleSeatWsMessage(msg) {
+  const seatId = msg.gheNgoiId
+  if (!seatId) return
+  if (msg.event === 'locked') {
+    const seat = allSeats.value.find(s => s.id === seatId)
+    if (seat && !isSelected(seat)) {
+      const next = new Set(lockedSeatIds.value)
+      next.add(seatId)
+      lockedSeatIds.value = next
+    }
+  } else if (msg.event === 'unlocked') {
+    const next = new Set(lockedSeatIds.value)
+    next.delete(seatId)
+    lockedSeatIds.value = next
+  }
+}
 
 // Countdown state: seatId → { timer (setInterval), secondsLeft }
 const seatCountdowns = ref({})         // seatId → secondsLeft
@@ -185,7 +205,7 @@ function seatClass(seat) {
   const t = (seat.loaiGhe || '').toLowerCase()
   if (t === 'vip')      return 'seat--vip'
   if (t.includes('cặp') || t.includes('couple')) return 'seat--couple'
-  return 'seat--avail'
+  return ''
 }
 function seatTitle(seat) {
   const label = `${(seat.hangGhe||'').trim()}${seat.soGhe}`
@@ -314,21 +334,22 @@ function handleBeforeUnload(e) {
 
 onMounted(() => {
   if (!authStore.isLoggedIn) { router.push('/auth'); return }
-  // Only clear the seat selection if navigating to a DIFFERENT showtime.
-  // If the user pressed browser back from /checkout, preserve their selection
-  // so isSelected() remains true and those seats render as cyan "Đang chọn"
-  // rather than orange "Đang giữ" (defense-in-depth alongside the backend fix).
   const currentLichChieuId = Number(route.params.showtimeId)
   if (bookingStore.selectedShowtime?.id !== currentLichChieuId) {
     bookingStore.clearSeats()
   }
   loadSeats()
   window.addEventListener('beforeunload', handleBeforeUnload)
+
+  // Connect WebSocket for real-time seat lock updates
+  if (currentLichChieuId) {
+    seatWs = useSeatWebSocket(currentLichChieuId, handleSeatWsMessage)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
-  // Clear all countdown timers
+  if (seatWs) { seatWs.disconnect(); seatWs = null }
   Object.keys(seatCountdowns.value)
     .filter(k => k.startsWith('__timer_'))
     .forEach(k => clearInterval(seatCountdowns.value[k]))
@@ -405,7 +426,6 @@ onUnmounted(() => {
   width: 20px; height: 20px; border-radius: 4px;
   border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
 }
-.seat-sample--avail   { background: var(--surface-3, #1a1a28); }
 .seat-sample--booked  { background: #ef4444; }
 .seat-sample--locked  { background: #f59e0b; }
 .seat-sample--selected { background: var(--electric, #29bcea); box-shadow: 0 0 8px var(--electric-glow, rgba(41,188,234,0.30)); }
@@ -476,15 +496,6 @@ onUnmounted(() => {
 }
 .seat:disabled { cursor: not-allowed; opacity: 0.5; }
 
-.seat--avail {
-  background: var(--surface-3, #1a1a28);
-  border-color: var(--glass-border, rgba(255,255,255,0.08));
-  color: var(--text-secondary, #94a3b8);
-}
-.seat--avail:hover:not(:disabled) {
-  border-color: var(--electric, #29bcea);
-  color: var(--electric, #29bcea);
-}
 .seat--booked {
   background: rgba(239,68,68,0.2);
   border-color: rgba(239,68,68,0.4);

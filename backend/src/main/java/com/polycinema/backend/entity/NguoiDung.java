@@ -1,5 +1,6 @@
 package com.polycinema.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -23,6 +24,7 @@ public class NguoiDung {
     @Column(name = "SoDienThoai", unique = true, length = 20)
     private String soDienThoai;
 
+    @JsonIgnore
     @Column(name = "MatKhauHash", columnDefinition = "NVARCHAR(MAX)")
     private String matKhauHash;
 

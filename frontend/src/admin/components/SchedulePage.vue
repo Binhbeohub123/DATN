@@ -55,13 +55,13 @@
                 <td class="td-time">{{ fmtTime(lc.thoiGianKetThuc) }}</td>
                 <td class="td-time">{{ lc.thoiGianNghi ?? 15 }} p</td>
                 <td class="td-price">{{ fmtPrice(lc.giaCoBan) }}</td>
-                <td><span :class="['sbadge', lc.trangThai==='active'?'sbadge--green':'sbadge--gray']">{{ lc.trangThai }}</span></td>
+                <td><span :class="['sbadge', lc.trangThai==='da_chieu'?'sbadge--red':lc.trangThai==='dang_chieu'?'sbadge--yellow':'sbadge--green']">{{ trangThaiLabel(lc.trangThai) }}</span></td>
                 <td>
                   <div class="act-btns">
-                    <button class="btn-icon btn-edit" @click="openEdit(lc)" title="Sửa">
+                    <button class="btn-icon btn-edit" @click="openEdit(lc)" title="Sửa" :disabled="lc.trangThai==='da_chieu'">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </button>
-                    <button class="btn-icon btn-del" @click="del(lc)" title="Xóa">
+                    <button class="btn-icon btn-del" @click="del(lc)" title="Xóa" :disabled="lc.trangThai==='da_chieu'">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                     </button>
                   </div>
@@ -99,13 +99,13 @@
                     <td class="td-time">{{ fmtTime(lc.thoiGianKetThuc) }}</td>
                     <td class="td-time">{{ lc.thoiGianNghi ?? 15 }} p</td>
                     <td class="td-price">{{ fmtPrice(lc.giaCoBan) }}</td>
-                    <td><span :class="['sbadge', lc.trangThai==='active'?'sbadge--green':'sbadge--gray']">{{ lc.trangThai }}</span></td>
+                    <td><span :class="['sbadge', lc.trangThai==='da_chieu'?'sbadge--red':lc.trangThai==='dang_chieu'?'sbadge--yellow':'sbadge--green']">{{ trangThaiLabel(lc.trangThai) }}</span></td>
                     <td>
                       <div class="act-btns">
-                        <button class="btn-icon btn-edit" @click="openEdit(lc)" title="Sửa">
+                        <button class="btn-icon btn-edit" @click="openEdit(lc)" title="Sửa" :disabled="lc.trangThai==='da_chieu'">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button class="btn-icon btn-del" @click="del(lc)" title="Xóa">
+                        <button class="btn-icon btn-del" @click="del(lc)" title="Xóa" :disabled="lc.trangThai==='da_chieu'">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                         </button>
                       </div>
@@ -284,6 +284,9 @@
               <span class="upload-btn">📂 Chọn file .xlsx</span>
               <span class="upload-filename">{{ importFile ? importFile.name : 'Chưa chọn file' }}</span>
             </label>
+            <button class="btn-ghost" type="button" @click="downloadTemplate">
+              ⬇ Tải mẫu Excel
+            </button>
             <button class="btn-primary" :disabled="!importFile || importPreviewing" @click="runPreview">
               {{ importPreviewing ? 'Đang kiểm tra...' : 'Xem trước' }}
             </button>
@@ -544,6 +547,22 @@ function onFileChange(e) {
   formErr.value = ''
 }
 
+async function downloadTemplate() {
+  try {
+    const res = await api.get('/admin/lich-chieu/import-template', { responseType: 'blob' })
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'Mau_Import_Lich_Chieu.xlsx'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    showToast('Lỗi tải file mẫu', 'error')
+  }
+}
+
 async function runPreview() {
   if (!importFile.value) return
   importPreviewing.value = true
@@ -659,6 +678,9 @@ function fmtTime(dt) {
 function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(v||0)
 }
+function trangThaiLabel(status) {
+  return { da_chieu: 'Đã Chiếu', dang_chieu: 'Đang Chiếu', chua_chieu: 'Chưa Chiếu' }[status] || status || '—'
+}
 
 function openAdd() {
   editing.value = null
@@ -739,8 +761,10 @@ async function save() {
       let edH = Math.floor(totalEnd / 60) % 24, edM = totalEnd % 60
       let endDate = date
       if (totalEnd >= 1440) {
-        const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + Math.floor(totalEnd / 1440))
-        endDate = d.toISOString().slice(0, 10)
+        const daysToAdd = Math.floor(totalEnd / 1440)
+        const [y, m, d] = date.split('-').map(Number)
+        const dt = new Date(y, m - 1, d + daysToAdd)
+        endDate = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
         edH = Math.floor((totalEnd % 1440) / 60); edM = totalEnd % 60
       }
       const pad = n => String(n).padStart(2,'0')

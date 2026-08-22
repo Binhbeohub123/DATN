@@ -1,8 +1,10 @@
 package com.polycinema.backend.service;
 
 import com.polycinema.backend.entity.Phim;
+import com.polycinema.backend.entity.LichChieu;
 import com.polycinema.backend.entity.DanhGiaPhim;
 import com.polycinema.backend.entity.NguoiDung;
+import com.polycinema.backend.repository.BannerRepository;
 import com.polycinema.backend.repository.LichChieuRepository;
 import com.polycinema.backend.repository.PhimRepository;
 import com.polycinema.backend.repository.DanhGiaPhimRepository;
@@ -11,11 +13,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.polycinema.backend.entity.Banner;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,6 +31,7 @@ public class PhimService {
     private final LichChieuRepository lichChieuRepository;
     private final DanhGiaPhimRepository danhGiaPhimRepository;
     private final NguoiDungRepository nguoiDungRepository;
+    private final BannerRepository bannerRepository;
 
     // ── Computed status rules (compare DATE only, never time) ──────────────
     // chua_chieu   — no showtimes at all
@@ -90,10 +96,30 @@ public class PhimService {
         return dang.size() > 5 ? dang.subList(0, 5) : dang;
     }
 
+    public List<Banner> getActiveBanners() {
+        return bannerRepository.findActiveBannersForDate(LocalDate.now());
+    }
+
     public List<Phim> timKiem(String tenPhim) {
         List<Phim> list = phimRepository.findByTenPhimContainingIgnoreCaseAndIsDeletedFalse(tenPhim);
         applyComputedStatus(list);
         return list;
+    }
+
+    public List<Phim> findByTheLoaiId(Long theLoaiId) {
+        List<Phim> list = phimRepository.findByTheLoaiId(theLoaiId);
+        applyComputedStatus(list);
+        return list;
+    }
+
+    public List<Phim> findAllNonDeleted() {
+        List<Phim> list = phimRepository.findByIsDeletedFalse();
+        applyComputedStatus(list);
+        return list;
+    }
+
+    public List<LichChieu> findLichChieuByPhim(Long phimId, LocalDateTime from) {
+        return lichChieuRepository.findByPhimIdAndIsDeletedFalseAndThoiGianBatDauAfter(phimId, from);
     }
 
     public Phim getPhimById(Long id) {
@@ -172,5 +198,23 @@ public class PhimService {
     // ================= GET RATINGS FOR MOVIE =================
     public List<DanhGiaPhim> getRatingsByPhim(Long phimId) {
         return danhGiaPhimRepository.findByPhimId(phimId);
+    }
+
+    // ================= ADMIN METHODS =================
+
+    public List<Phim> findAllIncludingDeleted() {
+        return phimRepository.findAll();
+    }
+
+    public List<Phim> findAllActive() {
+        return phimRepository.findByIsDeletedFalse();
+    }
+
+    public Phim save(Phim phim) {
+        return phimRepository.save(phim);
+    }
+
+    public Optional<Phim> findByIdOptional(Long id) {
+        return phimRepository.findById(id);
     }
 }

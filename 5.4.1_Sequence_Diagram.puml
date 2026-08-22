@@ -1,0 +1,57 @@
+@startuml Sequence_Diagram_ThanhToan
+skinparam defaultFontName "Consolas"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam SequenceLifeLineBorderColor Black
+skinparam SequenceArrowColor Black
+skinparam SequenceParticipantBackgroundColor White
+skinparam SequenceDividerBackgroundColor #E3F2FD
+
+title Sequence Diagram – Thanh toán qua PayOS
+
+actor "Khách hàng" as KH
+participant "Vue.js\n(Frontend)" as FE
+participant "ThanhToan\nController" as TC
+participant "ThanhToan\nService" as TS
+participant "PayOS\nSDK" as SDK
+participant "PayOS\nSandbox" as PS
+participant "EmailService" as ES
+database "SQL Server\n(DatVe, ThanhToan)" as DB
+
+== 1. Tạo đơn đặt vé ==
+KH -> FE : Chọn ghế + combo, nhấn "Thanh toán"
+FE -> FE : POST /api/dat-ve (JWT)
+note right: Tạo DatVe (pending)\n+ ChiTietDatGhe\n+ ChiTietDatSanPham
+
+== 2. Tạo link thanh toán ==
+KH -> FE : Chọn PayOS, nhấn "Xác nhận"
+FE -> TC : POST /api/thanh-toan/payos/create\ndatVeId, frontendOrigin
+TC -> TS : createPayOSPayment(datVeId, frontendOrigin)
+TS -> DB : Tìm DatVe theo datVeId
+DB --> TS : DatVe (pending)
+TS -> SDK : PayOS.createPaymentLink()\n(amount, orderCode, returnUrl, cancelUrl)
+SDK --> TS : checkoutUrl
+TS -> DB : Tạo bản ghi ThanhToan\n(trangThai: pending)
+TC --> FE : { checkoutUrl: "https://pay.payos.vn/..." }
+FE --> KH : Chuyển hướng đến PayOS
+
+== 3. Khách hàng thanh toán ==
+KH -> PS : Nhập thông tin thẻ / QR\nthực hiện thanh toán
+
+== 4. Webhook callback ==
+PS -> TC : POST /payos/webhook\n{ code, data, signature }
+TC -> TS : handlePayOSWebhook(body)
+TS -> SDK : PayOS.verifyWebhookData()\nxác thực chữ ký
+SDK --> TS : WebhookData (verified)
+TS -> DB : Cập nhật ThanhToan.trangThai = 'success'\nCập nhật DatVe.trangThaiThanhToan = 'paid'
+TS -> ES : sendBookingConfirmation(datVe)
+ES -> KH : Gửi email xác nhận vé + mã QR
+TS --> TC : OK
+TC --> PS : 200 OK
+
+== 5. Redirect kết quả ==
+PS -> FE : Redirect về /payment-result/{bookingId}
+FE -> FE : GET /api/ve/{maVe}/qr
+note right: Hiển thị vé điện tử\n+ mã QR
+
+@enduml
