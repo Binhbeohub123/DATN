@@ -1,7 +1,7 @@
 <template>
   <div class="movie-list-page">
     <!-- NAV -->
-    <SiteHeader ref="siteHeaderRef" :t="t" :lang="lang" @search-click="() => {}" @toggle-lang="toggleLang">
+    <SiteHeader ref="siteHeaderRef" :t="t" :lang="lang" @search-click="globalSearchRef?.open()" @toggle-lang="toggleLang">
       <template #tabs>
         <div class="nav-item-dropdown" @mouseenter="phimDropdownOpen = true" @mouseleave="phimDropdownOpen = false">
           <button class="main-tab active" role="button">
@@ -97,6 +97,8 @@
     <SiteFooter :t="t" :lang="lang" :cinemas="movieStore.cinemas" @toggle-lang="setLang" @footer-nav="handleFooterNav" />
 
     <VideoModal :visible="showModal" :url="trailerUrl" @close="showModal = false" />
+
+    <GlobalSearchOverlay ref="globalSearchRef" />
   </div>
 </template>
 
@@ -108,6 +110,7 @@ import { useAuthStore } from '@/stores/authStore'
 import SiteHeader from '@/components/SiteHeader.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
 import VideoModal from '@/components/VideoModal.vue'
+import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -155,6 +158,8 @@ function handleFooterNav({ action, tab }) {
     else if (tab === 'gioi_thieu') router.push('/#gioi-thieu')
   }
 }
+
+const globalSearchRef = ref(null)
 
 onMounted(() => {
   movieStore.fetchCinemas()
@@ -249,6 +254,5 @@ watch(() => route.path, (p) => {
 }
 .ml-tag--genre { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ml-tag--dur { color: rgba(255,255,255,0.45); }
-
 
 </style>

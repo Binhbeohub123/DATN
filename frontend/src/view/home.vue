@@ -1,7 +1,7 @@
 <template>
   <div class="home">
     <!-- NAV -->
-    <SiteHeader ref="siteHeaderRef" :t="t" :lang="lang" @search-click="openGlobalSearch" @toggle-lang="toggleLang">
+    <SiteHeader ref="siteHeaderRef" :t="t" :lang="lang" @search-click="globalSearchRef?.open()" @toggle-lang="toggleLang">
       <template #tabs>
         <div class="nav-item-dropdown" @mouseenter="phimDropdownOpen = true" @mouseleave="phimDropdownOpen = false">
           <button class="main-tab" role="button">
@@ -53,72 +53,7 @@
       </template>
     </SiteHeader>
 
-    <!-- ── Global Search Overlay ───────────────────────────────────── -->
-    <transition name="gs-fade">
-      <div v-if="gsOpen" class="gs-overlay" role="dialog" aria-modal="true" aria-label="Tìm kiếm toàn cục" @click.self="closeGlobalSearch">
-        <div class="gs-panel">
-          <!-- Input row -->
-          <div class="gs-input-row">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="gs-icon" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input
-              ref="gsInputRef"
-              v-model="gsQuery"
-              type="search"
-              class="gs-input"
-              placeholder="Tìm phim, rạp chiếu, khuyến mãi, giới thiệu..."
-              autocomplete="off"
-              @input="onGsInput"
-              @keydown.escape="closeGlobalSearch"
-              @keydown.down.prevent="gsMoveDown"
-              @keydown.up.prevent="gsMoveUp"
-              @keydown.enter.prevent="gsSelectActive"
-            />
-            <button class="gs-close" @click="closeGlobalSearch" aria-label="Đóng tìm kiếm">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              <kbd>Esc</kbd>
-            </button>
-          </div>
-
-          <!-- Results -->
-          <div class="gs-body" role="listbox">
-            <div v-if="gsLoading" class="gs-state">
-              <div class="gs-spinner"></div>
-              <span>Đang tìm...</span>
-            </div>
-            <div v-else-if="gsQuery.trim() && gsAllResults.length === 0" class="gs-state gs-empty">
-              Không tìm thấy kết quả cho "<strong>{{ gsQuery }}</strong>"
-            </div>
-            <template v-else-if="gsAllResults.length > 0">
-              <!-- Movies-only toggle -->
-              <div class="gs-filter-row" v-if="gsMovieResults.length > 0">
-                <button :class="['gs-filter-btn', { active: gsOnlyMovies }]" @click="gsOnlyMovies = !gsOnlyMovies">
-                  🎬 Chỉ xem phim ({{ gsMovieResults.length }})
-                </button>
-              </div>
-
-              <div
-                v-for="(item, idx) in gsDisplayResults"
-                :key="item._key"
-                :class="['gs-item', { 'gs-item--active': idx === gsActiveIdx }]"
-                role="option"
-                :aria-selected="idx === gsActiveIdx"
-                @click="gsSelectItem(item)"
-                @mouseenter="gsActiveIdx = idx"
-              >
-                <span class="gs-item__section" :class="`gs-section--${item._section}`">{{ item._label }}</span>
-                <span class="gs-item__title">{{ item._title }}</span>
-                <span v-if="item._sub" class="gs-item__sub">{{ item._sub }}</span>
-                <svg v-if="item._section === 'phim'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="gs-item__go" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
-            </template>
-            <div v-else-if="!gsQuery.trim()" class="gs-state gs-hint">
-              Gõ để tìm phim, rạp chiếu, khuyến mãi...
-              <span class="gs-kbd-hint"><kbd>/</kbd> để mở · <kbd>Esc</kbd> để đóng</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
+    <GlobalSearchOverlay ref="globalSearchRef" />
 
     <!-- HERO STAGE -->
     <div
@@ -244,9 +179,7 @@
         <h2 class="section-title" id="movies-title">{{ t('movies') }} <span>{{ t('schedule') }}</span></h2>
       </div>
 
-      <!-- Default grid (no search) -->
-      <template v-if="!searchQuery">
-        <div v-if="isLoading" class="loading" role="status">{{ t('loading') }}...</div>
+      <div v-if="isLoading" class="loading" role="status">{{ t('loading') }}...</div>
         <div v-else-if="isError" class="error" role="alert">{{ isError }}</div>
         <div v-else-if="displayMovies.length === 0" class="error">{{ t('noMovies') }}</div>
         <div v-else class="carousel-wrapper">
@@ -304,7 +237,7 @@
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                       {{ Number(movie.rating).toFixed(1) }}
                     </p>
-                    <p v-if="movie.language" class="overlay-lang">🌐 {{ movie.language }}</p>
+                  <p v-if="movie.language" class="overlay-lang">🌐 {{ movie.language }}</p>
                     <div class="overlay-actions">
                       <button class="ov-btn ov-btn--detail" @click.stop="goToMovie(movie.id)">{{ t('viewDetail') }}</button>
                       <button v-if="isBookable(movie)" class="ov-btn ov-btn--book" @click.stop="goToMovie(movie.id)">{{ t('bookNow') }}</button>
@@ -326,66 +259,6 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
-      </template>
-
-      <!-- Search results carousel -->
-      <template v-else-if="searchResults.length > 0">
-        <div class="carousel" role="list" :aria-label="t('searchResults')">
-          <div
-            v-for="(movie, index) in searchResults"
-            :key="movie.id"
-            class="carousel-item movie-card"
-            :style="{ '--card-index': index }"
-            role="listitem"
-            @click="goToMovie(movie.id)"
-            tabindex="0"
-            @keypress.enter="goToMovie(movie.id)"
-            @mousemove="tiltCard"
-            @mouseleave="resetTilt"
-          >
-            <div class="movie-poster">
-              <img
-                v-if="movie.poster"
-                :src="movie.poster"
-                :alt="movie.title"
-                loading="lazy"
-                @error="(e) => { e.target.style.display='none'; e.target.nextElementSibling.style.display='flex' }"
-              />
-              <div class="poster-placeholder" :style="movie.poster ? 'display:none' : ''">
-                <div class="poster-gradient">
-                  <span class="poster-icon" aria-hidden="true">🎬</span>
-                  <span class="poster-title">{{ movie.title }}</span>
-                </div>
-              </div>
-              <div class="format-badges">
-                <span v-for="f in movie.formats" :key="f.id" class="format-badge">{{ f.tenDinhDang }}</span>
-              </div>
-              <div class="movie-overlay">
-                <div class="overlay-inner">
-                  <h3 class="overlay-title">{{ movie.title }}</h3>
-                  <p class="overlay-meta">
-                    <span v-if="movie.duration" class="ov-chip">{{ movie.duration }} phút</span>
-                    <span v-if="movie.genre" class="ov-genre">{{ movie.genre }}</span>
-                  </p>
-                  <p v-if="movie.rating" class="overlay-rating">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="none" aria-hidden="true"><polygon fill="currentColor" points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    {{ Number(movie.rating).toFixed(1) }}
-                  </p>
-                  <p v-if="movie.language" class="overlay-lang">🌐 {{ movie.language }}</p>
-                  <div class="overlay-actions">
-                    <button class="ov-btn ov-btn--detail" @click.stop="goToMovie(movie.id)">{{ t('viewDetail') }}</button>
-                    <button v-if="isBookable(movie)" class="ov-btn ov-btn--book" @click.stop="goToMovie(movie.id)">{{ t('bookNow') }}</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="movie-info">
-              <span class="age-badge" :class="'age-badge--' + ageClass(movie.ageRating)">{{ movie.ageRating }}</span>
-              <h3 class="movie-info-title">{{ movie.title }}</h3>
-            </div>
-          </div>
-        </div>
-      </template>
     </section>
 
     <!-- PROMO -->
@@ -614,6 +487,7 @@ import { useMovieStore } from '@/stores/movieStore'
 import { useBookingStore } from '@/stores/bookingStore'
 import SiteHeader from '@/components/SiteHeader.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
+import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import DayChip from '@/components/DayChip.vue'
 import { useConfirmModal } from '@/composables/useConfirmModal'
@@ -778,186 +652,7 @@ function onBannerCta() {
   onBannerClick()
 }
 
-// ── Global Search ─────────────────────────────────────────────
-const gsOpen      = ref(false)
-const gsQuery     = ref('')
-const gsLoading   = ref(false)
-const gsOnlyMovies = ref(false)
-const gsActiveIdx = ref(0)
-const gsInputRef  = ref(null)
-const gsMovieResults  = ref([])   // from API
-const gsCinemaResults = ref([])   // client-side from movieStore.cinemas
-const gsPromoResults  = ref([])   // client-side from promos ref
-const gsAboutResult   = ref(null) // static match
-let   gsTimer = null
-
-const gsAllResults = computed(() => {
-  if (!gsQuery.value.trim()) return []
-  const results = []
-  const q = gsQuery.value.trim().toLowerCase()
-
-  // Movies (from API, already filtered)
-  gsMovieResults.value.forEach(m => {
-    results.push({
-      _key:     'phim-' + m.id,
-      _section: 'phim',
-      _label:   '🎬 Phim',
-      _title:   m.tenPhim || m.title || '',
-      _sub:     m.trangThai === 'dang_chieu' ? 'Đang chiếu' : m.trangThai === 'sap_chieu' ? 'Sắp chiếu' : '',
-      _data:    m,
-    })
-  })
-
-  // Cinemas (client-side)
-  gsCinemaResults.value.forEach(c => {
-    results.push({
-      _key:     'rap-' + c.id,
-      _section: 'rap',
-      _label:   '🏠 Rạp Chiếu',
-      _title:   c.tenRap || '',
-      _sub:     c.diaChi || c.thanhPho || '',
-      _data:    c,
-    })
-  })
-
-  // Promos (client-side)
-  gsPromoResults.value.forEach(p => {
-    results.push({
-      _key:     'km-' + p.id,
-      _section: 'km',
-      _label:   '🎁 Khuyến Mãi',
-      _title:   p.tenKhuyenMai || '',
-      _sub:     p.maKhuyenMai ? `Mã: ${p.maKhuyenMai}` : '',
-      _data:    p,
-    })
-  })
-
-  // About (static)
-  if (gsAboutResult.value) {
-    results.push({
-      _key:     'about',
-      _section: 'about',
-      _label:   'ℹ️ Giới Thiệu',
-      _title:   gsAboutResult.value,
-      _sub:     '',
-      _data:    null,
-    })
-  }
-
-  return results
-})
-
-const gsDisplayResults = computed(() =>
-  gsOnlyMovies.value
-    ? gsAllResults.value.filter(r => r._section === 'phim')
-    : gsAllResults.value
-)
-
-function openGlobalSearch() {
-  gsOpen.value = true
-  gsQuery.value = ''
-  gsMovieResults.value = []
-  gsCinemaResults.value = []
-  gsPromoResults.value = []
-  gsAboutResult.value = null
-  gsOnlyMovies.value = false
-  gsActiveIdx.value = 0
-  nextTick(() => gsInputRef.value?.focus())
-}
-
-function closeGlobalSearch() {
-  gsOpen.value = false
-  gsQuery.value = ''
-}
-
-function onGsInput() {
-  clearTimeout(gsTimer)
-  gsActiveIdx.value = 0
-  const q = gsQuery.value.trim()
-  if (!q) {
-    gsMovieResults.value = []
-    gsCinemaResults.value = []
-    gsPromoResults.value = []
-    gsAboutResult.value = null
-    return
-  }
-  gsLoading.value = true
-  gsTimer = setTimeout(async () => {
-    const ql = q.toLowerCase()
-    try {
-      // Movies: use existing API
-      const [moviesRes] = await Promise.allSettled([
-        movieStore.searchMovies(q)
-      ])
-      gsMovieResults.value = moviesRes.status === 'fulfilled' ? (moviesRes.value || []) : []
-
-      // Cinemas: client-side filter from already-loaded store data
-      gsCinemaResults.value = (movieStore.cinemas || []).filter(c =>
-        (c.tenRap || '').toLowerCase().includes(ql) ||
-        (c.diaChi || '').toLowerCase().includes(ql) ||
-        (c.thanhPho || '').toLowerCase().includes(ql)
-      )
-
-      // Promos: client-side filter from local promos ref
-      gsPromoResults.value = promos.value.filter(p =>
-        (p.tenKhuyenMai || '').toLowerCase().includes(ql) ||
-        (p.maKhuyenMai || '').toLowerCase().includes(ql) ||
-        (p.moTa || '').toLowerCase().includes(ql)
-      )
-
-      // About: static keyword match
-      const aboutKw = ['giới thiệu', 'about', 'gioi thieu', 'liên hệ', 'lien he', 'polycinema', 'hệ thống', 'he thong', 'thông tin']
-      gsAboutResult.value = aboutKw.some(kw => ql.includes(kw) || kw.includes(ql))
-        ? 'Trang Giới Thiệu PolyCinema' : null
-    } catch {}
-    gsLoading.value = false
-  }, 300)
-}
-
-function gsMoveDown() {
-  if (gsDisplayResults.value.length === 0) return
-  gsActiveIdx.value = (gsActiveIdx.value + 1) % gsDisplayResults.value.length
-}
-
-function gsMoveUp() {
-  if (gsDisplayResults.value.length === 0) return
-  gsActiveIdx.value = (gsActiveIdx.value - 1 + gsDisplayResults.value.length) % gsDisplayResults.value.length
-}
-
-function gsSelectActive() {
-  const item = gsDisplayResults.value[gsActiveIdx.value]
-  if (item) gsSelectItem(item)
-}
-
-function gsSelectItem(item) {
-  closeGlobalSearch()
-  switch (item._section) {
-    case 'phim':
-      if (item._data?.id) {
-        router.push(`/phim/${item._data.id}`)
-      } else {
-        mainTab.value = 'phim'
-      }
-      break
-    case 'rap':
-      mainTab.value = 'rap_chieu'
-      break
-    case 'km':
-      mainTab.value = 'khuyen_mai'
-      break
-    case 'about':
-      mainTab.value = 'gioi_thieu'
-      break
-  }
-}
-
-// Keyboard shortcut: "/" opens global search when not already in an input
-function onKeySlash(e) {
-  if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) {
-    e.preventDefault()
-    openGlobalSearch()
-  }
-}
+const globalSearchRef = ref(null)
 
 // ── Card tilt ─────────────────────────────────────────────────
 function tiltCard(e) {
@@ -1195,7 +890,6 @@ onMounted(() => {
   movieStore.fetchBanners()
   fetchPromos()
   fetchGioiThieu()
-  document.addEventListener('keydown', onKeySlash)
   // Attempt immediate attach (works if data was already cached)
   setTimeout(() => {
     attachWheelScroll(mainCarouselRef.value)
@@ -1207,7 +901,6 @@ watch(mainCarouselRef, (el) => attachWheelScroll(el))
 
 onUnmounted(() => {
   if (bannerTimer) clearInterval(bannerTimer)
-  document.removeEventListener('keydown', onKeySlash)
   detachWheelScroll(mainCarouselRef.value)
 })
 </script>
@@ -1405,62 +1098,6 @@ onUnmounted(() => {
   border-bottom: 1px solid #efefef;
   margin-bottom: 32px;
 }
-
-/* Search bar */
-.search-bar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-width: 220px;
-  max-width: 340px;
-  flex: 1 1 220px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  color: var(--text-ghost, rgba(241,245,249,0.45));
-  pointer-events: none;
-  flex-shrink: 0;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 36px 10px 36px;
-  background: var(--glass-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  border-radius: var(--radius-pill, 999px);
-  color: var(--text-primary, #f1f5f9);
-  font-size: 14px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.search-input::placeholder { color: var(--text-ghost, rgba(241,245,249,0.45)); }
-.search-input:focus { border-color: var(--electric, #29bcea); }
-/* Remove browser default clear button on search inputs */
-.search-input::-webkit-search-cancel-button { display: none; }
-
-.search-clear {
-  position: absolute;
-  right: 10px;
-  background: none;
-  border: none;
-  color: var(--text-ghost, rgba(241,245,249,0.45));
-  cursor: pointer;
-  font-size: 13px;
-  padding: 4px;
-  line-height: 1;
-  min-width: 24px;
-  min-height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: color 0.2s, background 0.2s;
-}
-.search-clear:hover { color: var(--text-primary, #f1f5f9); background: var(--glass-bg-heavy, rgba(255,255,255,0.08)); }
 
 /* Screen-reader only */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -2019,7 +1656,6 @@ onUnmounted(() => {
   .section { padding: 40px 20px; }
   .section--cinemas { padding: 40px 20px; }
   .section-header { flex-direction: column; align-items: flex-start; }
-  .search-bar { max-width: 100%; min-width: 0; width: 100%; }
   .carousel-item { flex: 0 0 270px; }
   /* Always show arrows on touch devices */
   .carousel-arrow { opacity: 1; }
@@ -2330,198 +1966,5 @@ onUnmounted(() => {
 
 @media (max-width: 640px) {
   .gioi-thieu-body { padding: 60px 20px; }
-}
-
-/* ── Nav: global search trigger button ── */
-.gs-trigger {
-  flex-shrink: 0;
-}
-
-/* ── Global Search Overlay ── */
-.gs-fade-enter-active, .gs-fade-leave-active { transition: opacity 0.18s ease; }
-.gs-fade-enter-from, .gs-fade-leave-to { opacity: 0; }
-
-.gs-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  background: rgba(0,0,0,0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 80px 20px 20px;
-}
-
-.gs-panel {
-  width: 100%;
-  max-width: 640px;
-  background: var(--surface-2, #14141f);
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
-  border-radius: var(--radius-lg, 20px);
-  overflow: hidden;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
-  display: flex;
-  flex-direction: column;
-  max-height: 70vh;
-}
-
-.gs-input-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  flex-shrink: 0;
-}
-
-.gs-icon {
-  color: var(--text-secondary, #94a3b8);
-  flex-shrink: 0;
-}
-
-.gs-input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 16px;
-  color: var(--text-primary, #f1f5f9);
-  caret-color: var(--electric, #29bcea);
-}
-.gs-input::placeholder { color: var(--text-secondary, #94a3b8); }
-
-.gs-close {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: none;
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
-  border-radius: var(--radius-sm, 6px);
-  color: var(--text-secondary, #94a3b8);
-  cursor: pointer;
-  padding: 4px 8px;
-  font-size: 11px;
-  transition: color 150ms, border-color 150ms;
-  white-space: nowrap;
-}
-.gs-close:hover { color: var(--text-primary, #f1f5f9); border-color: var(--text-secondary, #94a3b8); }
-kbd {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
-  opacity: 0.7;
-}
-
-.gs-body {
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--glass-border) transparent;
-}
-
-.gs-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 32px 20px;
-  color: var(--text-secondary, #94a3b8);
-  font-size: 14px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  text-align: center;
-}
-.gs-empty strong { color: var(--electric, #29bcea); }
-.gs-hint { font-size: 13px; }
-.gs-kbd-hint { display: flex; gap: 8px; margin-top: 6px; color: var(--text-ghost, rgba(241,245,249,0.45)); font-size: 12px; }
-.gs-kbd-hint kbd { background: var(--surface-3, #1a1a28); padding: 2px 6px; border-radius: 4px; opacity: 1; font-size: 11px; }
-
-.gs-spinner {
-  width: 24px; height: 24px;
-  border: 2px solid var(--glass-border, rgba(255,255,255,0.1));
-  border-top-color: var(--electric, #29bcea);
-  border-radius: 50%;
-  animation: gs-spin 0.7s linear infinite;
-}
-@keyframes gs-spin { to { transform: rotate(360deg); } }
-
-.gs-filter-row {
-  display: flex;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.06));
-}
-.gs-filter-btn {
-  padding: 4px 12px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
-  background: transparent;
-  color: var(--text-secondary, #94a3b8);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-}
-.gs-filter-btn:hover,
-.gs-filter-btn.active {
-  background: var(--electric-soft, rgba(41,188,234,0.08));
-  border-color: var(--electric, #29bcea);
-  color: var(--electric, #29bcea);
-}
-
-.gs-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 16px;
-  cursor: pointer;
-  transition: background 120ms;
-  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.04));
-  font-family: var(--font-ui, 'Inter', sans-serif);
-}
-.gs-item:last-child { border-bottom: none; }
-.gs-item--active,
-.gs-item:hover { background: var(--surface-3, #1a1a28); }
-
-.gs-item__section {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill, 999px);
-  white-space: nowrap;
-}
-.gs-section--phim  { background: rgba(41,188,234,0.12); color: #29bcea; }
-.gs-section--rap   { background: rgba(201,168,76,0.12);  color: #C9A84C; }
-.gs-section--km    { background: rgba(16,185,129,0.12);  color: #10B981; }
-.gs-section--about { background: rgba(156,163,175,0.12); color: #9CA3AF; }
-
-.gs-item__title {
-  flex: 1;
-  font-size: 14px;
-  color: var(--text-primary, #f1f5f9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.gs-item__sub {
-  font-size: 12px;
-  color: var(--text-secondary, #94a3b8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-}
-.gs-item__go {
-  color: var(--text-ghost, rgba(241,245,249,0.45));
-  flex-shrink: 0;
-}
-
-@media (max-width: 640px) {
-  .gs-overlay { padding: 60px 12px 12px; }
-  .gs-panel { max-height: 80vh; }
 }
 </style>

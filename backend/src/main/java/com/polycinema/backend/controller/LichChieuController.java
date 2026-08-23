@@ -63,7 +63,10 @@ public class LichChieuController {
     @GetMapping("/{id}/locked-seats")
     public ResponseEntity<?> getLockedSeats(@PathVariable Long id) {
         Long currentUserId = authService.getUserIdFromToken();
-        return ResponseEntity.ok(seatLockService.getLockedSeatIds(id, currentUserId));
+        return ResponseEntity.ok(Map.of(
+                "lockedSeatIds",   seatLockService.getLockedSeatIds(id, currentUserId),
+                "myLockedSeatIds", seatLockService.getMyActiveLocks(id, currentUserId)
+        ));
     }
 
     @GetMapping("/search")

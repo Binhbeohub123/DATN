@@ -256,7 +256,7 @@ async function toggle(seat) {
     delete seatCountdowns.value[seat.id]
     try {
       await api.delete('/dat-ve/release-seat', {
-        data: { gheNgoiId: seat.id, lichChieuId: bookingStore.selectedShowtime?.id }
+        data: { gheNgoiId: seat.id, lichChieuId: activeShowtimeId() }
       })
     } catch { /* non-fatal — lock will expire anyway */ }
   } else {
@@ -264,7 +264,7 @@ async function toggle(seat) {
     try {
       const res = await api.post('/dat-ve/lock-seat', {
         gheNgoiId:   seat.id,
-        lichChieuId: bookingStore.selectedShowtime?.id
+        lichChieuId: activeShowtimeId()
       })
       const durationSecs = (res.data?.lockDurationMinutes ?? 10) * 60
       lockDurationSecs = durationSecs
@@ -275,6 +275,27 @@ async function toggle(seat) {
       showExpiredToast(msg)
     }
   }
+}
+
+// ── Showtime id resolver ───────────────────────────────────
+// bookingStore.selectedShowtime is lost after F5 (Pinia is not persisted),
+// so fall back to the route param like loadSeats() does.
+function activeShowtimeId() {
+  return bookingStore.selectedShowtime?.id ?? Number(route.params.showtimeId)
+}
+
+// ── Restore the user's own still-active locks after reload ──
+// Backend returns myLockedSeatIds = [{ gheNgoiId, expiresAt }] so seats held by
+// THIS user render as "selected" (cyan) with their remaining countdown.
+function restoreMyLocks(mine) {
+  mine.forEach(({ gheNgoiId, expiresAt }) => {
+    const seat = allSeats.value.find(s => s.id === gheNgoiId)
+    if (!seat || isSelected(seat)) return
+    const remainSecs = Math.round((new Date(expiresAt).getTime() - Date.now()) / 1000)
+    if (remainSecs <= 0) return
+    bookingStore.addSeat(seat)
+    startCountdown(gheNgoiId, remainSecs)
+  })
 }
 
 // ── Load seats + locked seats ──────────────────────────────
@@ -289,7 +310,17 @@ async function loadSeats() {
       api.get(`/lich-chieu/${showtimeId}/locked-seats`).catch(() => ({ data: [] }))
     ])
     allSeats.value = Array.isArray(seatsRes.data) ? seatsRes.data : []
-    lockedSeatIds.value = new Set(Array.isArray(lockedRes.data) ? lockedRes.data : [])
+    const raw = lockedRes.data
+    let otherIds = []
+    let mine     = []
+    if (Array.isArray(raw)) {
+      otherIds = raw                       // legacy shape (plain array)
+    } else {
+      otherIds = raw?.lockedSeatIds || []
+      mine     = raw?.myLockedSeatIds || []
+    }
+    lockedSeatIds.value = new Set(otherIds)
+    restoreMyLocks(mine)
   } catch (e) {
     loadError.value = e.response?.data?.message || 'Không tải được sơ đồ ghế'
   } finally {
@@ -299,7 +330,7 @@ async function loadSeats() {
 
 // ── Release all locked seats on page leave ─────────────────
 async function releaseAllLocks() {
-  const showtimeId = bookingStore.selectedShowtime?.id
+  const showtimeId = activeShowtimeId()
   if (!showtimeId) return
   const seated = [...bookingStore.selectedSeats]
   await Promise.allSettled(seated.map(s =>
@@ -320,17 +351,10 @@ function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN', { style:'currency', currency:'VND' }).format(v)
 }
 
-// beforeunload: release locks if user navigates away
-function handleBeforeUnload(e) {
-  const showtimeId = bookingStore.selectedShowtime?.id
-  if (!showtimeId || bookingStore.selectedSeats.length === 0) return
-  // Fire-and-forget best-effort release (navigator.sendBeacon would be ideal but API is JSON)
-  bookingStore.selectedSeats.forEach(s => {
-    navigator.sendBeacon
-      ? navigator.sendBeacon('/api/dat-ve/release-seat', JSON.stringify({ gheNgoiId: s.id, lichChieuId: showtimeId }))
-      : null
-  })
-}
+// NOTE: no release-on-unload — beforeunload cannot distinguish F5/reload from
+// closing the tab, and releasing there would wipe the user's own locks on a
+// simple refresh. Locks expire server-side via TTL (SEAT_LOCK_MINUTES) and the
+// SeatLockCleanupService instead.
 
 onMounted(() => {
   if (!authStore.isLoggedIn) { router.push('/auth'); return }
@@ -339,7 +363,6 @@ onMounted(() => {
     bookingStore.clearSeats()
   }
   loadSeats()
-  window.addEventListener('beforeunload', handleBeforeUnload)
 
   // Connect WebSocket for real-time seat lock updates
   if (currentLichChieuId) {
@@ -348,7 +371,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('beforeunload', handleBeforeUnload)
   if (seatWs) { seatWs.disconnect(); seatWs = null }
   Object.keys(seatCountdowns.value)
     .filter(k => k.startsWith('__timer_'))

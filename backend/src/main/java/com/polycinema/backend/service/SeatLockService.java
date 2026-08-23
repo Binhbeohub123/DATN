@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -137,6 +138,22 @@ public class SeatLockService {
                     lichChieuId, LocalDateTime.now(), excludeUserId);
         }
         return getLockedSeatIds(lichChieuId);
+    }
+
+    /**
+     * Active locks currently held BY the given user on a showtime, so the frontend
+     * can restore them as "selected" (cyan) with their remaining countdown after
+     * a page reload. Returns entries of { gheNgoiId, expiresAt }.
+     */
+    public List<Map<String, Object>> getMyActiveLocks(Long lichChieuId, Long nguoiDungId) {
+        if (nguoiDungId == null) return List.of();
+        return seatLockRepository
+                .findByLichChieuIdAndNguoiDungIdAndExpiresAtAfter(lichChieuId, nguoiDungId, LocalDateTime.now())
+                .stream()
+                .map(l -> Map.<String, Object>of(
+                        "gheNgoiId", l.getGheNgoiId(),
+                        "expiresAt", l.getExpiresAt().truncatedTo(java.time.temporal.ChronoUnit.MILLIS).toString()))
+                .collect(Collectors.toList());
     }
 
     // ── Admin methods ─────────────────────────────────────────

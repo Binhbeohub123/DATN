@@ -54,4 +54,8 @@ public interface SeatLockRepository extends JpaRepository<SeatLock, Long> {
             @Param("lichChieuId")   Long lichChieuId,
             @Param("now")           LocalDateTime now,
             @Param("excludeUserId") Long excludeUserId);
+
+    /** All active locks held BY a specific user for a showtime (own-lock restore). */
+    List<SeatLock> findByLichChieuIdAndNguoiDungIdAndExpiresAtAfter(
+            Long lichChieuId, Long nguoiDungId, LocalDateTime now);
 }

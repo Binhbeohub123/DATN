@@ -11,6 +11,9 @@ public interface RapChieuRepository
 
     List<RapChieu> findByTrangThaiTrue();
 
+    /** Active cinemas whose TenRap contains the keyword (case-insensitive). Used by GET /api/rap-chieu/search. */
+    List<RapChieu> findByTrangThaiTrueAndTenRapContainingIgnoreCase(String tenRap);
+
     /**
      * Distinct non-null, non-empty city names from active cinemas.
      * Used by GET /api/rap-chieu/cities to populate the city dropdown.

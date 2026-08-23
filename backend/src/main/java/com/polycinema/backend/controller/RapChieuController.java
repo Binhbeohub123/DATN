@@ -22,6 +22,12 @@ public class RapChieuController {
         return ResponseEntity.ok(rapChieuService.getAllActive());
     }
 
+    /** GET /api/rap-chieu/search?q=... — public, search active cinemas by TenRap (case-insensitive contains) */
+    @GetMapping("/search")
+    public ResponseEntity<List<RapChieu>> searchRap(@RequestParam String q) {
+        return ResponseEntity.ok(rapChieuService.searchByTenRap(q));
+    }
+
     /** GET /api/rap-chieu/cities — public */
     @GetMapping("/cities")
     public ResponseEntity<List<String>> getCities() {

@@ -21,6 +21,11 @@ public class RapChieuService {
         return rapChieuRepository.findByTrangThaiTrue();
     }
 
+    /** Search active cinemas by TenRap (case-insensitive contains). Used by GET /api/rap-chieu/search. */
+    public List<RapChieu> searchByTenRap(String keyword) {
+        return rapChieuRepository.findByTrangThaiTrueAndTenRapContainingIgnoreCase(keyword);
+    }
+
     public List<String> getDistinctCities() {
         return rapChieuRepository.findDistinctCities();
     }
