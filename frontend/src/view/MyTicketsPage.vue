@@ -169,7 +169,7 @@ function canRepay(tk) {
 }
 function seatList(tk) {
   if (!tk.chiTietDatGhe?.length) return '-'
-  return tk.chiTietDatGhe.map(c => `${(c.gheNgoi?.hangGhe || '').trim()}${c.gheNgoi?.soGhe}`).sort().join(', ')
+  return tk.chiTietDatGhe.map(c => `${(c.gheNgoi?.hangGhe || '').trim()}${c.gheNgoi?.soGheHienThi ?? c.gheNgoi?.soGhe}`).sort().join(', ')
 }
 function fmtDt(dt) {
   return fmtDateTimeFull12(dt, '-')

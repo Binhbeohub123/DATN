@@ -17,6 +17,7 @@ import com.polycinema.backend.entity.SystemConfig;
 import com.polycinema.backend.entity.TheLoai;
 import com.polycinema.backend.entity.ThanhToan;
 import com.polycinema.backend.service.*;
+import com.polycinema.backend.util.SeatDisplayUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
@@ -1643,7 +1644,37 @@ public class AdminController {
      */
     @GetMapping("/ghe-ngoi")
     public ResponseEntity<?> getGheByPhong(@RequestParam Long phongChieuId) {
-        return ResponseEntity.ok(gheNgoiService.findByPhongChieuId(phongChieuId));
+        List<GheNgoi> gheList = gheNgoiService.findByPhongChieuId(phongChieuId);
+        SeatDisplayUtil.applyLabels(gheList, SeatDisplayUtil.buildRoomLabels(gheList));
+        SeatDisplayUtil.warnMissing(gheList, "GET /api/admin/ghe-ngoi");
+        return ResponseEntity.ok(gheList);
+    }
+
+    /** Valid seat types shared by POST /ghe-ngoi/row and PUT /ghe-ngoi/{id}. */
+    private static final java.util.Set<String> VALID_LOAI_GHE =
+            java.util.Set.of("thường", "vip", "cặp đôi", "trống");
+
+    /**
+     * Standard price factor per seat type (kept in sync with createGheRow's switch).
+     */
+    private static BigDecimal heSoGiaFor(String loaiGhe) {
+        switch (loaiGhe) {
+            case "vip":     return new BigDecimal("1.50");
+            case "cặp đôi": return new BigDecimal("2.00");
+            case "trống":   return BigDecimal.ZERO;
+            default:        return BigDecimal.ONE;
+        }
+    }
+
+    /**
+     * Bookable seat count for a room — excludes 'trống' cells (aisles/gaps),
+     * so PhongChieu.sucChua never counts them.
+     */
+    private int countBookableSeats(Long phongChieuId) {
+        return (int) gheNgoiService.findByPhongChieuId(phongChieuId)
+                .stream()
+                .filter(g -> !"trống".equals(g.getLoaiGhe()))
+                .count();
     }
 
     /**
@@ -1670,7 +1701,7 @@ public class AdminController {
             if (hangGhe.length() > 2) {
                 return ResponseEntity.badRequest().body(Map.of("message", "Tên dãy ghế tối đa 2 ký tự"));
             }
-            if (!java.util.Set.of("thường", "vip", "cặp đôi").contains(loaiGhe)) {
+            if (!VALID_LOAI_GHE.contains(loaiGhe)) {
                 return ResponseEntity.badRequest().body(Map.of("message", "Loại ghế không hợp lệ"));
             }
 
@@ -1683,12 +1714,7 @@ public class AdminController {
                     .map(g -> g.getHangGhe().trim() + "-" + g.getSoGhe())
                     .collect(java.util.stream.Collectors.toSet());
 
-            BigDecimal heSoGia;
-            switch (loaiGhe) {
-                case "vip":     heSoGia = new BigDecimal("1.50"); break;
-                case "cặp đôi": heSoGia = new BigDecimal("2.00"); break;
-                default:        heSoGia = BigDecimal.ONE;
-            }
+            BigDecimal heSoGia = heSoGiaFor(loaiGhe);
 
             int created = 0;
             for (int n = soGheTu; n <= soGheDen; n++) {
@@ -1705,7 +1731,7 @@ public class AdminController {
             }
 
             // Link "Sức chứa" to the real seat count
-            int soGheThucTe = (int) gheNgoiService.countByPhongChieuId(phongChieuId);
+            int soGheThucTe = countBookableSeats(phongChieuId);
             phong.setSucChua(soGheThucTe);
             phongChieuService.save(phong);
 
@@ -1738,7 +1764,7 @@ public class AdminController {
                     .collect(Collectors.toList());
             gheNgoiService.deleteAll(seats);
 
-            int soGheThucTe = (int) gheNgoiService.countByPhongChieuId(phongChieuId);
+            int soGheThucTe = countBookableSeats(phongChieuId);
             phong.setSucChua(soGheThucTe);
             phongChieuService.save(phong);
 
@@ -1769,7 +1795,7 @@ public class AdminController {
             if (phongChieuId != null) {
                 PhongChieu phong = phongChieuService.findById(phongChieuId).orElse(null);
                 if (phong != null) {
-                    int soGheThucTe = (int) gheNgoiService.countByPhongChieuId(phongChieuId);
+                    int soGheThucTe = countBookableSeats(phongChieuId);
                     phong.setSucChua(soGheThucTe);
                     phongChieuService.save(phong);
                 }
@@ -1786,15 +1812,41 @@ public class AdminController {
     /**
      * PUT /api/admin/ghe-ngoi/{id}
      * Updates loaiGhe and/or heSoGia on a single seat.
-     * Body: { "loaiGhe": "vip" | "thuong" | "cap_doi", "heSoGia": 1.50 }
+     * Body: { "loaiGhe": "vip" | "thường" | "cặp đôi" | "trống", "heSoGia": 1.50 }
+     * When loaiGhe changes without an explicit heSoGia, the standard factor for
+     * the new type is applied automatically ('trống' → 0).
      */
     @PutMapping("/ghe-ngoi/{id}")
     public ResponseEntity<?> updateGhe(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         GheNgoi ghe = gheNgoiService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ghế"));
-        if (body.containsKey("loaiGhe")) ghe.setLoaiGhe((String) body.get("loaiGhe"));
-        if (body.containsKey("heSoGia")) ghe.setHeSoGia(new java.math.BigDecimal(body.get("heSoGia").toString()));
-        return ResponseEntity.ok(gheNgoiService.save(ghe));
+        boolean loaiChanged = false;
+        if (body.containsKey("loaiGhe")) {
+            String loai = body.get("loaiGhe") == null ? null : String.valueOf(body.get("loaiGhe")).trim();
+            if (!VALID_LOAI_GHE.contains(loai)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Loại ghế không hợp lệ (chấp nhận: thường, vip, cặp đôi, trống)"));
+            }
+            ghe.setLoaiGhe(loai);
+            loaiChanged = true;
+        }
+        if (body.containsKey("heSoGia")) {
+            ghe.setHeSoGia(new java.math.BigDecimal(body.get("heSoGia").toString()));
+        } else if (loaiChanged) {
+            ghe.setHeSoGia(heSoGiaFor(ghe.getLoaiGhe()));
+        }
+        GheNgoi saved = gheNgoiService.save(ghe);
+        if (loaiChanged) {
+            // Keep "Sức chứa" in sync when a seat type changes (e.g. → 'trống'),
+            // same mechanism as POST /ghe-ngoi/row and the DELETE endpoints.
+            PhongChieu phong = phongChieuService.findById(saved.getPhongChieu().getId())
+                    .orElse(null);
+            if (phong != null) {
+                phong.setSucChua(countBookableSeats(phong.getId()));
+                phongChieuService.save(phong);
+            }
+        }
+        return ResponseEntity.ok(saved);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -1824,7 +1876,7 @@ public class AdminController {
             m.put("loaiPhong",   p.getLoaiPhong());
             m.put("trangThai",   p.getTrangThai());
             m.put("sucChua",     p.getSucChua());
-            m.put("soGheThucTe", gheNgoiService.countByPhongChieuId(p.getId()));
+            m.put("soGheThucTe", countBookableSeats(p.getId()));
             return m;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);
@@ -1975,6 +2027,7 @@ public class AdminController {
 
         PageRequest pr = PageRequest.of(page, size);
         Page<DatVe> result = datVeService.searchAdmin(query, status, pr);
+        datVeService.ganNhanHienThiChoVes(result.getContent(), "GET /api/admin/dat-ve");
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("content",       result.getContent());
@@ -2281,11 +2334,15 @@ public class AdminController {
                 .collect(Collectors.toSet());
 
         // 5. Build response
+        Map<Long, Integer> displayLabels = SeatDisplayUtil.buildRoomLabels(allSeats);
+        SeatDisplayUtil.applyLabels(allSeats, displayLabels);
+        SeatDisplayUtil.warnMissing(allSeats, "GET /api/admin/seat-map");
         List<Map<String, Object>> result = allSeats.stream().map(seat -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("gheNgoiId", seat.getId());
             m.put("hangGhe",   (seat.getHangGhe() != null ? seat.getHangGhe().trim() : ""));
             m.put("soGhe",     seat.getSoGhe());
+            m.put("soGheHienThi", displayLabels.get(seat.getId()));
             m.put("loaiGhe",   seat.getLoaiGhe() != null ? seat.getLoaiGhe() : "thường");
 
             if (lockMap.containsKey(seat.getId())) {

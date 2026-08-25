@@ -1,6 +1,8 @@
 package com.polycinema.backend.service;
 
 import com.polycinema.backend.entity.SeatLock;
+import com.polycinema.backend.entity.GheNgoi;
+import com.polycinema.backend.repository.GheNgoiRepository;
 import com.polycinema.backend.repository.SeatLockRepository;
 import com.polycinema.backend.repository.SystemConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class SeatLockService {
     private static final int    DEFAULT_MINS = 10;
 
     private final SeatLockRepository seatLockRepository;
+    private final GheNgoiRepository gheNgoiRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final SeatNotificationService seatNotificationService;
 
@@ -45,6 +48,14 @@ public class SeatLockService {
      */
     @Transactional
     public SeatLock lockSeat(Long gheNgoiId, Long lichChieuId, Long nguoiDungId) {
+        // 'trống' cells are aisles/gaps — never lockable
+        GheNgoi ghe = gheNgoiRepository.findById(gheNgoiId)
+                .orElseThrow(() -> new IllegalArgumentException("Ghế không tồn tại"));
+        if ("trống".equals(ghe.getLoaiGhe())) {
+            throw new IllegalArgumentException("Ghế ID " + gheNgoiId
+                    + " là ô trống/lối đi trong sơ đồ, không thể chọn");
+        }
+
         LocalDateTime now = LocalDateTime.now();
 
         // Check for an existing active lock

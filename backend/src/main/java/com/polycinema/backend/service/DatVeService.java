@@ -2,6 +2,7 @@ package com.polycinema.backend.service;
 
 import com.polycinema.backend.entity.*;
 import com.polycinema.backend.repository.*;
+import com.polycinema.backend.util.SeatDisplayUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -133,6 +134,10 @@ public class DatVeService {
             if (!ghe.getPhongChieu().getId().equals(lichChieu.getPhongChieu().getId())) {
                 throw new IllegalArgumentException("Ghế ID " + gheId + " không thuộc phòng chiếu này");
             }
+            if ("trống".equals(ghe.getLoaiGhe())) {
+                throw new IllegalArgumentException("Ghế ID " + gheId
+                        + " là ô trống/lối đi trong sơ đồ, không thể đặt vé");
+            }
             gheList.add(ghe);
         }
 
@@ -257,12 +262,55 @@ public class DatVeService {
 
     @Transactional(readOnly = true)
     public List<DatVe> getBookingHistory(Long userId) {
-        return datVeRepository.findByNguoiDungIdOrderByIdDesc(userId);
+        List<DatVe> list = datVeRepository.findByNguoiDungIdOrderByIdDesc(userId);
+        ganNhanHienThiChoVes(list, "GET /api/dat-ve");
+        return list;
+    }
+
+    /**
+     * Gán soGheHienThi cho mọi ghế trong các vé (batch: 1 query mỗi PHÒNG
+     * riêng biệt trong danh sách — không N+1 theo vé/ghế).
+     * Ghế 'trống' (lối đi) giữ null; ghế khác mà vẫn thiếu nhãn → log WARN.
+     */
+    @Transactional(readOnly = true)
+    public void ganNhanHienThiChoVes(List<DatVe> ves, String endpoint) {
+        if (ves == null || ves.isEmpty()) return;
+        Set<Long> phongIds = new LinkedHashSet<>();
+        List<GheNgoi> gheCuaVes = new ArrayList<>();
+        for (DatVe v : ves) {
+            if (v.getChiTietDatGhe() == null) continue;
+            for (ChiTietDatGhe ct : v.getChiTietDatGhe()) {
+                GheNgoi g = ct.getGheNgoi();
+                if (g == null) continue;
+                gheCuaVes.add(g);
+                if (v.getLichChieu() != null && v.getLichChieu().getPhongChieu() != null) {
+                    phongIds.add(v.getLichChieu().getPhongChieu().getId());
+                }
+            }
+        }
+        if (gheCuaVes.isEmpty()) return;
+        Map<Long, Integer> labels = new HashMap<>();
+        for (Long pid : phongIds) {
+            labels.putAll(SeatDisplayUtil.buildRoomLabels(gheNgoiRepository.findByPhongChieuId(pid)));
+        }
+        for (GheNgoi g : gheCuaVes) {
+            boolean loiDi = g.getLoaiGhe() != null && "trống".equals(g.getLoaiGhe().trim());
+            Integer nhan = labels.get(g.getId());
+            g.setSoGheHienThi(loiDi ? null : nhan);
+            if (!loiDi && nhan == null) {
+                log.warn("[soGheHienThi] SOT tai {}: gheNgoiId={} khong tim thay trong bo nhan cua cac phong {}",
+                        endpoint, g.getId(), phongIds);
+            }
+        }
     }
 
     @Transactional(readOnly = true)
     public DatVe getBookingDetail(Long bookingId) {
-        return datVeRepository.findByIdWithDetails(bookingId).orElse(null);
+        DatVe datVe = datVeRepository.findByIdWithDetails(bookingId).orElse(null);
+        if (datVe != null) {
+            ganNhanHienThiChoVes(List.of(datVe), "GET /api/dat-ve/{id}");
+        }
+        return datVe;
     }
 
     public DatVe findByMaDatVe(String maDatVe) {
@@ -493,6 +541,10 @@ public class DatVeService {
                     .orElseThrow(() -> new IllegalArgumentException("Ghế ID " + gheId + " không tồn tại"));
             if (!ghe.getPhongChieu().getId().equals(lichChieu.getPhongChieu().getId())) {
                 throw new IllegalArgumentException("Ghế ID " + gheId + " không thuộc phòng chiếu này");
+            }
+            if ("trống".equals(ghe.getLoaiGhe())) {
+                throw new IllegalArgumentException("Ghế ID " + gheId
+                        + " là ô trống/lối đi trong sơ đồ, không thể đặt vé");
             }
             gheList.add(ghe);
         }

@@ -34,6 +34,15 @@ public class GheNgoi {
     @Column(name = "HeSoGia", precision = 3, scale = 2)
     private BigDecimal heSoGia;
 
+    /**
+     * Nhãn số ghế hiển thị: đếm tuần tự các ghế KHÔNG phải 'trống' trong cùng
+     * hàng, theo soGhe vật lý tăng dần. Ô 'trống' (lối đi) để null.
+     * Không persist — được tính lúc đọc bởi SeatDisplayUtil.
+     * soGhe vật lý vẫn là định danh/layout duy nhất (grid-column, API...).
+     */
+    @Transient
+    private Integer soGheHienThi;
+
     @PrePersist
     protected void onCreate() {
         if (loaiGhe == null) loaiGhe = "thường";

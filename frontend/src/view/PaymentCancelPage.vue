@@ -21,11 +21,14 @@
 import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import { clearBookingSnapshot } from '@/stores/bookingStore'
 
 const route  = useRoute()
 const router = useRouter()
 
 onMounted(async () => {
+  // Huỷ thanh toán → phiên đặt hết: xoá snapshot F5 để không khôi phục nhầm
+  clearBookingSnapshot()
   // Priority: path param (path-based cancelUrl) → query param (legacy) → sessionStorage
   // (saved by CheckoutPage right before redirecting to PayOS).
   // orderCode always survives — PayOS appends it to the cancelUrl redirect.

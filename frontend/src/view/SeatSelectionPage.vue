@@ -63,11 +63,12 @@
         <div class="rows-wrap">
           <div v-for="row in rows" :key="row.label" class="seat-row">
             <span class="row-label">{{ row.label }}</span>
-            <div class="row-seats">
+            <div class="row-seats" :style="{ gridTemplateColumns: `repeat(${totalCols}, 36px)` }">
               <button
                 v-for="seat in row.seats"
                 :key="seat.id"
                 :class="['seat', seatClass(seat)]"
+                :style="{ gridColumn: seat.soGhe }"
                 :disabled="isBooked(seat) || isLockedByOther(seat) || (isMaxReached && !isSelected(seat))"
                 :title="seatTitle(seat)"
                 @click="toggle(seat)"
@@ -76,7 +77,7 @@
                 <template v-if="isSelected(seat) && seatCountdowns[seat.id]">
                   <span class="seat-countdown">{{ fmtCountdown(seat.id) }}</span>
                 </template>
-                <template v-else>{{ seat.soGhe }}</template>
+                <template v-else>{{ seat.soGheHienThi ?? seat.soGhe }}</template>
               </button>
             </div>
             <span class="row-label">{{ row.label }}</span>
@@ -93,7 +94,7 @@
           <span class="info-chips">
             <span v-if="bookingStore.selectedSeats.length === 0" class="chip-none">Chưa chọn</span>
             <span v-for="s in bookingStore.selectedSeats" :key="s.id" class="chip-seat">
-              {{ s.hangGhe?.trim() }}{{ s.soGhe }}
+              {{ s.hangGhe?.trim() }}{{ s.soGheHienThi ?? s.soGhe }}
             </span>
           </span>
         </div>
@@ -186,6 +187,13 @@ const rows = computed(() => {
     .map(r => ({ ...r, seats: r.seats.sort((a, b) => a.soGhe - b.soGhe) }))
 })
 
+// Physical column width of the room — the widest soGhe in the response.
+// Seats keep their true position (grid-column = soGhe), so filtered-out
+// 'trống' cells leave a visible gap instead of shifting neighbours left.
+const totalCols = computed(() =>
+  allSeats.value.reduce((m, s) => Math.max(m, s.soGhe || 0), 0)
+)
+
 const isMaxReached = computed(() => bookingStore.selectedSeats.length >= 8)
 
 // ── Seat helpers ────────────────────────────────────────────
@@ -208,7 +216,7 @@ function seatClass(seat) {
   return ''
 }
 function seatTitle(seat) {
-  const label = `${(seat.hangGhe||'').trim()}${seat.soGhe}`
+  const label = `${(seat.hangGhe||'').trim()}${seat.soGheHienThi ?? seat.soGhe}`
   if (isBooked(seat))        return `${label} — Đã đặt`
   if (isLockedByOther(seat)) return `${label} — Đang được giữ`
   return `${label} — ${fmtPrice(seat.giaTien)}`
@@ -359,8 +367,15 @@ function fmtPrice(v) {
 onMounted(() => {
   if (!authStore.isLoggedIn) { router.push('/auth'); return }
   const currentLichChieuId = Number(route.params.showtimeId)
-  if (bookingStore.selectedShowtime?.id !== currentLichChieuId) {
+  // Chỉ xoá ghế khi user ĐANG chuyển sang suất khác trong session còn sống
+  // (selectedShowtime null sau F5 không được coi là "suất khác" — fix bug xoá oan).
+  if (bookingStore.selectedShowtime && bookingStore.selectedShowtime.id !== currentLichChieuId) {
     bookingStore.clearSeats()
+    bookingStore.hydrateShowtimeMeta(currentLichChieuId)
+  } else if (!bookingStore.selectedShowtime) {
+    // F5/direct-URL: khôi phục meta phim/suất/phòng từ snapshot để header
+    // không bị "—" và createBooking có lichChieuId.
+    bookingStore.hydrateShowtimeMeta(currentLichChieuId)
   }
   loadSeats()
 
@@ -498,7 +513,7 @@ onUnmounted(() => {
 .rows-wrap { display: flex; flex-direction: column; gap: 10px; min-width: fit-content; }
 .seat-row { display: flex; align-items: center; gap: 10px; }
 .row-label { width: 24px; text-align: center; font-size: 12px; font-weight: 800; color: var(--text-ghost, rgba(241,245,249,0.45)); flex-shrink: 0; }
-.row-seats { display: flex; gap: 6px; }
+.row-seats { display: grid; gap: 6px; }
 
 /* ── seats ────────────────────────────────────────────────── */
 .seat {

@@ -112,6 +112,7 @@
                 <option value="thường">Thường</option>
                 <option value="vip">VIP</option>
                 <option value="cặp đôi">Cặp đôi</option>
+                <option value="trống">Trống (lối đi)</option>
               </select>
               <button class="btn-bulk-apply" @click="applyBulkEdit">Áp dụng</button>
               <button class="btn-bulk-danger" @click="deleteSelectedSeats">Xóa ghế</button>
@@ -130,17 +131,18 @@
               @click="toggleRow(row.hang)"
             >{{ row.hang.trim() }}</button>
 
-            <div class="seats">
-              <!-- STEP 2: :style for type colors, :class for selected ring indicator -->
+            <div class="seats" :style="{ gridTemplateColumns: `repeat(${roomMaxCols}, 28px)` }">
+              <!-- STEP 2: :style for type colors + grid position, :class for selected ring indicator -->
               <button
                 v-for="seat in row.seats"
                 :key="seat.id"
                 class="seat-chip"
                 :class="selectedSeatIds.has(seat.id) ? 'seat-chip--selected' : ''"
-                :style="seatStyle(seat.loaiGhe)"
-                :title="`${seat.hangGhe?.trim()}${seat.soGhe} — ${seat.loaiGhe}`"
-                @click="toggleSeat(seat)"
-              >{{ seat.soGhe }}</button>
+                :style="chipStyle(seat)"
+                :title="`${seat.hangGhe?.trim()}${seat.soGheHienThi ?? seat.soGhe} — ${seat.loaiGhe}`"
+                @mousedown="startDragSeat(seat)"
+                @mouseenter="dragSeatHover(seat)"
+              >{{ seat.loaiGhe === 'trống' ? '' : (seat.soGheHienThi ?? seat.soGhe) }}</button>
             </div>
             <button class="row-delete-btn" :title="`Xóa cả dãy ${row.hang.trim()}`" @click="deleteRow(row.hang)">×</button>
           </div>
@@ -155,6 +157,9 @@
             </span>
             <span class="legend-item">
               <span class="chip chip--doi"></span>Cặp đôi
+            </span>
+            <span class="legend-item">
+              <span class="chip chip--trong"></span>Trống / lối đi
             </span>
           </div>
         </div>
@@ -252,6 +257,7 @@
             <option value="thường">Thường</option>
             <option value="vip">VIP</option>
             <option value="cặp đôi">Cặp đôi</option>
+            <option value="trống">Trống (lối đi)</option>
           </select>
         </div>
         <div v-if="modalError" class="form-error">{{ modalError }}</div>
@@ -265,7 +271,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 import { flashRow } from '@/utils/flashRow'
@@ -430,6 +436,29 @@ const selectedPhongId = ref('')
 const selectedSeatIds = ref(new Set())
 const bulkLoaiGhe = ref('thường')
 
+// Drag-select state: mousedown on a seat starts the drag; the mode ('select'
+// or 'deselect') is decided by the first seat's state and applied to every
+// seat the cursor passes over until mouseup anywhere.
+const isDragSelecting = ref(false)
+const dragMode = ref('select')
+
+function applySeatMode(seatId, mode) {
+  if (mode === 'select') selectedSeatIds.value.add(seatId)
+  else selectedSeatIds.value.delete(seatId)
+  selectedSeatIds.value = new Set(selectedSeatIds.value)
+}
+
+function startDragSeat(seat) {
+  dragMode.value = selectedSeatIds.value.has(seat.id) ? 'deselect' : 'select'
+  isDragSelecting.value = true
+  applySeatMode(seat.id, dragMode.value)
+}
+
+function dragSeatHover(seat) {
+  if (!isDragSelecting.value) return
+  applySeatMode(seat.id, dragMode.value)
+}
+
 // STEP 2: Inline style function — exact colors from SeatSelectionPage.vue
 function seatStyle(loaiGhe) {
   if (loaiGhe === 'vip') return {
@@ -442,18 +471,15 @@ function seatStyle(loaiGhe) {
     borderColor: '#db2777',
     color: '#ffffff'
   }
+  if (loaiGhe === 'trống') return {
+    // Aisle / gap — visually NOT a seat: transparent fill, dashed border
+    background: 'transparent',
+    borderStyle: 'dashed',
+    borderColor: 'rgba(148, 163, 184, 0.55)',
+    color: 'rgba(148, 163, 184, 0.6)'
+  }
   // 'thường' — default dark style, no inline override
   return {}
-}
-
-// STEP 3: Toggle individual seat selection
-function toggleSeat(seat) {
-  if (selectedSeatIds.value.has(seat.id)) {
-    selectedSeatIds.value.delete(seat.id)
-  } else {
-    selectedSeatIds.value.add(seat.id)
-  }
-  selectedSeatIds.value = new Set(selectedSeatIds.value)
 }
 
 // STEP 4: Toggle entire row
@@ -478,18 +504,39 @@ function isRowFullySelected(hangGhe) {
 async function applyBulkEdit() {
   if (selectedSeatIds.value.size === 0) return
   const ids = [...selectedSeatIds.value]
+  const label = g => `${(g.hangGhe || '?').trim()}${g.soGhe}`
   try {
-    await Promise.all(ids.map(id =>
-      api.put(`/admin/ghe-ngoi/${id}`, { loaiGhe: bulkLoaiGhe.value })
-    ))
-    // Update local state without re-fetching
-    gheList.value = gheList.value.map(g =>
-      selectedSeatIds.value.has(g.id) ? { ...g, loaiGhe: bulkLoaiGhe.value } : g
+    const results = await Promise.allSettled(
+      ids.map(id =>
+        api.put(`/admin/ghe-ngoi/${id}`, { loaiGhe: bulkLoaiGhe.value }).then(() => id)
+      )
     )
-    selectedSeatIds.value = new Set()
+    const okIds = results.filter(r => r.status === 'fulfilled').map(r => r.value)
+    const okSet = new Set(okIds)
+    const failedIds = ids.filter(id => !okSet.has(id))
+    const failedLabels = failedIds.map(id => {
+      const g = gheList.value.find(x => x.id === id)
+      return g ? label(g) : `#${id}`
+    })
+
+    // Update local state only for seats whose PUT succeeded
+    gheList.value = gheList.value.map(g =>
+      okSet.has(g.id) ? { ...g, loaiGhe: bulkLoaiGhe.value } : g
+    )
+    // Keep failed seats selected so the user sees which ones didn't apply
+    selectedSeatIds.value = new Set(failedIds)
+
+    if (failedIds.length > 0) {
+      alert(`Đã đổi ${okIds.length} ghế thành "${bulkLoaiGhe.value}". ` +
+        `Lỗi ${failedIds.length} ghế chưa đổi được: ${failedLabels.join(', ')}. ` +
+        `Các ghế lỗi vẫn đang được chọn để bạn thử lại.`)
+    }
   } catch (err) {
     console.error('Bulk update failed', err)
     alert('Lỗi khi cập nhật ghế. Vui lòng thử lại.')
+  } finally {
+    // Always refresh the room list so "Sức chứa" reflects the change immediately
+    await refreshPhongCapacity()
   }
 }
 
@@ -503,6 +550,16 @@ const groupedGhe = computed(() => {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([hang, seats]) => ({ hang, seats: seats.sort((a, b) => a.soGhe - b.soGhe) }))
 })
+
+// Số cột vật lý rộng nhất của phòng — giữ khe lối đi đúng vị trí (grid-column = soGhe)
+const roomMaxCols = computed(() =>
+  gheList.value.reduce((m, g) => Math.max(m, g.soGhe || 0), 0)
+)
+
+// Style cho từng chip: màu theo loại + vị trí cột vật lý
+function chipStyle(seat) {
+  return { ...seatStyle(seat.loaiGhe), gridColumn: seat.soGhe }
+}
 
 async function loadGhe() {
   if (!selectedPhongId.value) { gheList.value = []; return }
@@ -615,7 +672,17 @@ watch(selectedPhongId, (newId) => {
 onMounted(() => {
   syncFromShell()
   loadRap()
+  // End any in-progress drag-select when the button is released anywhere
+  window.addEventListener('mouseup', stopDragSelect)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('mouseup', stopDragSelect)
+})
+
+function stopDragSelect() {
+  isDragSelecting.value = false
+}
 </script>
 
 <style scoped>
@@ -961,7 +1028,7 @@ td {
 .btn-bulk-danger:hover { background: #B91C1C; }
 
 /* ── Seat map ── */
-.seat-map { padding: 24px; }
+.seat-map { padding: 24px; user-select: none; -webkit-user-select: none; }
 .screen-label {
   text-align: center;
   padding: 8px;
@@ -996,7 +1063,7 @@ td {
 .row-label-btn:hover { color: var(--admin-accent); background: var(--admin-accent-muted); }
 .row-label-btn--active { color: #60A5FA; }
 
-.seats { display: flex; flex-wrap: wrap; gap: 4px; }
+.seats { display: grid; gap: 4px; }
 
 /* STEP 2: Base seat chip — type colors come from :style, not :class */
 .seat-chip {
@@ -1052,6 +1119,7 @@ td {
 .chip--thuong { background: var(--admin-surface-hover); border-color: var(--admin-border); }
 .chip--vip    { background: #C9A84C; border-color: #C9A84C; }
 .chip--doi    { background: #ec4899; border-color: #db2777; }
+.chip--trong  { background: transparent; border: 1px dashed var(--admin-border); }
 
 /* ── Palette target row flash ── */
 .row-flash {

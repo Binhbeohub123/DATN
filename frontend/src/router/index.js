@@ -34,17 +34,38 @@ const routes = [
     component: () => import('@/view/CheckoutPage.vue'),
     meta: { requiresAuth: true },
     beforeEnter: async (to, from, next) => {
-      // Allow retry-payment mode (bookingId query param present)
+      // Allow retry-payment mode (bookingId query param present) — không đụng vào
       if (to.query?.bookingId) { next(); return }
-      // Allow normal flow only if seats have been selected
-      const { useBookingStore } = await import('@/stores/bookingStore')
+      const [{ useBookingStore }, apiMod, toastMod, storeMod] = await Promise.all([
+        import('@/stores/bookingStore'),
+        import('@/services/api'),
+        import('@/composables/useToast'),
+        import('@/stores/bookingStore'),
+      ])
       const bookingStore = useBookingStore()
-      if (!bookingStore.selectedSeats || bookingStore.selectedSeats.length === 0) {
-        // No booking data — redirect to movies rather than showing a broken checkout
-        next('/movies')
+      // Allow normal flow only if seats have been selected
+      if (bookingStore.selectedSeats && bookingStore.selectedSeats.length > 0) {
+        next()
         return
       }
-      next()
+
+      // F5 recovery: store rỗng nhưng sessionStorage snapshot còn →
+      // verify SERVER-SIDE rằng toàn bộ ghế vẫn đang bị CHÍNH user này khoá,
+      // rồi mới populate lại store và cho vào trang.
+      const hadSnapshot = storeMod.hasBookingSnapshot()
+      const kept = await bookingStore.hydrateFromSnapshot({ verify: true })
+      if (kept && kept.length > 0) {
+        next()
+        return
+      }
+
+      // Không snapshot (tab mới/đóng hẳn) → im lặng như hành vi cũ;
+      // Snapshot có mà lock đã hết → thông báo rõ ràng rồi về chọn lại.
+      bookingStore.clearSnapshot()
+      if (hadSnapshot) {
+        toastMod.useToast().error('Phiên giữ ghế đã hết hạn, vui lòng chọn lại')
+      }
+      next('/movies')
     },
   },
   { path: '/payment-result/:bookingId', name: 'payment-result', component: () => import('@/view/PaymentResultPage.vue'), meta: { requiresAuth: true }, props: true },

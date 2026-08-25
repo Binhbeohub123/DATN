@@ -1,8 +1,12 @@
 package com.polycinema.backend.service;
 
 import com.polycinema.backend.entity.ChiTietDatGhe;
+import com.polycinema.backend.entity.GheNgoi;
 import com.polycinema.backend.repository.ChiTietDatGheRepository;
+import com.polycinema.backend.repository.GheNgoiRepository;
+import com.polycinema.backend.util.SeatDisplayUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -10,14 +14,18 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.internet.MimeMessage;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
     private final ChiTietDatGheRepository chiTietDatGheRepository;
+    private final GheNgoiRepository gheNgoiRepository;
 
     /** Frontend base URL — reuses the same CORS origin config so it's consistent. */
     @Value("${cors.allowed-origins:http://localhost:5173}")
@@ -125,12 +133,33 @@ public class EmailService {
 
             // ── Fix: query seats from DB (in-memory collection is stale) ──
             List<ChiTietDatGhe> seats = chiTietDatGheRepository.findByDatVeId(datVe.getId());
+            // Nhãn hiển thị: cần ĐỦ ghế cùng hàng của phòng để đếm đúng thứ tự
+            Map<Long, Integer> nhanHienThi = new HashMap<>();
+            try {
+                if (!seats.isEmpty() && seats.get(0).getGheNgoi() != null
+                        && seats.get(0).getGheNgoi().getPhongChieu() != null) {
+                    Long phongId = seats.get(0).getGheNgoi().getPhongChieu().getId();
+                    List<GheNgoi> phongSeats = gheNgoiRepository.findByPhongChieuId(phongId);
+                    nhanHienThi = SeatDisplayUtil.buildRoomLabels(phongSeats);
+                }
+            } catch (Exception ex) {
+                // fallback về soGhe vật lý bên dưới
+            }
             StringBuilder seatsSb = new StringBuilder();
             for (ChiTietDatGhe ct : seats) {
                 if (ct.getGheNgoi() != null) {
                     if (seatsSb.length() > 0) seatsSb.append(", ");
+                    Integer hienThi = nhanHienThi.get(ct.getGheNgoi().getId());
+                    boolean loiDi = ct.getGheNgoi().getLoaiGhe() != null
+                            && "trống".equals(ct.getGheNgoi().getLoaiGhe().trim());
+                    if (!loiDi && hienThi == null) {
+                        log.warn("[soGheHienThi] SOT tai EmailService xac nhan dat ve: gheNgoiId={} hang={}{} — fallback soGhe vat ly",
+                                ct.getGheNgoi().getId(),
+                                ct.getGheNgoi().getHangGhe() != null ? ct.getGheNgoi().getHangGhe().trim() : "?",
+                                ct.getGheNgoi().getSoGhe());
+                    }
                     seatsSb.append(ct.getGheNgoi().getHangGhe().trim())
-                           .append(ct.getGheNgoi().getSoGhe());
+                           .append(hienThi != null ? hienThi : ct.getGheNgoi().getSoGhe());
                 }
             }
             String seatsStr = seatsSb.length() > 0 ? seatsSb.toString() : "—";

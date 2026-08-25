@@ -145,7 +145,16 @@ function fmtPrice(v) {
 
 onMounted(() => {
   if (!authStore.isLoggedIn) { router.push('/auth'); return }
-  loadProducts()
+  loadProducts().then(async () => {
+    // F5 recovery: store rỗng hoàn toàn (dấu hiệu reload) mà snapshot còn →
+    // khôi phục showtime + ghế + combo (combo chỉ nhận sản phẩm còn bán).
+    if (
+      bookingStore.selectedSeats.length === 0 &&
+      bookingStore.selectedCombos.length === 0
+    ) {
+      await bookingStore.hydrateFromSnapshot()
+    }
+  })
 })
 
 // ── Inline child component — avoids separate file ──────────

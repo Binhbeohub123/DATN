@@ -8,6 +8,7 @@ import com.polycinema.backend.entity.Phim;
 import com.polycinema.backend.repository.ChiTietDatGheRepository;
 import com.polycinema.backend.repository.GheNgoiRepository;
 import com.polycinema.backend.repository.LichChieuRepository;
+import com.polycinema.backend.util.SeatDisplayUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -52,12 +53,21 @@ public class LichChieuService {
                 .map(ct -> ct.getGheNgoi().getId())
                 .collect(Collectors.toSet());
 
+        // Nhãn hiển thị tính từ TOÀN BỘ ghế phòng (có cả ô 'trống') để đếm đúng
+        Map<Long, Integer> nhanHienThi = SeatDisplayUtil.buildRoomLabels(tatCaGhe);
+        SeatDisplayUtil.applyLabels(tatCaGhe, nhanHienThi);
+        SeatDisplayUtil.warnMissing(tatCaGhe, "GET /lich-chieu/{id}/ghe-trong (va POS /staff/pos/ghe)");
+
         return tatCaGhe.stream()
+                // 'trống' cells are aisles/gaps in the room layout — customers
+                // (and POS) must never see or book them, so filter them out.
+                .filter(ghe -> !"trống".equals(ghe.getLoaiGhe()))
                 .map(ghe -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", ghe.getId());
                     m.put("hangGhe", ghe.getHangGhe());
                     m.put("soGhe", ghe.getSoGhe());
+                    m.put("soGheHienThi", ghe.getSoGheHienThi());
                     m.put("loaiGhe", ghe.getLoaiGhe());
                     m.put("heSoGia", ghe.getHeSoGia());
                     m.put("giaTien", lichChieu.getGiaCoBan().multiply(ghe.getHeSoGia()));

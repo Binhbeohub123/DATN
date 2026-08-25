@@ -3,12 +3,16 @@ package com.polycinema.backend.controller;
 import com.polycinema.backend.entity.ChiTietDatGhe;
 import com.polycinema.backend.entity.ChiTietDatSanPham;
 import com.polycinema.backend.entity.DatVe;
+import com.polycinema.backend.entity.GheNgoi;
 import com.polycinema.backend.entity.LichChieu;
 import com.polycinema.backend.entity.NguoiDung;
+import com.polycinema.backend.repository.GheNgoiRepository;
 import com.polycinema.backend.service.AuthService;
 import com.polycinema.backend.service.DatVeService;
 import com.polycinema.backend.service.LichChieuService;
+import com.polycinema.backend.util.SeatDisplayUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,11 +27,13 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/staff")
 @RequiredArgsConstructor
+@Slf4j
 public class StaffController {
 
     private final AuthService authService;
     private final LichChieuService lichChieuService;
     private final DatVeService datVeService;
+    private final GheNgoiRepository gheNgoiRepository;
 
     @PostMapping("/logout")
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
@@ -202,11 +208,28 @@ public class StaffController {
 
         List<String> ghe = new ArrayList<>();
         if (datVe.getChiTietDatGhe() != null) {
+            // Nhãn hiển thị: cần ĐỦ ghế cùng hàng của phòng suất chiếu
+            Map<Long, Integer> nhanHienThi = new java.util.HashMap<>();
+            try {
+                if (datVe.getLichChieu() != null && datVe.getLichChieu().getPhongChieu() != null) {
+                    Long phongId = datVe.getLichChieu().getPhongChieu().getId();
+                    nhanHienThi = SeatDisplayUtil.buildRoomLabels(gheNgoiRepository.findByPhongChieuId(phongId));
+                }
+            } catch (Exception ex) {
+                // fallback về soGhe vật lý bên dưới
+            }
             for (ChiTietDatGhe ct : datVe.getChiTietDatGhe()) {
                 if (ct.getGheNgoi() != null) {
                     String hang = ct.getGheNgoi().getHangGhe() != null ? ct.getGheNgoi().getHangGhe().trim() : "";
                     Integer so = ct.getGheNgoi().getSoGhe();
-                    ghe.add(hang + (so != null ? so : ""));
+                    Integer hienThi = nhanHienThi.get(ct.getGheNgoi().getId());
+                    boolean loiDi = ct.getGheNgoi().getLoaiGhe() != null
+                            && "trống".equals(ct.getGheNgoi().getLoaiGhe().trim());
+                    if (!loiDi && hienThi == null) {
+                        log.warn("[soGheHienThi] SOT tai StaffController checkin: gheNgoiId={} hang={}{} — fallback soGhe vat ly",
+                                ct.getGheNgoi().getId(), hang, so);
+                    }
+                    ghe.add(hang + (hienThi != null ? hienThi : (so != null ? so : "")));
                 }
             }
         }

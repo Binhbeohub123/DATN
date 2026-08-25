@@ -60,7 +60,7 @@
               <!-- Retry mode: seats from ChiTietDatGhe on the fetched booking -->
               <div v-for="ct in (retryBooking.chiTietDatGhe || [])" :key="ct.gheNgoi?.id" class="sum-row sum-row--seat">
                 <span class="sum-label seat-tag">
-                  Ghế {{ (ct.gheNgoi?.hangGhe || '').trim() }}{{ ct.gheNgoi?.soGhe }}
+                  Ghế {{ (ct.gheNgoi?.hangGhe || '').trim() }}{{ ct.gheNgoi?.soGheHienThi ?? ct.gheNgoi?.soGhe }}
                   <span v-if="ct.gheNgoi?.loaiGhe && ct.gheNgoi.loaiGhe !== 'thường'" :class="['type-pip', typeClass(ct.gheNgoi.loaiGhe)]">{{ typeLabel(ct.gheNgoi.loaiGhe) }}</span>
                 </span>
                 <span class="sum-val">{{ fmtPrice(ct.giaTien) }}</span>
@@ -85,7 +85,7 @@
             <template v-else>
               <!-- Normal mode: seats from bookingStore -->
               <div v-for="s in bookingStore.selectedSeats" :key="s.id" class="sum-row sum-row--seat">
-                <span class="sum-label seat-tag">Ghế {{ (s.hangGhe||'').trim() }}{{ s.soGhe }} <span :class="['type-pip', typeClass(s.loaiGhe)]">{{ typeLabel(s.loaiGhe) }}</span></span>
+                <span class="sum-label seat-tag">Ghế {{ (s.hangGhe||'').trim() }}{{ s.soGheHienThi ?? s.soGhe }} <span :class="['type-pip', typeClass(s.loaiGhe)]">{{ typeLabel(s.loaiGhe) }}</span></span>
                 <span class="sum-val">{{ fmtPrice(s.giaTien) }}</span>
               </div>
               <div class="sum-row sum-row--sub">
