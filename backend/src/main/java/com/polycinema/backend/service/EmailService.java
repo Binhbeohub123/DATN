@@ -14,6 +14,18 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.core.io.ByteArrayResource;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,14 +195,47 @@ public class EmailService {
 
             // ── Send as MimeMessage (HTML) ───────────────────────────
             MimeMessage mime = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mime, false, "UTF-8");
+            // multipart=true để cho phép nhúng ảnh QR inline (cid:qrTicket).
+            MimeMessageHelper helper = new MimeMessageHelper(mime, true, "UTF-8");
             helper.setTo(toEmail);
             helper.setSubject("PolyCinema - Xác nhận đặt vé #" + maDatVe);
             helper.setText(html, true);   // true = isHtml
+
+            // ── NHÚNG ẢNH QR VÉ inline (cid:qrTicket) — encode mã đặt vé ──
+            byte[] qrPng = generateQrPng(maDatVe);
+            if (qrPng != null) {
+                helper.addInline("qrTicket", new ByteArrayResource(qrPng), "image/png");
+            }
+
             mailSender.send(mime);
 
         } catch (Exception e) {
             System.err.println("❌ Send booking confirmation email failed: " + e.getMessage());
+        }
+    }
+
+    // ── Sinh ảnh QR PNG từ chuỗi mã đặt vé ─────────────────────────
+    // Tái sử dụng ĐÚNG logic trong VeController.getQrCode() (QRCodeWriter
+    // encode QR_CODE 300x300, error-correction M, margin 2) để QR trong email
+    // giống hệt QR hiển thị trên web → nhân viên quét check-in đọc đúng mã.
+    // Lưu ý: KHÔNG đụng tới DatVe.maQR (đó là appTransId PayOS, mục đích khác).
+    byte[] generateQrPng(String maDatVe) {
+        if (maDatVe == null || maDatVe.isBlank()) return null;
+        try {
+            Map<EncodeHintType, Object> hints = new HashMap<>();
+            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
+            hints.put(EncodeHintType.MARGIN, 2);
+            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+
+            QRCodeWriter writer = new QRCodeWriter();
+            BitMatrix matrix = writer.encode(maDatVe, BarcodeFormat.QR_CODE, 300, 300, hints);
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(matrix, "PNG", out);
+            return out.toByteArray();
+        } catch (WriterException | IOException e) {
+            log.warn("[EmailService] Khong sinh duoc QR cho maDatVe={}: {}", maDatVe, e.getMessage());
+            return null;
         }
     }
 
@@ -258,6 +303,15 @@ public class EmailService {
             "font-weight:700;font-size:14px;letter-spacing:1px'>" +
             "🎟️ XEM VÉ ĐIỆN TỬ" +
             "</a>" +
+            "</td></tr>" +
+
+            // Inline QR ticket image (cid:qrTicket) — dùng khi vào rạp
+            "<tr><td style='padding:18px 36px 6px;text-align:center'>" +
+            "<p style='margin:0 0 14px;font-size:13px;font-weight:700;color:#e5e5e5;letter-spacing:0.4px'>MÃ QR VÀO RẠP</p>" +
+            "<img src='cid:qrTicket' width='200' height='200' alt='Mã QR vé' " +
+            "style='display:inline-block;background:#ffffff;border-radius:8px;padding:8px'/>" +
+            "<p style='margin:12px 0 0;font-size:13px;color:#e5e5e5;font-weight:600;letter-spacing:1px'>" + escHtml(maDatVe) + "</p>" +
+            "<p style='margin:4px 0 0;font-size:12px;color:#9ca3af'>Xuất trình mã QR này tại quầy để nhận vé / check-in.</p>" +
             "</td></tr>" +
 
             // Notes

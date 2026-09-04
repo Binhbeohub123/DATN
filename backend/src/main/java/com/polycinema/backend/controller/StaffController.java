@@ -71,9 +71,9 @@ public class StaffController {
         if (rapChieuId == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Thiếu tham số rapChieuId"));
         }
-        java.time.LocalDateTime from = java.time.LocalDate.now().atStartOfDay();
+        java.time.LocalDateTime from = java.time.LocalDateTime.now().minusMinutes(15);
         java.time.LocalDateTime to   = java.time.LocalDate.now().plusDays(1).atStartOfDay();
-        List<LichChieu> list = lichChieuService.findTodayByRapChieuId(rapChieuId, from, to);
+        List<LichChieu> list = lichChieuService.findPosByRapChieuId(rapChieuId, from, to);
         return ResponseEntity.ok(list);
     }
 

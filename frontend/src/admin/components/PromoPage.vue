@@ -25,7 +25,7 @@
               <td class="td-val">{{ km.loaiGiamGia==='percent' ? `${km.giaTriGiam}%` : fmtPrice(km.giaTriGiam) }}</td>
               <td>{{ fmtPrice(km.donHangToiThieu) }}</td>
               <td>{{ km.daSuDung }} / {{ km.gioiHanSuDung||'∞' }}</td>
-              <td class="td-date">{{ km.ngayKetThuc || '—' }}</td>
+              <td class="td-date">{{ fmtDate(km.ngayKetThuc) }}</td>
               <td class="td-phim">
                 <span v-if="!km.phims || km.phims.length===0" class="phim-all">Tất cả phim</span>
                 <span v-else class="phim-list">{{ km.phims.map(p=>p.tenPhim).join(', ') }}</span>
@@ -75,16 +75,10 @@
           <div class="field"><label>Ngày kết thúc</label><input v-model="form.ngayKetThuc" type="date"/></div>
           <div class="field"><label>Mô tả</label><input v-model="form.moTa" placeholder="Mô tả ngắn (không bắt buộc)"/></div>
           <div class="field field--full"><label>Áp dụng cho phim (bỏ trống = áp dụng tất cả)</label>
-            <div style="background:#1a1a2e;color:#0ff;font-size:11px;padding:6px 8px;border-radius:4px;margin-bottom:4px;font-family:monospace;">
-              [DEBUG] form.phimIds = {{ JSON.stringify(form.phimIds) }}<br>
-              [DEBUG] types = {{ form.phimIds.map(id => typeof id) }}<br>
-              [DEBUG] allMovies IDs = {{ allMovies.map(m => m.id) }}<br>
-              [DEBUG] allMovies ID types = {{ allMovies.slice(0,3).map(m => typeof m.id) }}
-            </div>
             <div class="movie-select-box">
               <label v-for="m in allMovies" :key="m.id" class="movie-select-row">
                 <input type="checkbox" :value="m.id" v-model="form.phimIds" />
-                <span>{{ m.tenPhim }} <small style="color:#888">(id={{ m.id }}, inArray={{ form.phimIds.includes(m.id) }})</small></span>
+                <span>{{ m.tenPhim }}</span>
               </label>
               <div v-if="allMovies.length === 0" class="movie-select-empty">Đang tải phim...</div>
             </div>
@@ -105,6 +99,7 @@ import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 import { flashRow } from '@/utils/flashRow'
+import { fmtDate } from '@/utils/dateFmt'
 
 const shell = useAdminShellStore()
 
@@ -170,9 +165,6 @@ function fmtPrice(v) {
 
 async function openCreate() { editing.value=null; form.value=blankForm(); formErr.value=''; await loadMovies(); showModal.value=true }
 async function openEdit(km) {
-  console.log('[DEBUG openEdit] km.maKhuyenMai:', km.maKhuyenMai)
-  console.log('[DEBUG openEdit] km.phims raw:', JSON.stringify(km.phims))
-  console.log('[DEBUG openEdit] km.phims?.map(p => p.id):', km.phims?.map(p => p.id))
   editing.value=km
   form.value = {
     maKhuyenMai: km.maKhuyenMai, tenKhuyenMai: km.tenKhuyenMai||'', moTa: km.moTa||'',
@@ -182,11 +174,7 @@ async function openEdit(km) {
     ngayKetThuc: km.ngayKetThuc||'', dangHoatDong: km.dangHoatDong!==false,
     phimIds: km.phims?.map(p => p.id) || []
   }
-  console.log('[DEBUG openEdit] form.phimIds after assignment:', JSON.stringify(form.value.phimIds))
-  console.log('[DEBUG openEdit] form.phimIds types:', form.value.phimIds.map(id => typeof id))
   formErr.value=''; await loadMovies();
-  console.log('[DEBUG openEdit] form.phimIds BEFORE showModal:', JSON.stringify(form.value.phimIds))
-  console.log('[DEBUG openEdit] allMovies IDs:', allMovies.value.map(m => ({ id: m.id, type: typeof m.id })))
   showModal.value=true
 }
 
@@ -226,8 +214,6 @@ async function loadMovies() {
   try {
     const r = await api.get('/phim');
     allMovies.value = r.data||[]
-    console.log('[DEBUG loadMovies] movie count:', allMovies.value.length)
-    console.log('[DEBUG loadMovies] first 3 movie IDs + types:', allMovies.value.slice(0,3).map(m => ({ id: m.id, type: typeof m.id })))
   }
   catch(e) { allMovies.value = [] }
 }
@@ -237,10 +223,6 @@ async function load() {
   try {
     const r = await api.get('/khuyen-mai/all');
     promos.value = r.data||[]
-    console.log('[DEBUG load] promos count:', promos.value.length)
-    promos.value.forEach(km => {
-      console.log(`[DEBUG load] promo "${km.maKhuyenMai}" (id=${km.id}): phims=`, JSON.stringify(km.phims?.map(p => ({ id: p.id, type: typeof p.id, tenPhim: p.tenPhim }))))
-    })
   }
   catch(e) { showToast('Không tải được mã khuyến mãi') }
   finally { loading.value=false }

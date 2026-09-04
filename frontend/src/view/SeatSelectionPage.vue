@@ -56,34 +56,29 @@
 
     <!-- ── Seat grid ── -->
     <div v-else class="screen-wrap">
-      <div class="screen-label">MÀN HÌNH</div>
-      <div class="screen-bar"></div>
-
-      <div class="grid-scroll">
-        <div class="rows-wrap">
-          <div v-for="row in rows" :key="row.label" class="seat-row">
-            <span class="row-label">{{ row.label }}</span>
-            <div class="row-seats" :style="{ gridTemplateColumns: `repeat(${totalCols}, 36px)` }">
-              <button
-                v-for="seat in row.seats"
-                :key="seat.id"
-                :class="['seat', seatClass(seat)]"
-                :style="{ gridColumn: seat.soGhe }"
-                :disabled="isBooked(seat) || isLockedByOther(seat) || (isMaxReached && !isSelected(seat))"
-                :title="seatTitle(seat)"
-                @click="toggle(seat)"
-                :aria-label="seatTitle(seat)"
-              >
-                <template v-if="isSelected(seat) && seatCountdowns[seat.id]">
-                  <span class="seat-countdown">{{ fmtCountdown(seat.id) }}</span>
-                </template>
-                <template v-else>{{ seat.soGheHienThi ?? seat.soGhe }}</template>
-              </button>
-            </div>
-            <span class="row-label">{{ row.label }}</span>
-          </div>
-        </div>
-      </div>
+      <SeatGrid
+        :rows="rows"
+        :total-cols="totalCols"
+        :show-screen="true"
+        :seat-size="resolvedSeatSize"
+        :seat-gap="resolvedSeatGap"
+        :disabled-ids="seatGridDisabledIds"
+        :seat-title-fn="seatTitle"
+        :seat-class-fn="seat => {
+          if (isSelected(seat)) return 'seat--selected'
+          if (isBooked(seat)) return 'seat--booked'
+          if (isLockedByOther(seat)) return 'seat--locked'
+          return ''
+        }"
+        @seat-click="toggle"
+      >
+        <template #seat-content="{ seat }">
+          <template v-if="isSelected(seat) && seatCountdowns[seat.id]">
+            <span class="seat-countdown">{{ fmtCountdown(seat.id) }}</span>
+          </template>
+          <template v-else>{{ seat.soGheHienThi ?? seat.soGhe }}</template>
+        </template>
+      </SeatGrid>
     </div>
 
     <!-- ── Bottom bar ── -->
@@ -121,12 +116,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useBookingStore } from '@/stores/bookingStore'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import SeatGrid from '@/components/SeatGrid.vue'
 import { fmtDateTime12 } from '@/utils/homeHelpers'
 import { useSeatWebSocket } from '@/composables/useSeatWebSocket'
 
@@ -142,6 +138,9 @@ const loadError     = ref('')
 
 // ── Real-time seat lock updates via WebSocket ──────────────────
 let seatWs = null   // { disconnect }
+// Được set true ngay trước khi đi tiếp trong luồng đặt vé hợp lệ (combo/checkout),
+// để onUnmounted KHÔNG nhả lock — lock sẽ được thanh toán giữ lại.
+let advancingInFlow = false
 
 function handleSeatWsMessage(msg) {
   const seatId = msg.gheNgoiId
@@ -196,6 +195,23 @@ const totalCols = computed(() =>
 
 const isMaxReached = computed(() => bookingStore.selectedSeats.length >= 8)
 
+// ── Responsive seat size ─────────────────────────────────
+const isMobile = ref(false)
+let mobileMq = null
+function updateMobile(e) { isMobile.value = e.matches }
+const resolvedSeatSize = computed(() => isMobile.value ? 30 : 36)
+const resolvedSeatGap  = computed(() => isMobile.value ? 5 : 6)
+
+const seatGridDisabledIds = computed(() => {
+  const ids = new Set()
+  allSeats.value.forEach(s => {
+    if (isBooked(s) || isLockedByOther(s) || (isMaxReached.value && !isSelected(s))) {
+      ids.add(s.id)
+    }
+  })
+  return ids
+})
+
 // ── Seat helpers ────────────────────────────────────────────
 function isBooked(seat) {
   return seat.trangThai === 'booked' || seat.trangThai === 'reserved'
@@ -205,15 +221,6 @@ function isLockedByOther(seat) {
 }
 function isSelected(seat) {
   return bookingStore.selectedSeats.some(s => s.id === seat.id)
-}
-function seatClass(seat) {
-  if (isSelected(seat))      return 'seat--selected'
-  if (isBooked(seat))        return 'seat--booked'
-  if (isLockedByOther(seat)) return 'seat--locked'
-  const t = (seat.loaiGhe || '').toLowerCase()
-  if (t === 'vip')      return 'seat--vip'
-  if (t.includes('cặp') || t.includes('couple')) return 'seat--couple'
-  return ''
 }
 function seatTitle(seat) {
   const label = `${(seat.hangGhe||'').trim()}${seat.soGheHienThi ?? seat.soGhe}`
@@ -234,6 +241,11 @@ function startCountdown(seatId, durationSecs) {
       // Auto-deselect expired seat
       bookingStore.removeSeat(seatId)
       showExpiredToast('Ghế đã hết thời gian giữ. Vui lòng chọn lại.')
+      // Chủ động refresh sơ đồ ghế ngay khi lock hết hạn — không chỉ dựa vào
+      // WebSocket broadcast (WS có thể bị trễ/lỗi). loadSeats() sẽ re-fetch
+      // /ghe-trong + /locked-seats; ghế vừa hết hạn không còn được giữ (lock đã
+      // xoá/tự hết hạn phía server) nên sẽ hiển thị lại là available.
+      refreshGridAfterLockExpiry()
     } else {
       seatCountdowns.value[seatId] = left
     }
@@ -251,6 +263,21 @@ function fmtCountdown(seatId) {
   const m = Math.floor(secs / 60)
   const s = secs % 60
   return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// ── Proactive grid refresh on lock expiry ────────────────────
+// Throttle: nhiều ghế có thể hết hạn cùng lúc -> chỉ gọi loadSeats() 1 lần cho
+// từng đợt thay vì spam. Không cần guard vô hạn: ghế vừa hết hạn đã bị
+// removeSeat() và không tồn tại lock phía server nữa nên loadSeats() sẽ không
+// re-add nó.
+let gridRefreshPending = false
+function refreshGridAfterLockExpiry() {
+  if (gridRefreshPending) return
+  gridRefreshPending = true
+  setTimeout(async () => {
+    try { await loadSeats() } catch { /* non-fatal */ }
+    gridRefreshPending = false
+  }, 300)
 }
 
 // ── Toggle seat selection ──────────────────────────────────
@@ -348,6 +375,8 @@ async function releaseAllLocks() {
 
 function goCombo() {
   if (bookingStore.selectedSeats.length === 0) return
+  // Đang tiến tới bước tiếp theo của luồng đặt vé HỢP LỆ — không nhả lock.
+  advancingInFlow = true
   router.push('/combo')
 }
 
@@ -364,6 +393,42 @@ function fmtPrice(v) {
 // simple refresh. Locks expire server-side via TTL (SEAT_LOCK_MINUTES) and the
 // SeatLockCleanupService instead.
 
+// ── Reset ALL local seat state for a (new) showtime ────────────
+// Clears grid data + countdowns so nothing from the previous showtime leaks.
+function resetLocalSeatState() {
+  allSeats.value = []
+  lockedSeatIds.value = new Set()
+  Object.keys(seatCountdowns.value)
+    .filter(k => k.startsWith('__timer_'))
+    .forEach(k => clearInterval(seatCountdowns.value[k]))
+  seatCountdowns.value = {}
+}
+
+// ── Init / switch logic shared by onMounted + route watcher ────
+// VECTOR 2: component is reused when the route param changes on the same
+// route record, so ALL init must live in ONE function reused by both sources,
+// otherwise the two paths can drift.
+async function initForShowtime(newId) {
+  // VECTOR PHỤ: nhả lock của suất CŨ (nếu có ghế đang chọn mà chưa thanh toán)
+  // trước khi chuyển sang suất mới.
+  if (bookingStore.selectedSeats.length > 0) {
+    await releaseAllLocks()
+  }
+  bookingStore.clearSeats()
+  resetLocalSeatState()
+
+  // Hydrate showtime/movie meta + seats for the new showtime
+  bookingStore.hydrateShowtimeMeta(Number(newId))
+  await loadSeats()
+
+  // VECTOR 3: switch WS to the new topic (unsubscribe old first)
+  if (seatWs) {
+    seatWs.switchTopic(Number(newId))
+  } else if (newId) {
+    seatWs = useSeatWebSocket(Number(newId), handleSeatWsMessage)
+  }
+}
+
 onMounted(() => {
   if (!authStore.isLoggedIn) { router.push('/auth'); return }
   const currentLichChieuId = Number(route.params.showtimeId)
@@ -371,22 +436,44 @@ onMounted(() => {
   // (selectedShowtime null sau F5 không được coi là "suất khác" — fix bug xoá oan).
   if (bookingStore.selectedShowtime && bookingStore.selectedShowtime.id !== currentLichChieuId) {
     bookingStore.clearSeats()
-    bookingStore.hydrateShowtimeMeta(currentLichChieuId)
-  } else if (!bookingStore.selectedShowtime) {
-    // F5/direct-URL: khôi phục meta phim/suất/phòng từ snapshot để header
-    // không bị "—" và createBooking có lichChieuId.
-    bookingStore.hydrateShowtimeMeta(currentLichChieuId)
   }
+  resetLocalSeatState()
+  bookingStore.hydrateShowtimeMeta(currentLichChieuId)
   loadSeats()
 
-  // Connect WebSocket for real-time seat lock updates
   if (currentLichChieuId) {
     seatWs = useSeatWebSocket(currentLichChieuId, handleSeatWsMessage)
   }
+
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    mobileMq = window.matchMedia('(max-width: 640px)')
+    isMobile.value = mobileMq.matches
+    mobileMq.addEventListener('change', updateMobile)
+  }
 })
 
-onUnmounted(() => {
+// VECTOR 2: khi đổi URL trực tiếp (hoặc link) từ /seat-selection/A → /seat-selection/B
+// trên cùng route record, Vue reuse component mà không re-mount → phải watch param
+// để reset state + subscribe đúng topic mới.
+watch(() => route.params.showtimeId, async (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    await initForShowtime(newId)
+  }
+})
+
+onUnmounted(async () => {
+  // Đang đi tiếp trong luồng đặt vé hợp lệ (goCombo → /combo): KHÔNG nhả lock
+  // và KHÔNG xoá ghế — ghế vẫn cần cho trang Combo/Checkout và snapshot.
+  const advancing = advancingInFlow
+  if (!advancing) {
+    // Rời hẳn trang chọn ghế chưa thanh toán (back/đổi trang): nhả lock + xoá ghế.
+    if (bookingStore.selectedSeats.length > 0) {
+      await releaseAllLocks()
+    }
+    bookingStore.clearSeats()
+  }
   if (seatWs) { seatWs.disconnect(); seatWs = null }
+  if (mobileMq) mobileMq.removeEventListener('change', updateMobile)
   Object.keys(seatCountdowns.value)
     .filter(k => k.startsWith('__timer_'))
     .forEach(k => clearInterval(seatCountdowns.value[k]))
@@ -493,83 +580,9 @@ onUnmounted(() => {
 }
 
 /* ── screen ───────────────────────────────────────────────── */
-.screen-wrap { flex: 1; padding: 28px 16px 0; max-width: 900px; margin: 0 auto; width: 100%; }
-.screen-label {
-  text-align: center; font-size: 10px; font-weight: 900;
-  letter-spacing: 3px; color: var(--text-ghost, rgba(241,245,249,0.45));
-  text-transform: uppercase; margin-bottom: 6px;
-}
-.screen-bar {
-  height: 6px;
-  border-radius: var(--radius-pill, 999px);
-  background: linear-gradient(90deg, transparent 0%, var(--electric, #29bcea) 50%, transparent 100%);
-  margin-bottom: 32px;
-  transform: perspective(800px) rotateX(-8deg);
-  box-shadow: 0 4px 32px var(--electric-glow, rgba(41,188,234,0.30));
-}
+.screen-wrap { flex: 1; padding: 28px 16px 0; }
 
-/* ── grid ─────────────────────────────────────────────────── */
-.grid-scroll { overflow-x: auto; padding-bottom: 16px; }
-.rows-wrap { display: flex; flex-direction: column; gap: 10px; min-width: fit-content; }
-.seat-row { display: flex; align-items: center; gap: 10px; }
-.row-label { width: 24px; text-align: center; font-size: 12px; font-weight: 800; color: var(--text-ghost, rgba(241,245,249,0.45)); flex-shrink: 0; }
-.row-seats { display: grid; gap: 6px; }
-
-/* ── seats ────────────────────────────────────────────────── */
-.seat {
-  width: 36px; height: 36px; border-radius: 8px;
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  font-size: 11px; font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-secondary, #94a3b8); flex-shrink: 0;
-  background: var(--surface-3, #1a1a28);
-}
-.seat:hover:not(:disabled) {
-  transform: scale(1.12) translateY(-2px);
-  border-color: var(--electric, #29bcea);
-  color: var(--electric, #29bcea);
-}
-.seat:disabled { cursor: not-allowed; opacity: 0.5; }
-
-.seat--booked {
-  background: rgba(239,68,68,0.2);
-  border-color: rgba(239,68,68,0.4);
-  color: #ef4444; opacity: 0.7;
-}
-.seat--selected {
-  background: var(--electric, #29bcea);
-  border-color: var(--electric, #29bcea);
-  color: var(--on-accent, #ffffff);
-  transform: scale(1.06);
-  box-shadow: 0 0 12px var(--electric-glow, rgba(41,188,234,0.30));
-}
-.seat--vip {
-  background: var(--gold, #C9A84C);
-  border-color: var(--gold, #C9A84C);
-  color: var(--on-accent, #ffffff);
-}
-.seat--vip:hover:not(:disabled) {
-  background: var(--gold-bright, #F5D17E);
-  box-shadow: 0 0 8px var(--gold-glow, rgba(201,168,76,0.35));
-}
-.seat--couple {
-  background: #ec4899;
-  border-color: #db2777;
-  color: #ffffff;
-}
-.seat--couple:hover:not(:disabled) {
-  background: #f472b6;
-}
-/* Locked by another user — amber */
-.seat--locked {
-  background: rgba(245,158,11,0.25);
-  border-color: rgba(245,158,11,0.5);
-  color: #f59e0b;
-  cursor: not-allowed;
-}
-/* Countdown label inside selected seat */
+/* ── Countdown label inside selected seat ─────────────────── */
 .seat-countdown {
   font-size: 9px;
   font-weight: 900;
@@ -657,7 +670,5 @@ onUnmounted(() => {
   .bottom-bar { flex-direction: column; gap: 12px; padding: 12px 16px; }
   .bottom-bar__actions { width: 100%; }
   .btn-clear, .btn-next { flex: 1; text-align: center; }
-  .seat { width: 30px; height: 30px; font-size: 10px; }
-  .row-seats { gap: 5px; }
 }
 </style>

@@ -12,6 +12,7 @@ import com.polycinema.backend.util.SeatDisplayUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,6 +27,24 @@ public class LichChieuService {
 
     public List<LichChieu> findByPhimAndDate(Long phimId, LocalDateTime from) {
         return lichChieuRepository.findByPhimIdAndIsDeletedFalseAndThoiGianBatDauAfter(phimId, from);
+    }
+
+    /**
+     * Returns distinct dates (LocalDate) that have non-deleted showtimes for a
+     * given movie within the next 30 days (from now, inclusive).
+     * Used by MovieDetailPage to render only real available dates.
+     */
+    public List<LocalDate> findAvailableDates(Long phimId) {
+        if (phimId == null) return List.of();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime from = now.minusSeconds(1);
+        LocalDateTime to = now.plusDays(30).toLocalDate().plusDays(1).atStartOfDay();
+        List<LocalDateTime> starts = lichChieuRepository.findTimesInRange(phimId, from, to);
+        return starts.stream()
+                .map(LocalDateTime::toLocalDate)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
     }
 
     public List<LichChieu> findAllActive() {
@@ -47,8 +66,11 @@ public class LichChieuService {
 
         List<GheNgoi> tatCaGhe = gheNgoiRepository.findByPhongChieuId(phongChieuId);
 
+        // Ghế "đã đặt/giữ chỗ" — chỉ tính ChiTietDatGhe thuộc ĐƠN CÒN HIỆU LỰC
+        // (trangThai != 'cancelled'). Đơn pending (chờ thanh toán 2 phút) vẫn giữ
+        // ghế; đơn đã huỷ không còn giữ ghế → sơ đồ hiển thị "available" ngay.
         Set<Long> gheDaDat = chiTietDatGheRepository
-                .findByLichChieuId(lichChieuId)
+                .findActiveByLichChieuId(lichChieuId)
                 .stream()
                 .map(ct -> ct.getGheNgoi().getId())
                 .collect(Collectors.toSet());
@@ -97,8 +119,8 @@ public class LichChieuService {
         return lichChieuRepository.findByRapChieuIdAndRange(rapChieuId, from, to);
     }
 
-    public List<LichChieu> findTodayByRapChieuId(Long rapChieuId, LocalDateTime from, LocalDateTime to) {
-        return lichChieuRepository.findTodayByRapChieuId(rapChieuId, from, to);
+    public List<LichChieu> findPosByRapChieuId(Long rapChieuId, LocalDateTime from, LocalDateTime to) {
+        return lichChieuRepository.findPosByRapChieuId(rapChieuId, from, to);
     }
 
     // ── Admin methods ─────────────────────────────────────────

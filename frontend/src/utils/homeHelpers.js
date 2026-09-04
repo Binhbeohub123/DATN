@@ -1,3 +1,5 @@
+import { fmtDate } from '@/utils/dateFmt'
+
 export const cinemas = [
   { id: 1, name: 'PolyCinema Quận 1', address: '135 Lê Thánh Tôn, Q.1, TP.HCM' },
   { id: 2, name: 'PolyCinema Thủ Đức', address: 'Vincom Thủ Đức, TP.HCM' },
@@ -24,16 +26,10 @@ export const fmtTime12 = (dt, fallback = '—') => {
 
 export const fmtDateTime12 = (dt, fallback = '—') => {
   if (!dt) return fallback
-  const d = new Date(dt)
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mo = String(d.getMonth() + 1).padStart(2, '0')
-  return `${dd}/${mo} ${fmtTime12(dt)}`
+  return `${fmtDate(dt)} ${fmtTime12(dt)}`
 }
 
 export const fmtDateTimeFull12 = (dt, fallback = '—') => {
   if (!dt) return fallback
-  const d = new Date(dt)
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mo = String(d.getMonth() + 1).padStart(2, '0')
-  return `${dd}/${mo}/${d.getFullYear()} ${fmtTime12(dt)}`
+  return `${fmtDate(dt)} ${fmtTime12(dt)}`
 }

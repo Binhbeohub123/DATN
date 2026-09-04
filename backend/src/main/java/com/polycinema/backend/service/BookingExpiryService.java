@@ -29,7 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookingExpiryService {
 
-    private static final int EXPIRY_MINUTES = 10;
+    private static final int EXPIRY_MINUTES = 2;
 
     private final DatVeRepository datVeRepository;
     private final DatVeService    datVeService;

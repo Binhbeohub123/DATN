@@ -246,11 +246,6 @@
   background: rgba(0, 0, 0, 0.6) !important;
 }
 
-[data-theme='dark'] .promo {
-  background: var(--accent) !important;
-  color: #ffffff !important;
-}
-
 [data-theme='dark'] .code {
   color: var(--accent) !important;
 }

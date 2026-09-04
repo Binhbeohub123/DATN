@@ -53,6 +53,11 @@ public class LichChieuController {
         return ResponseEntity.ok(lichChieuService.findByPhimAndDate(phimId, from));
     }
 
+    @GetMapping("/phim/{phimId}/available-dates")
+    public ResponseEntity<List<LocalDate>> getAvailableDates(@PathVariable Long phimId) {
+        return ResponseEntity.ok(lichChieuService.findAvailableDates(phimId));
+    }
+
     @GetMapping("/{id}/ghe-trong")
     public ResponseEntity<?> getGheTrong(@PathVariable Long id) {
         List<Map<String, Object>> result = lichChieuService.getGheTrong(id);

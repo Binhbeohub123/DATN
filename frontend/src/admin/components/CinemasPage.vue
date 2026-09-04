@@ -59,13 +59,17 @@
         <div v-if="loadingPhong" class="loading-text">Đang tải...</div>
         <table v-else>
           <thead>
-            <tr><th>ID</th><th>Tên phòng</th><th>Loại</th><th>Sức chứa</th><th>Trạng thái</th><th>Thao tác</th></tr>
+            <tr><th>ID</th><th>Tên phòng</th><th>Loại</th><th>Định dạng</th><th>Sức chứa</th><th>Trạng thái</th><th>Thao tác</th></tr>
           </thead>
           <tbody>
             <tr v-for="phong in phongList" :key="phong.id">
               <td>#{{ phong.id }}</td>
               <td class="font-bold">{{ phong.tenPhong }}</td>
               <td><span class="badge badge-blue">{{ phong.loaiPhong }}</span></td>
+              <td>
+                <span v-if="phong.dinhDang" class="badge badge-green">{{ phong.dinhDang }}</span>
+                <span v-else class="badge badge-gray">Chưa đặt</span>
+              </td>
               <td>{{ phong.soGheThucTe ?? phong.sucChua }} ghế</td>
               <td><span :class="['badge', phong.trangThai ? 'badge-green' : 'badge-gray']">{{ phong.trangThai ? 'Hoạt động' : 'Dừng' }}</span></td>
               <td>
@@ -79,7 +83,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="phongList.length === 0"><td colspan="6" class="empty-text">{{ selectedRapId ? 'Chưa có phòng nào' : 'Chọn rạp để xem phòng' }}</td></tr>
+            <tr v-if="phongList.length === 0"><td colspan="7" class="empty-text">{{ selectedRapId ? 'Chưa có phòng nào' : 'Chọn rạp để xem phòng' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -105,7 +109,7 @@
 
           <!-- STEP 5: Bulk action toolbar — only visible when seats are selected -->
           <div v-if="selectedSeatIds.size > 0" class="bulk-toolbar">
-            <span class="bulk-count">✓ Đã chọn <strong>{{ selectedSeatIds.size }}</strong> ghế</span>
+            <span class="bulk-count">&check; Đã chọn <strong>{{ selectedSeatIds.size }}</strong> ghế</span>
             <div class="bulk-actions">
               <span class="bulk-label">Đổi thành:</span>
               <select v-model="bulkLoaiGhe" class="bulk-select">
@@ -120,34 +124,32 @@
             </div>
           </div>
 
-          <div class="screen-label">— Màn hình —</div>
-
-          <!-- STEP 4: Row label is now a clickable button to select/deselect entire row -->
-          <div v-for="row in groupedGhe" :key="row.hang" class="seat-row">
-            <button
-              class="row-label-btn"
-              :class="isRowFullySelected(row.hang) ? 'row-label-btn--active' : ''"
-              :title="`Chọn/bỏ cả hàng ${row.hang.trim()}`"
-              @click="toggleRow(row.hang)"
-            >{{ row.hang.trim() }}</button>
-
-            <div class="seats" :style="{ gridTemplateColumns: `repeat(${roomMaxCols}, 28px)` }">
-              <!-- STEP 2: :style for type colors + grid position, :class for selected ring indicator -->
+          <SeatGrid
+            :rows="seatGridRows"
+            :total-cols="roomMaxCols"
+            :show-screen="true"
+            :seat-class-fn="s => selectedSeatIds.has(s.id) ? 'seat--admin-selected' : ''"
+            :seat-title-fn="s => `${s.hangGhe?.trim()}${s.soGheHienThi ?? s.soGhe} — ${s.loaiGhe}`"
+            :seat-key-fn="s => s.id"
+            @seat-mousedown="startDragSeat"
+            @seat-mouseenter="dragSeatHover"
+          >
+            <template #row-left="{ row }">
               <button
-                v-for="seat in row.seats"
-                :key="seat.id"
-                class="seat-chip"
-                :class="selectedSeatIds.has(seat.id) ? 'seat-chip--selected' : ''"
-                :style="chipStyle(seat)"
-                :title="`${seat.hangGhe?.trim()}${seat.soGheHienThi ?? seat.soGhe} — ${seat.loaiGhe}`"
-                @mousedown="startDragSeat(seat)"
-                @mouseenter="dragSeatHover(seat)"
-              >{{ seat.loaiGhe === 'trống' ? '' : (seat.soGheHienThi ?? seat.soGhe) }}</button>
-            </div>
-            <button class="row-delete-btn" :title="`Xóa cả dãy ${row.hang.trim()}`" @click="deleteRow(row.hang)">×</button>
-          </div>
+                class="row-label-btn"
+                :class="isRowFullySelected(row.label) ? 'row-label-btn--active' : ''"
+                :title="`Chọn/bỏ cả hàng ${row.label}`"
+                @click="toggleRow(row.label)"
+              >{{ row.label }}</button>
+            </template>
+            <template #row-right="{ row }">
+              <div class="row-right-actions">
+                <button class="row-add-btn" :title="`Thêm ghế vào dãy ${row.label}`" @click.stop="openAddGheModal(row.label)">＋</button>
+                <button class="row-delete-btn" :title="`Xóa cả dãy ${row.label}`" @click="deleteRow(row.label)">&times;</button>
+              </div>
+            </template>
+          </SeatGrid>
 
-          <!-- STEP 2: Legend with inline style colors -->
           <div class="seat-legend">
             <span class="legend-item">
               <span class="chip chip--thuong"></span>Thường
@@ -217,6 +219,14 @@
           </select>
         </div>
         <div class="form-group">
+          <label>Định dạng *</label>
+          <select v-model="phongForm.dinhDangId">
+            <option value="">-- Chọn định dạng --</option>
+            <option v-for="dd in dinhDangList" :key="dd.id" :value="dd.id">{{ dd.tenDinhDang }}</option>
+          </select>
+          <small class="form-hint">Bắt buộc — phòng cần có định dạng để xuất hiện trong "Thêm lịch chiếu".</small>
+        </div>
+        <div class="form-group">
           <label>Sức chứa</label>
           <input v-model.number="phongForm.sucChua" type="number" min="1" />
           <small class="form-hint">Tự động cập nhật theo tổng số ghế đã tạo ở tab "Ghế ngồi".</small>
@@ -267,6 +277,39 @@
         </div>
       </div>
     </div>
+
+    <!-- THEM GHE VAO DAY DA TON TAI MODAL -->
+    <div v-if="showAddGheModal" class="modal-overlay" @click.self="showAddGheModal = false">
+      <div class="modal">
+        <h2>Thêm ghế vào hàng {{ addGheForm.hangGhe }}</h2>
+        <div class="form-group">
+          <label>Phòng</label>
+          <input :value="selectedPhongName" disabled />
+        </div>
+        <div class="form-group">
+          <label>Hàng</label>
+          <input :value="addGheForm.hangGhe" disabled />
+        </div>
+        <div class="form-row">
+          <div class="form-group form-group--half"><label>Thêm từ số</label><input v-model.number="addGheForm.soGheTu" type="number" min="1" /></div>
+          <div class="form-group form-group--half"><label>đến số</label><input v-model.number="addGheForm.soGheDen" type="number" min="1" /></div>
+        </div>
+        <div class="form-group">
+          <label>Loại ghế</label>
+          <select v-model="addGheForm.loaiGhe">
+            <option value="thường">Thường</option>
+            <option value="vip">VIP</option>
+            <option value="cặp đôi">Cặp đôi</option>
+            <option value="trống">Trống (lối đi)</option>
+          </select>
+        </div>
+        <div v-if="modalError" class="form-error">{{ modalError }}</div>
+        <div class="modal-actions">
+          <button class="btn-ghost" @click="showAddGheModal = false">Hủy</button>
+          <button class="btn-primary" @click="saveAddGhe" :disabled="savingGheRow">{{ savingGheRow ? 'Đang thêm...' : 'Thêm ghế' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -275,6 +318,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 import { flashRow } from '@/utils/flashRow'
+import SeatGrid from '@/components/SeatGrid.vue'
 
 const shell = useAdminShellStore()
 
@@ -388,7 +432,16 @@ const selectedRapId = ref('')
 const showPhongModal = ref(false)
 const editingPhong = ref(null)
 const savingPhong = ref(false)
-const phongForm = ref({ tenPhong: '', loaiPhong: '2D', sucChua: 100, rapChieuId: '' })
+const phongForm = ref({ tenPhong: '', loaiPhong: '2D', dinhDangId: '', sucChua: 100, rapChieuId: '' })
+
+// ── Định dạng (DinhDang) list ───────────────
+const dinhDangList = ref([])
+async function loadDinhDang() {
+  try {
+    const res = await api.get('/dinh-dang')
+    dinhDangList.value = res.data || []
+  } catch (e) { console.error(e) }
+}
 
 async function loadPhong() {
   if (!selectedRapId.value) { phongList.value = []; return }
@@ -401,16 +454,17 @@ async function loadPhong() {
 
 function openPhongModal(phong = null) {
   editingPhong.value = phong; modalError.value = ''
-  if (phong) phongForm.value = { tenPhong: phong.tenPhong || '', loaiPhong: phong.loaiPhong || '2D', sucChua: phong.soGheThucTe ?? phong.sucChua ?? 100, rapChieuId: selectedRapId.value }
-  else phongForm.value = { tenPhong: '', loaiPhong: '2D', sucChua: 100, rapChieuId: selectedRapId.value }
+  if (phong) phongForm.value = { tenPhong: phong.tenPhong || '', loaiPhong: phong.loaiPhong || '2D', dinhDangId: phong.dinhDangId != null ? Number(phong.dinhDangId) : '', sucChua: phong.soGheThucTe ?? phong.sucChua ?? 100, rapChieuId: selectedRapId.value }
+  else phongForm.value = { tenPhong: '', loaiPhong: '2D', dinhDangId: '', sucChua: 100, rapChieuId: selectedRapId.value }
   showPhongModal.value = true
 }
 
 async function savePhong() {
   if (!phongForm.value.tenPhong.trim()) { modalError.value = 'Tên phòng không được để trống'; return }
+  if (!phongForm.value.dinhDangId) { modalError.value = 'Vui lòng chọn định dạng cho phòng chiếu'; return }
   savingPhong.value = true; modalError.value = ''
   try {
-    const payload = { ...phongForm.value, rapChieu: { id: phongForm.value.rapChieuId } }
+    const payload = { ...phongForm.value, rapChieu: { id: phongForm.value.rapChieuId }, dinhDang: { id: phongForm.value.dinhDangId } }
     if (editingPhong.value) await api.put(`/admin/phong-chieu/${editingPhong.value.id}`, payload)
     else await api.post('/admin/phong-chieu', payload)
     await loadPhong(); showPhongModal.value = false
@@ -457,29 +511,6 @@ function startDragSeat(seat) {
 function dragSeatHover(seat) {
   if (!isDragSelecting.value) return
   applySeatMode(seat.id, dragMode.value)
-}
-
-// STEP 2: Inline style function — exact colors from SeatSelectionPage.vue
-function seatStyle(loaiGhe) {
-  if (loaiGhe === 'vip') return {
-    background: '#C9A84C',
-    borderColor: '#C9A84C',
-    color: '#ffffff'
-  }
-  if (loaiGhe === 'cặp đôi') return {
-    background: '#ec4899',
-    borderColor: '#db2777',
-    color: '#ffffff'
-  }
-  if (loaiGhe === 'trống') return {
-    // Aisle / gap — visually NOT a seat: transparent fill, dashed border
-    background: 'transparent',
-    borderStyle: 'dashed',
-    borderColor: 'rgba(148, 163, 184, 0.55)',
-    color: 'rgba(148, 163, 184, 0.6)'
-  }
-  // 'thường' — default dark style, no inline override
-  return {}
 }
 
 // STEP 4: Toggle entire row
@@ -551,15 +582,14 @@ const groupedGhe = computed(() => {
     .map(([hang, seats]) => ({ hang, seats: seats.sort((a, b) => a.soGhe - b.soGhe) }))
 })
 
+const seatGridRows = computed(() =>
+  groupedGhe.value.map(r => ({ label: r.hang.trim(), seats: r.seats }))
+)
+
 // Số cột vật lý rộng nhất của phòng — giữ khe lối đi đúng vị trí (grid-column = soGhe)
 const roomMaxCols = computed(() =>
   gheList.value.reduce((m, g) => Math.max(m, g.soGhe || 0), 0)
 )
-
-// Style cho từng chip: màu theo loại + vị trí cột vật lý
-function chipStyle(seat) {
-  return { ...seatStyle(seat.loaiGhe), gridColumn: seat.soGhe }
-}
 
 async function loadGhe() {
   if (!selectedPhongId.value) { gheList.value = []; return }
@@ -614,6 +644,57 @@ async function saveGheRow() {
     await refreshPhongCapacity()
   } catch (e) {
     modalError.value = e.response?.data?.message || 'Lỗi thêm dãy ghế'
+  } finally { savingGheRow.value = false }
+}
+
+// ── Thêm ghế vào dãy đã tồn tại ────────────────
+const showAddGheModal = ref(false)
+const addGheForm = ref({ hangGhe: '', soGheTu: 1, soGheDen: 1, loaiGhe: 'thường' })
+
+function openAddGheModal(hang) {
+  modalError.value = ''
+  const rowSeats = gheList.value
+    .filter(g => (g.hangGhe || '').trim() === String(hang).trim())
+    .sort((a, b) => a.soGhe - b.soGhe)
+  // loaiGhe mặc định = loại ghế cuối cùng của hàng (không hardcode 'thường')
+  const last = rowSeats[rowSeats.length - 1]
+  const maxSoGhe = rowSeats.reduce((m, g) => Math.max(m, Number(g.soGhe) || 0), 0)
+  addGheForm.value = {
+    hangGhe: String(hang).trim(),
+    soGheTu: maxSoGhe + 1,
+    soGheDen: maxSoGhe + 1,
+    loaiGhe: last?.loaiGhe || 'thường',
+  }
+  showAddGheModal.value = true
+}
+
+async function saveAddGhe() {
+  const hang = addGheForm.value.hangGhe.trim()
+  const tu = Number(addGheForm.value.soGheTu)
+  const den = Number(addGheForm.value.soGheDen)
+  if (!tu || !den || den < tu) { modalError.value = 'Khoảng số ghế không hợp lệ'; return }
+  // Validate FE: soGheTu phải > số ghế lớn nhất hiện có của hàng (tránh nhập trùng bị skip âm thầm)
+  const maxSoGhe = gheList.value
+    .filter(g => (g.hangGhe || '').trim() === hang)
+    .reduce((m, g) => Math.max(m, Number(g.soGhe) || 0), 0)
+  if (tu <= maxSoGhe) {
+    modalError.value = `Hàng ${hang} đã có ghế đến số ${maxSoGhe}. Vui lòng thêm từ số ${maxSoGhe + 1} trở lên`
+    return
+  }
+  savingGheRow.value = true; modalError.value = ''
+  try {
+    await api.post('/admin/ghe-ngoi/row', {
+      phongChieuId: selectedPhongId.value,
+      hangGhe: hang,
+      soGheTu: tu,
+      soGheDen: den,
+      loaiGhe: addGheForm.value.loaiGhe,
+    })
+    showAddGheModal.value = false
+    await loadGhe()
+    await refreshPhongCapacity()
+  } catch (e) {
+    modalError.value = e.response?.data?.message || 'Lỗi thêm ghế vào dãy'
   } finally { savingGheRow.value = false }
 }
 
@@ -672,6 +753,7 @@ watch(selectedPhongId, (newId) => {
 onMounted(() => {
   syncFromShell()
   loadRap()
+  loadDinhDang()
   // End any in-progress drag-select when the button is released anywhere
   window.addEventListener('mouseup', stopDragSelect)
 })
@@ -1029,17 +1111,6 @@ td {
 
 /* ── Seat map ── */
 .seat-map { padding: 24px; user-select: none; -webkit-user-select: none; }
-.screen-label {
-  text-align: center;
-  padding: 8px;
-  margin-bottom: 20px;
-  background: var(--admin-surface-hover);
-  border: 1px solid var(--admin-border);
-  border-radius: 6px;
-  font-size: 12px;
-  color: var(--admin-text-muted);
-}
-.seat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 
 /* Row label is now a button — STEP 4 */
 .row-label-btn {
@@ -1063,29 +1134,6 @@ td {
 .row-label-btn:hover { color: var(--admin-accent); background: var(--admin-accent-muted); }
 .row-label-btn--active { color: #60A5FA; }
 
-.seats { display: grid; gap: 4px; }
-
-/* STEP 2: Base seat chip — type colors come from :style, not :class */
-.seat-chip {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-hover);
-  color: var(--admin-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: filter 150ms ease, outline 100ms ease;
-  outline: 2px solid transparent;
-  outline-offset: 1px;
-}
-.seat-chip:hover { filter: brightness(1.25); }
-
 .row-delete-btn {
   width: 22px;
   min-width: 22px;
@@ -1106,11 +1154,32 @@ td {
 }
 .row-delete-btn:hover { color: #EF4444; background: rgba(239,68,68,0.15); }
 
-/* STEP 3: Selected state — blue ring */
-.seat-chip--selected {
-  outline: 2px solid #60A5FA;
-  outline-offset: 2px;
+.row-right-actions {
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+  flex-shrink: 0;
 }
+.row-add-btn {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--admin-text-muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 2px;
+  transition: color 150ms ease, background 150ms ease;
+}
+.row-add-btn:hover { color: #34D399; background: rgba(52,211,153,0.15); }
 
 /* ── Legend ── */
 .seat-legend { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--admin-border); flex-wrap: wrap; }

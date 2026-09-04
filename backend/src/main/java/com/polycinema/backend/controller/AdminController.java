@@ -971,41 +971,21 @@ public class AdminController {
                 rowNum++;
                 if (rowNum == 1) continue; // skip header
 
-                // Helper: read cell as trimmed string regardless of cell type
-                java.util.function.Function<Integer, String> cell = (col) -> {
-                    org.apache.poi.ss.usermodel.Cell c = row.getCell(col,
-                            org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                    if (c == null) return "";
-                    switch (c.getCellType()) {
-                        case STRING:  return c.getStringCellValue().trim();
-                        case NUMERIC:
-                            if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(c)) {
-                                // Date cell — format as dd/MM/yyyy
-                                java.util.Date d = c.getDateCellValue();
-                                java.time.LocalDate ld = d.toInstant()
-                                        .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-                                return String.format("%02d/%02d/%04d",
-                                        ld.getDayOfMonth(), ld.getMonthValue(), ld.getYear());
-                            }
-                            // Numeric — convert to plain integer string if whole number
-                            double dv = c.getNumericCellValue();
-                            return dv == Math.floor(dv) ? String.valueOf((long) dv) : String.valueOf(dv);
-                        case BOOLEAN: return String.valueOf(c.getBooleanCellValue());
-                        case FORMULA:
-                            try { return String.valueOf(c.getStringCellValue()).trim(); }
-                            catch (Exception ignored) {
-                                return String.valueOf(c.getNumericCellValue());
-                            }
-                        default: return "";
-                    }
-                };
-
-                String tenRap    = cell.apply(0);
-                String tenPhim   = cell.apply(1);
-                String tenPhong  = cell.apply(2);
-                String ngayChieu = cell.apply(3);
-                String gioChieu  = cell.apply(4);
-                String giaRaw    = cell.apply(5);
+                // Date/time cells are read with dedicated readers (Excel stores both
+                // dates AND times as date-formatted numerics; a single generic reader
+                // would corrupt the time column). Ngày → dd/MM/yyyy, Giờ → HH:mm.
+                String tenRap    = com.polycinema.backend.util.ExcelCellReader.readStringCell(
+                        row.getCell(0, org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL));
+                String tenPhim   = com.polycinema.backend.util.ExcelCellReader.readStringCell(
+                        row.getCell(1, org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL));
+                String tenPhong  = com.polycinema.backend.util.ExcelCellReader.readStringCell(
+                        row.getCell(2, org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL));
+                String ngayChieu = com.polycinema.backend.util.ExcelCellReader.readDateCell(
+                        row.getCell(3, org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL));
+                String gioChieu  = com.polycinema.backend.util.ExcelCellReader.readTimeCell(
+                        row.getCell(4, org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL));
+                String giaRaw    = com.polycinema.backend.util.ExcelCellReader.readStringCell(
+                        row.getCell(5, org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL));
 
                 Map<String, Object> entry = new java.util.LinkedHashMap<>();
                 entry.put("row",       rowNum);
@@ -1080,9 +1060,14 @@ public class AdminController {
                     continue;
                 }
 
-                // Lookup room by cinema name + room name (both case-insensitive)
+                // Lookup room by cinema name + room name (both case-insensitive).
+                // BUG 1: the template dropdown writes Ten Phong with a trailing
+                // " (Ten Rap)" suffix (to disambiguate same-named rooms across cinemas).
+                // Strip that suffix before matching against the DB's bare tenPhong.
+                // The display value in the preview keeps the original (with suffix).
                 final String tenRapFinal   = tenRap;
                 final String tenPhongFinal = tenPhong;
+                final String tenPhongClean = tenPhong.replaceAll("\\s*\\([^)]*\\)\\s*$", "").trim();
 
                 // Step 1: find the cinema by name
                 java.util.Optional<PhongChieu> anyInRap = phongChieuService.findAll().stream()
@@ -1103,7 +1088,7 @@ public class AdminController {
                         .filter(p -> p.getRapChieu() != null
                                 && p.getRapChieu().getTenRap() != null
                                 && p.getRapChieu().getTenRap().trim().equalsIgnoreCase(tenRapFinal.trim()))
-                        .filter(p -> p.getTenPhong() != null && p.getTenPhong().trim().equalsIgnoreCase(tenPhongFinal.trim()))
+                        .filter(p -> p.getTenPhong() != null && p.getTenPhong().trim().equalsIgnoreCase(tenPhongClean.trim()))
                         .findFirst();
                 if (phongOpt.isEmpty()) {
                     entry.put("valid",  false);
@@ -1287,6 +1272,35 @@ public class AdminController {
 
                 phongDv.createErrorBox("Gia tri khong hop le", "Vui long chon tu danh sach phong chieu.");
                 sheet.addValidationData(phongDv);
+            }
+
+            // ── BUG 3: Giờ Chiếu (column E) as a REAL Excel TIME cell ──
+            // Format "h:mm:ss AM/PM" so Excel renders e.g. "1:30:00 AM" and provides
+            // its native time picker (type "1:30 PM" and Excel understands 13:30).
+            org.apache.poi.ss.usermodel.CellStyle timeStyle = wb.createCellStyle();
+            timeStyle.setDataFormat(wb.createDataFormat().getFormat("h:mm:ss AM/PM"));
+            // Example row (row 1): demonstrates the format with a genuine time value.
+            org.apache.poi.ss.usermodel.Row example = sheet.createRow(1);
+            example.createCell(0).setCellValue("");
+            example.createCell(1).setCellValue("");
+            example.createCell(2).setCellValue("");
+            example.createCell(3).setCellValue("");
+            org.apache.poi.ss.usermodel.Cell exTime = example.createCell(4);
+            // Excel TIME = fractional part of a day. 1:30 AM = 1.5h/24 = 0.0625.
+            // Written as a numeric fraction so POI re-reads a valid time serial
+            // (a raw 1899-12-31 Date gets a bogus serial and would show 00:00).
+            exTime.setCellValue((1.5 / 24.0));
+            exTime.setCellStyle(timeStyle);
+            example.createCell(5).setCellValue(0);
+            // Apply the time style to the whole input region of column E (rows 1..dataRows)
+            // so every Gio Chieu cell is a TIME, not TEXT.
+            for (int r = 1; r <= dataRows; r++) {
+                org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
+                if (row == null) row = sheet.createRow(r);
+                org.apache.poi.ss.usermodel.Cell e = row.getCell(4);
+                if (e == null) e = row.createCell(4);
+                if (e == exTime) continue; // already styled
+                e.setCellStyle(timeStyle);
             }
 
             // ── Auto-size columns ──
@@ -1857,6 +1871,8 @@ public class AdminController {
     public ResponseEntity<?> createPhong(@RequestBody PhongChieu phong) {
         phong.setId(null);
         if (phong.getTrangThai() == null) phong.setTrangThai(true);
+        if (phong.getSucChua() == null) phong.setSucChua(0);
+        bindPhongReferences(phong);
         return ResponseEntity.status(HttpStatus.CREATED).body(phongChieuService.save(phong));
     }
 
@@ -1877,6 +1893,8 @@ public class AdminController {
             m.put("trangThai",   p.getTrangThai());
             m.put("sucChua",     p.getSucChua());
             m.put("soGheThucTe", countBookableSeats(p.getId()));
+            m.put("dinhDangId",  p.getDinhDang() != null ? p.getDinhDang().getId() : null);
+            m.put("dinhDang",    p.getDinhDang() != null ? p.getDinhDang().getTenDinhDang() : null);
             return m;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);
@@ -1891,6 +1909,13 @@ public class AdminController {
         if (body.getSucChua() != null) phong.setSucChua(body.getSucChua());
         if (body.getSoDoGhe() != null) phong.setSoDoGhe(body.getSoDoGhe());
         if (body.getTrangThai() != null) phong.setTrangThai(body.getTrangThai());
+        // DinhDangId is now required — bound to a managed reference
+        if (body.getDinhDang() != null && body.getDinhDang().getId() != null) {
+            phong.setDinhDang(dinhDangService.findById(body.getDinhDang().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy định dạng id=" + body.getDinhDang().getId())));
+        } else {
+            throw new IllegalArgumentException("Vui lòng chọn định dạng cho phòng chiếu");
+        }
         return ResponseEntity.ok(phongChieuService.save(phong));
     }
 
@@ -1905,6 +1930,27 @@ public class AdminController {
         phong.setTrangThai(false);
         phongChieuService.save(phong);
         return ResponseEntity.ok(Map.of("message", "Đã vô hiệu hóa phòng chiếu"));
+    }
+
+    /**
+     * Binds RapChieu + DinhDang references on a PhongChieu to managed entities
+     * fetched by id. DinhDangId is required — throws if missing (prevents the
+     * NULL-dinhDang bug that hid rooms from the schedule dropdown).
+     */
+    private void bindPhongReferences(PhongChieu phong) {
+        if (phong.getRapChieu() == null || phong.getRapChieu().getId() == null) {
+            throw new IllegalArgumentException("Vui lòng chọn rạp chiếu cho phòng");
+        }
+        RapChieu rap = rapChieuService.getById(phong.getRapChieu().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy rạp chiếu id=" + phong.getRapChieu().getId()));
+        phong.setRapChieu(rap);
+
+        if (phong.getDinhDang() == null || phong.getDinhDang().getId() == null) {
+            throw new IllegalArgumentException("Vui lòng chọn định dạng cho phòng chiếu");
+        }
+        DinhDang dd = dinhDangService.findById(phong.getDinhDang().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy định dạng id=" + phong.getDinhDang().getId()));
+        phong.setDinhDang(dd);
     }
 
     // ─────────────────────────────────────────────────────────────

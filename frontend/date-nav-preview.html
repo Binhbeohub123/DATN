@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Date-nav preview (Phương án A + icon SVG riêng)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { background: #050508; color: #E5E5E5; font-family: 'Inter', sans-serif; padding: 40px; }
+  .caption { color: #9CA3AF; font-size: 14px; margin-bottom: 24px; }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  /* replicate SchedulePage.vue tokens (dark) */
+  :root {
+    --admin-accent: #FFFFFF;
+    --admin-surface: #111827;
+    --admin-surface-hover: #1F2937;
+    --admin-border: #374151;
+    --admin-text: #E5E5E5;
+    --admin-text-muted: #9CA3AF;
+  }
+  .filter-select {
+    min-height: 40px; padding: 9px 36px 9px 14px;
+    border: 1px solid var(--admin-border); border-radius: 8px;
+    background: var(--admin-surface); color: var(--admin-text);
+    font-size: 14px; appearance: none;
+  }
+  /* ── Date nav (SchedulePage.vue) ── */
+  .date-nav {
+    display: inline-flex; align-items: center; gap: 0;
+    border: 1px solid var(--admin-border); border-radius: 8px; overflow: hidden; height: 40px;
+  }
+  .date-nav__arrow {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 100%; border: none; background: var(--admin-surface); color: var(--admin-text-muted);
+    cursor: pointer; flex-shrink: 0; transition: background 150ms ease, color 150ms ease;
+  }
+  .date-nav__arrow:hover { background: var(--admin-surface-hover); color: var(--admin-accent); }
+  .date-nav__arrow:active { background: var(--admin-surface-hover); }
+  .date-nav__field {
+    position: relative; display: flex; align-items: center; flex-shrink: 0; height: 38px; width: 160px; margin: 0;
+    border-left: 1px solid var(--admin-border); border-right: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+  }
+  .date-nav__input {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border: none; border-radius: 0; min-height: unset; padding: 0; margin: 0;
+    opacity: 0; cursor: pointer; z-index: 1;
+  }
+  .date-nav__icon {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    pointer-events: none; color: var(--admin-text-muted); z-index: 0;
+  }
+  .date-nav__display {
+    width: 100%; padding: 0 28px; text-align: center; color: var(--admin-text);
+    font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div class="caption">Mô phỏng chính xác CSS của SchedulePage.vue — ô date-nav (dark theme #111827)</div>
+  <div class="toolbar">
+    <select class="filter-select"><option>Tất cả phim</option></select>
+    <div class="date-nav" role="group" aria-label="Điều hướng ngày">
+      <button class="date-nav__arrow" title="Ngày trước">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="date-nav__field">
+        <input type="date" class="date-nav__input" value="2026-09-10" />
+        <svg class="date-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span class="date-nav__display">10/09/2026</span>
+      </div>
+      <button class="date-nav__arrow" title="Ngày sau">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <button class="btn-primary" style="padding:10px 14px;border:none;border-radius:8px;background:#FFFFFF;color:#000;font-size:13px;cursor:pointer;">Thêm lịch chiếu</button>
+  </div>
+  <div class="caption" style="margin-top:32px;">Đối chiếu: ảnh mẫu gốc có icon lịch giữa ngày và nút &gt; — bản này đã phục hồi đúng icon vị trí đó, nền #111827 (không còn đen), số ngày 10/09/2026 định dạng dd/MM/yyyy.</div>
+</body>
+</html>

@@ -9,7 +9,7 @@
       </router-link>
       <h2>Quét QR Check-in</h2>
       <div class="header-actions">
-        <router-link to="/" class="btn-nav">🏠 Home</router-link>
+        <router-link v-if="authStore.isAdmin" to="/" class="btn-nav">🏠 Home</router-link>
         <router-link v-if="authStore.isAdmin" to="/admin/dashboard" class="btn-nav">⚙️ Admin Panel</router-link>
         <ThemeToggle />
       </div>
@@ -127,6 +127,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useAuthStore } from '@/stores/authStore'
+import { fmtDateTime12 } from '@/utils/dateFmt'
 
 const authStore = useAuthStore()
 
@@ -237,11 +238,7 @@ function resetForm() {
 
 function formatDateTime(val) {
   if (!val) return ''
-  const d = new Date(val)
-  return d.toLocaleString('vi-VN', {
-    weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  })
+  return fmtDateTime12(val, '')
 }
 
 function formatCurrency(val) {

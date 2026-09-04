@@ -9,7 +9,7 @@
       </router-link>
       <h2>Báo cáo ca làm việc</h2>
       <div class="header-actions">
-        <router-link to="/" class="btn-nav">🏠 Home</router-link>
+        <router-link v-if="authStore.isAdmin" to="/" class="btn-nav">🏠 Home</router-link>
         <router-link v-if="authStore.isAdmin" to="/admin/dashboard" class="btn-nav">⚙️ Admin Panel</router-link>
         <ThemeToggle />
       </div>

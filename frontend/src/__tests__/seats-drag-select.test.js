@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const src = readFileSync(join(__dirname, '..', 'admin', 'components', 'CinemasPage.vue'), 'utf-8')
+const seatGridSrc = readFileSync(join(__dirname, '..', 'components', 'SeatGrid.vue'), 'utf-8')
 
 describe('CinemasPage — seat type "trống" (aisle) support', () => {
   it('bulk toolbar offers the Trống option', () => {
@@ -16,11 +17,10 @@ describe('CinemasPage — seat type "trống" (aisle) support', () => {
     expect(modal.includes('<option value="trống">')).toBe(true)
   })
 
-  it('seatStyle renders trống cells dashed and transparent', () => {
-    const fn = src.slice(src.indexOf('function seatStyle'), src.indexOf("// 'thường'"))
-    expect(fn.includes("loaiGhe === 'trống'")).toBe(true)
-    expect(fn.includes("background: 'transparent'")).toBe(true)
-    expect(fn.includes("'dashed'")).toBe(true)
+  it('SeatGrid renders trống cells dashed and transparent', () => {
+    expect(seatGridSrc.includes("'trống'")).toBe(true)
+    expect(seatGridSrc.includes('background: transparent')).toBe(true)
+    expect(seatGridSrc.includes('dashed')).toBe(true)
   })
 
   it('legend shows a Trống / lối đi entry with its own chip class', () => {
@@ -30,10 +30,14 @@ describe('CinemasPage — seat type "trống" (aisle) support', () => {
 })
 
 describe('CinemasPage — drag-select multi-seat', () => {
-  it('seat chips react to mousedown/mouseenter instead of click', () => {
-    expect(src.includes('@mousedown="startDragSeat(seat)"')).toBe(true)
-    expect(src.includes('@mouseenter="dragSeatHover(seat)"')).toBe(true)
-    expect(src.includes('@click="toggleSeat(seat)"')).toBe(false)
+  it('CinemasPage binds SeatGrid mousedown/mouseenter events for drag-select', () => {
+    expect(src.includes('@seat-mousedown="startDragSeat"')).toBe(true)
+    expect(src.includes('@seat-mouseenter="dragSeatHover"')).toBe(true)
+  })
+
+  it('SeatGrid emits seat-mousedown and seat-mouseenter events', () => {
+    expect(seatGridSrc.includes("'seat-mousedown'")).toBe(true)
+    expect(seatGridSrc.includes("'seat-mouseenter'")).toBe(true)
   })
 
   it('drag mode is decided by the first pressed cell state', () => {

@@ -165,6 +165,20 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  // ── STAFF is restricted to staff-only routes (POS, check-in, report, dashboard) ──
+  // Everything else (customer pages, admin, profile, home...) is off-limits.
+  // Only applies to real STAFF accounts; ADMIN keeps full access.
+  const STAFF_ALLOWED = ['/staff/dashboard', '/staff/pos', '/staff/checkin', '/staff/report']
+  if (role === 'STAFF') {
+    if (!STAFF_ALLOWED.some(p => to.path.startsWith(p))) {
+      import('@/composables/useToast.js').then(({ useToast }) => {
+        useToast().error('Bạn không có quyền truy cập trang này')
+      })
+      next('/staff/dashboard')
+      return
+    }
+  }
+
   // ── Logged-in user hitting /auth ──
   if (!requiresAuth && localStorage.getItem('token') && to.path === '/auth') {
     const dest = role === 'ADMIN' ? '/admin/dashboard' : role === 'STAFF' ? '/staff/dashboard' : '/'

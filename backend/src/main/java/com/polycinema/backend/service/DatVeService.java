@@ -28,6 +28,7 @@ public class DatVeService {
     private final NguoiDungRepository nguoiDungRepository;
     private final SeatLockRepository seatLockRepository;
     private final ThanhToanRepository thanhToanRepository;
+    private final EmailService emailService;
 
     // ─────────────────────────────────────────────────────────────
     // Loyalty points policy [RQ]
@@ -123,6 +124,7 @@ public class DatVeService {
 
         LichChieu lichChieu = lichChieuRepository.findById(lichChieuId)
                 .orElseThrow(() -> new IllegalArgumentException("Lịch chiếu không tồn tại"));
+        kiemTraConHanBanVe(lichChieu);
 
         NguoiDung nguoiDung = nguoiDungRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
@@ -141,8 +143,12 @@ public class DatVeService {
             gheList.add(ghe);
         }
 
-        // Check if seats are already taken in this showtime
-        Set<Long> gheDaDat = chiTietDatGheRepository.findByLichChieuId(lichChieuId)
+        // Check if seats are already taken in this showtime.
+        // Chỉ tính ChiTietDatGhe thuộc đơn CÒN HIỆU LỰC (trangThai != 'cancelled').
+        // Đơn pending vẫn đang giữ ghế trong 2 phút chờ thanh toán nên vẫn tính;
+        // đơn đã huỷ không còn giữ ghế → ghế được trả về, người khác đặt được ngay
+        // (không phụ thuộc việc scheduler có đã xoá ChiTietDatGhe hay chưa).
+        Set<Long> gheDaDat = chiTietDatGheRepository.findActiveByLichChieuId(lichChieuId)
                 .stream()
                 .map(ct -> ct.getGheNgoi().getId())
                 .collect(Collectors.toSet());
@@ -228,7 +234,6 @@ public class DatVeService {
         datVe.setTongTienThanhToan(tongTienThanhToan);
         datVe.setTrangThai("pending");
         datVe.setTrangThaiThanhToan("unpaid");
-        datVe.setHetHanGiuGhe(LocalDateTime.now().plusMinutes(15));
 
         DatVe savedDatVe = datVeRepository.save(datVe);
 
@@ -254,6 +259,23 @@ public class DatVeService {
         }
 
         return savedDatVe;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Showtime sale-window guard
+    // ─────────────────────────────────────────────────────────────
+    /**
+     * Chặn bán vé cho suất chiếu đã quá hạn bán (quá 15 phút sau giờ chiếu).
+     * Cho phép bán trễ tới 15 phút sau khi phim bắt đầu (khách xem trễ vẫn vào được).
+     * Áp dụng cho CẢ luồng Staff POS (createCounterSale) lẫn khách hàng (createBooking).
+     */
+    private void kiemTraConHanBanVe(LichChieu lichChieu) {
+        if (lichChieu.getThoiGianBatDau() == null) return;
+        LocalDateTime deadline = lichChieu.getThoiGianBatDau().plusMinutes(15);
+        if (LocalDateTime.now().isAfter(deadline)) {
+            throw new IllegalArgumentException(
+                    "Suất chiếu đã kết thúc thời gian bán vé (quá giờ chiếu 15 phút)");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -524,6 +546,7 @@ public class DatVeService {
 
         LichChieu lichChieu = lichChieuRepository.findById(lichChieuId)
                 .orElseThrow(() -> new IllegalArgumentException("Lịch chiếu không tồn tại"));
+        kiemTraConHanBanVe(lichChieu);
 
         NguoiDung nhanVien = nguoiDungRepository.findById(nhanVienId)
                 .orElseThrow(() -> new IllegalArgumentException("Nhân viên không tồn tại"));
@@ -549,7 +572,7 @@ public class DatVeService {
             gheList.add(ghe);
         }
 
-        Set<Long> gheDaDat = chiTietDatGheRepository.findByLichChieuId(lichChieuId)
+        Set<Long> gheDaDat = chiTietDatGheRepository.findActiveByLichChieuId(lichChieuId)
                 .stream().map(ct -> ct.getGheNgoi().getId()).collect(Collectors.toSet());
         for (Long gheId : gheIds) {
             if (gheDaDat.contains(gheId)) {
@@ -695,6 +718,18 @@ public class DatVeService {
         if (khuyenMai != null && khuyenMai.getDaSuDung() != null) {
             khuyenMai.setDaSuDung(khuyenMai.getDaSuDung() + 1);
             khuyenMaiRepository.save(khuyenMai);
+        }
+
+        // POS: bán tại quầy có nhập email người mua → gửi vé (email kèm QR) cho khách.
+        // (Luồng khách tự đặt online đã gửi trong ThanhToanService.markPaid.)
+        // sendBookingConfirmation tự tắt tiếng khi thiếu email — an toàn không chặn bán vé.
+        if (khachHang != null) {
+            try {
+                emailService.sendBookingConfirmation(savedDatVe);
+            } catch (Exception e) {
+                log.warn("[POS] Gui email xac nhan ve that bai cho {}: {}",
+                        khachHang.getEmail(), e.getMessage());
+            }
         }
 
         return savedDatVe;

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/api'
+import { fmtDate } from '@/utils/dateFmt'
 
 export const useAdminShellStore = defineStore('adminShell', () => {
   const searchQuery = ref('')
@@ -24,12 +25,7 @@ export const useAdminShellStore = defineStore('adminShell', () => {
     try {
       const [y, m, d] = filterDate.value.split('-').map(Number)
       const dt = new Date(y, m - 1, d)
-      return dt.toLocaleDateString('vi-VN', {
-        weekday: 'long',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
+      return fmtDate(dt)
     } catch {
       return filterDate.value
     }

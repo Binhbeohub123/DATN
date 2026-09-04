@@ -104,38 +104,24 @@
           <span class="legend-item"><div class="legend-dot" style="background:#EC4899"></div> Cặp đôi</span>
         </div>
 
-        <!-- Screen bar -->
-        <div class="sm-screen-wrap">
-          <div class="sm-screen-label">MÀN HÌNH</div>
-          <div class="sm-screen-bar"></div>
-
-          <div class="sm-grid-scroll">
-            <div class="sm-rows-wrap">
-              <div v-for="row in seatMapRows" :key="row.label" class="sm-seat-row">
-                <span class="sm-row-label">{{ row.label }}</span>
-                <div class="sm-row-seats" :style="{ gridTemplateColumns: `repeat(${smTotalCols}, 36px)` }">
-                  <div
-                    v-for="seat in row.seats"
-                    :key="seat.gheNgoiId"
-                    :class="['sm-seat', seatMapClass(seat)]"
-                    :style="{ gridColumn: seat.soGhe }"
-                    :title="seatMapTitle(seat)"
-                  >
-                    <span class="sm-seat-label">{{ (seat.loaiGhe || '').trim() === 'trống' ? '' : (seat.soGheHienThi ?? seat.soGhe) }}</span>
-                    <!-- Force-release ✕ button only for locked seats -->
-                    <button
-                      v-if="seat.status === 'locked' && seat.lockId"
-                      class="sm-release-btn"
-                      :title="`Mở khóa ghế ${(seat.hangGhe || '').trim()}${seat.soGheHienThi ?? seat.soGhe}`"
-                      @click.stop="forceReleaseSeat(seat)"
-                    >✕</button>
-                  </div>
-                </div>
-                <span class="sm-row-label">{{ row.label }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SeatGrid
+          :rows="seatMapRows"
+          :total-cols="smTotalCols"
+          :show-screen="true"
+          :seat-key-fn="s => s.gheNgoiId"
+          :seat-title-fn="seatMapTitle"
+          :seat-class-fn="ticketSeatClass"
+        >
+          <template #seat-content="{ seat }">
+            <span class="sm-seat-label">{{ (seat.loaiGhe || '').trim() === 'trống' ? '' : (seat.soGheHienThi ?? seat.soGhe) }}</span>
+            <button
+              v-if="seat.status === 'locked' && seat.lockId"
+              class="sm-release-btn"
+              :title="`Mở khóa ghế ${(seat.hangGhe || '').trim()}${seat.soGheHienThi ?? seat.soGhe}`"
+              @click.stop="forceReleaseSeat(seat)"
+            >&#x2715;</button>
+          </template>
+        </SeatGrid>
       </template>
     </div>
   </div>
@@ -146,7 +132,9 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 import { fmtTime12, fmtDateTime12 } from '@/utils/homeHelpers'
+import { fmtDate } from '@/utils/dateFmt'
 import { useSeatWebSocket } from '@/composables/useSeatWebSocket'
+import SeatGrid from '@/components/SeatGrid.vue'
 
 const shell = useAdminShellStore()
 
@@ -187,16 +175,6 @@ const smTotalCols = computed(() =>
   seatMapData.value.reduce((m, s) => Math.max(m, s.soGhe || 0), 0)
 )
 
-function seatMapClass(seat) {
-  if ((seat.loaiGhe || '').trim() === 'trống') return 'sm-seat--trong'
-  if (seat.status === 'locked')  return 'sm-seat--locked'
-  if (seat.status === 'booked')  return 'sm-seat--booked'
-  const t = (seat.loaiGhe || '').toLowerCase()
-  if (t === 'vip') return 'sm-seat--vip'
-  if (t.includes('cặp') || t.includes('couple')) return 'sm-seat--couple'
-  return 'sm-seat--avail'
-}
-
 function seatMapTitle(seat) {
   const label = `${(seat.hangGhe || '').trim()}${seat.soGheHienThi ?? seat.soGhe}`
   if (seat.status === 'locked' && seat.expiresAt) {
@@ -207,6 +185,12 @@ function seatMapTitle(seat) {
   if (seat.status === 'booked') return `Ghế ${label} — Đã đặt`
   const loai = seat.loaiGhe ? ` (${seat.loaiGhe})` : ''
   return `Ghế ${label}${loai} — Trống`
+}
+
+function ticketSeatClass(seat) {
+  if (seat.status === 'locked') return 'seat--locked'
+  if (seat.status === 'booked') return 'seat--booked'
+  return ''
 }
 
 async function loadSeatMap() {
@@ -267,8 +251,7 @@ function fmtPrice(n) {
 
 function fmtShowtime(t) {
   if (!t.ngayChieu) return '—'
-  const d = new Date(t.ngayChieu)
-  return `${d.toLocaleDateString('vi-VN')} ${t.gioChieu || ''}`
+  return `${fmtDate(t.ngayChieu)} ${t.gioChieu || ''}`
 }
 
 function statusLabel(s) {
@@ -675,68 +658,9 @@ td {
   border: 1px dashed rgba(148,163,184,.7);
 }
 
-.sm-screen-wrap {
-  padding: 20px 20px 28px;
-  overflow-x: auto;
-}
-.sm-screen-label {
-  text-align: center;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 3px;
-  color: var(--admin-text-muted);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-.sm-screen-bar {
-  height: 5px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent 0%, var(--admin-border) 50%, transparent 100%);
-  margin-bottom: 24px;
-}
-.sm-grid-scroll { overflow-x: auto; padding-bottom: 12px; }
-.sm-rows-wrap { display: flex; flex-direction: column; gap: 8px; min-width: fit-content; }
-.sm-seat-row { display: flex; align-items: center; gap: 8px; }
-.sm-row-label {
-  width: 22px;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--admin-text-muted);
-  flex-shrink: 0;
-}
-.sm-row-seats { display: grid; gap: 5px; }
-
-/* Seat button — admin view (no cursor:pointer, but locked seats have ✕ button) */
-.sm-seat {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--admin-border);
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: default;
-  background: var(--admin-surface-hover);
-  color: var(--admin-text-muted);
-}
+/* Force-release button overlay on locked seats */
 .sm-seat-label { line-height: 1; }
 
-/* Status colors matching SeatSelectionPage exactly */
-.sm-seat--avail   { background: var(--admin-surface-hover); border-color: var(--admin-border); color: var(--admin-text-muted); }
-.sm-seat--booked  { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.5); color: #EF4444; }
-.sm-seat--locked  { background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.5); color: #F59E0B; cursor: pointer; }
-.sm-seat--locked:hover { background: rgba(245,158,11,0.4); }
-.sm-seat--vip     { background: rgba(201,168,76,0.25); border-color: rgba(201,168,76,0.5); color: #C9A84C; }
-.sm-seat--couple  { background: rgba(236,72,153,0.25); border-color: rgba(236,72,153,0.5); color: #EC4899; }
-/* Lối đi / ô trống — không phải ghế: nền trong suốt, viền đứt nét, không số */
-.sm-seat--trong   { background: transparent; border: 1px dashed rgba(148,163,184,.55); color: transparent; cursor: default; }
-
-/* Force-release ✕ button overlay on locked seats */
 .sm-release-btn {
   position: absolute;
   top: -5px;

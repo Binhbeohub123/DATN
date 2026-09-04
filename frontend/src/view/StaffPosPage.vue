@@ -9,7 +9,7 @@
       </router-link>
       <h2>Bán vé tại quầy (POS)</h2>
       <div class="header-actions">
-        <router-link to="/" class="btn-nav">🏠 Home</router-link>
+        <router-link v-if="authStore.isAdmin" to="/" class="btn-nav">🏠 Home</router-link>
         <router-link v-if="authStore.isAdmin" to="/admin/dashboard" class="btn-nav">⚙️ Admin Panel</router-link>
         <ThemeToggle />
       </div>
@@ -85,30 +85,19 @@
 
           <div v-if="loadingSeats" class="loading">Đang tải sơ đồ ghế...</div>
           <div v-else class="seat-map-container">
-            <!-- Screen bar matching SeatSelectionPage -->
-            <div class="screen-wrap">
-              <div class="screen-label">MÀN HÌNH</div>
-              <div class="screen-bar"></div>
-
-              <div class="grid-scroll">
-                <div class="rows-wrap">
-                  <div v-for="row in seatRows" :key="row.label" class="seat-row">
-                    <span class="row-label">{{ row.label }}</span>
-                    <div class="row-seats">
-                      <button
-                        v-for="seat in row.seats"
-                        :key="seat.id"
-                        :class="['seat', seatClass(seat)]"
-                        :disabled="seat.trangThai === 'booked'"
-                        :title="`${seat.hangGhe}${seat.soGhe} — ${seat.loaiGhe || 'thường'}`"
-                        @click="toggleSeat(seat)"
-                      >{{ seat.soGhe }}</button>
-                    </div>
-                    <span class="row-label">{{ row.label }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- Seat grid — shared SeatGrid component (same layout as the 3 synced pages) -->
+            <SeatGrid
+              :rows="seatRows"
+              :total-cols="totalCols"
+              :show-screen="true"
+              :seat-size="36"
+              :seat-gap="6"
+              :row-gap="10"
+              :disabled-ids="disabledSeatIds"
+              :seat-class-fn="seatClassFn"
+              :seat-title-fn="seatTitleFn"
+              @seat-click="toggleSeat"
+            />
 
             <!-- Legend -->
             <div class="seat-legend">
@@ -121,7 +110,7 @@
 
             <div class="step-footer">
               <div class="summary">
-                <p>Ghế đã chọn: <strong>{{ selectedSeats.map(s => s.hangGhe.trim() + s.soGhe).join(', ') || 'Chưa chọn' }}</strong></p>
+                <p>Ghế đã chọn: <strong>{{ selectedSeats.map(s => s.hangGhe.trim() + (s.soGheHienThi ?? s.soGhe)).join(', ') || 'Chưa chọn' }}</strong></p>
                 <p>Tạm tính: <strong>{{ formatCurrency(totalSeatPrice) }}</strong></p>
               </div>
               <button class="btn-next" :disabled="selectedSeats.length === 0" @click="step = 3">Tiếp tục</button>
@@ -175,7 +164,7 @@
               <h4>Vé xem phim</h4>
               <p>Phim: <strong>{{ selectedShowtime?.phim?.tenPhim }}</strong></p>
               <p>Suất chiếu: <strong>{{ formatDateTime(selectedShowtime?.thoiGianBatDau) }}</strong></p>
-              <p>Ghế: <strong>{{ selectedSeats.map(s => s.hangGhe.trim() + s.soGhe).join(', ') }}</strong></p>
+              <p>Ghế: <strong>{{ selectedSeats.map(s => s.hangGhe.trim() + (s.soGheHienThi ?? s.soGhe)).join(', ') }}</strong></p>
               <p>Tiền vé: <strong>{{ formatCurrency(totalSeatPrice) }}</strong></p>
             </div>
 
@@ -254,7 +243,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/services/api'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import SeatGrid from '@/components/SeatGrid.vue'
 import { fmtTime12 } from '@/utils/homeHelpers'
+import { fmtDateTime12 } from '@/utils/dateFmt'
 import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()
@@ -312,14 +303,29 @@ const seatRows = computed(() => {
     }))
 })
 
-function seatClass(seat) {
-  if (seat.trangThai === 'booked') return 'seat--booked'
+// Physical column width of the room — widest soGhe. SeatGrid keeps each seat at
+// its true grid-column (grid-column = soGhe), so filtered-out 'trống' cells leave
+// a visible gap instead of shifting neighbours — identical to the synced pages.
+const totalCols = computed(() =>
+  seats.value.reduce((m, s) => Math.max(m, s.soGhe || 0), 0)
+)
+
+// Booked seats are disabled (no lock/WebSocket on POS — staff sells at the counter).
+const disabledSeatIds = computed(() =>
+  new Set(seats.value.filter(s => s.trangThai === 'booked').map(s => s.id))
+)
+
+const seatClassFn = (seat) => {
   if (selectedSeats.value.some(s => s.id === seat.id)) return 'seat--selected'
+  if (seat.trangThai === 'booked') return 'seat--booked'
   const t = (seat.loaiGhe || '').toLowerCase()
   if (t === 'vip') return 'seat--vip'
   if (t.includes('cặp') || t.includes('couple')) return 'seat--couple'
-  return 'seat--avail'
+  return ''
 }
+
+const seatTitleFn = (seat) =>
+  `${(seat.hangGhe || '').trim()}${seat.soGheHienThi ?? seat.soGhe} — ${seat.loaiGhe || 'thường'}`
 
 const totalSeatPrice = computed(() =>
   selectedSeats.value.reduce((t, s) => t + (Number(s.giaTien) || 0), 0)
@@ -481,7 +487,7 @@ function formatTime(val) {
 }
 function formatDateTime(val) {
   if (!val) return ''
-  return new Date(val).toLocaleString('vi-VN')
+  return fmtDateTime12(val, '')
 }
 </script>
 
@@ -609,85 +615,8 @@ function formatDateTime(val) {
 .btn-showtime:hover { background: rgba(41,188,234,0.08); border-color: var(--electric, #29bcea); }
 .btn-showtime small { color: var(--text-ghost, rgba(241,245,249,0.45)); }
 
-/* ── Screen bar — matches SeatSelectionPage ── */
+/* ── Screen bar — supplied by shared SeatGrid (show-screen) ── */
 .seat-map-container { margin-top: 0.5rem; }
-.screen-wrap { flex: 1; padding: 0 0 0; }
-.screen-label {
-  text-align: center; font-size: 10px; font-weight: 900;
-  letter-spacing: 3px; color: var(--text-ghost, rgba(241,245,249,0.45));
-  text-transform: uppercase; margin-bottom: 6px;
-}
-.screen-bar {
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent 0%, var(--electric, #29bcea) 50%, transparent 100%);
-  margin-bottom: 32px;
-  transform: perspective(800px) rotateX(-8deg);
-  box-shadow: 0 4px 32px rgba(41,188,234,0.30);
-}
-
-/* ── Seat grid — matches SeatSelectionPage ── */
-.grid-scroll { overflow-x: auto; padding-bottom: 16px; }
-.rows-wrap { display: flex; flex-direction: column; gap: 10px; min-width: fit-content; }
-.seat-row { display: flex; align-items: center; gap: 10px; }
-.row-label {
-  width: 24px; text-align: center; font-size: 12px; font-weight: 800;
-  color: var(--text-ghost, rgba(241,245,249,0.45)); flex-shrink: 0;
-}
-.row-seats { display: flex; gap: 6px; }
-
-.seat {
-  width: 36px; height: 36px; border-radius: 8px;
-  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
-  font-size: 11px; font-weight: 700; cursor: pointer;
-  transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-secondary, #94a3b8); flex-shrink: 0;
-  background: var(--surface-3, #1a1a28);
-}
-.seat:hover:not(:disabled) {
-  transform: scale(1.12) translateY(-2px);
-  border-color: var(--electric, #29bcea);
-  color: var(--electric, #29bcea);
-}
-.seat:disabled { cursor: not-allowed; }
-
-.seat--avail {
-  background: var(--surface-3, #1a1a28);
-  border-color: var(--glass-border, rgba(255,255,255,0.08));
-  color: var(--text-secondary, #94a3b8);
-}
-.seat--booked {
-  background: rgba(239,68,68,0.2);
-  border-color: rgba(239,68,68,0.4);
-  color: #ef4444; opacity: 0.7;
-}
-.seat--selected {
-  background: var(--electric, #29bcea);
-  border-color: var(--electric, #29bcea);
-  color: #ffffff;
-  transform: scale(1.06);
-  box-shadow: 0 0 12px rgba(41,188,234,0.30);
-}
-
-.seat--vip {
-  background: var(--gold, #C9A84C);
-  border-color: var(--gold, #C9A84C);
-  color: #ffffff;
-}
-.seat--vip:hover:not(:disabled) {
-  background: var(--gold-bright, #F5D17E);
-  box-shadow: 0 0 8px var(--gold-glow, rgba(201,168,76,0.35));
-}
-
-.seat--couple {
-  background: #ec4899;
-  border-color: #db2777;
-  color: #ffffff;
-}
-.seat--couple:hover:not(:disabled) {
-  background: #f472b6;
-}
 
 /* ── Legend ── */
 .seat-legend {

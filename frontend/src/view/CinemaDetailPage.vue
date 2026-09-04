@@ -19,7 +19,7 @@
     </div>
 
     <template v-else-if="cinema">
-      <div class="hero" :style="cinema.hinhAnh ? `background-image:url(${cinema.hinhAnh})` : ''">
+      <div class="hero" :style="cinema.hinhAnh ? `background-image:url('${encodeURI(cinema.hinhAnh)}')` : ''">
         <div class="hero__overlay"></div>
         <div class="hero__body">
           <div v-if="!cinema.hinhAnh" class="hero__placeholder">🎬</div>
@@ -169,6 +169,7 @@ import { useAuthStore } from '@/stores/authStore'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import DayChip from '@/components/DayChip.vue'
 import api from '@/services/api'
+import { fmtDate } from '@/utils/dateFmt'
 import { fmtTime12 } from '@/utils/homeHelpers'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
@@ -356,11 +357,7 @@ function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v)
 }
 function fmtDateVN(d) {
-  if (!d) return '—'
-  try {
-    const dt = new Date(d)
-    return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`
-  } catch { return d }
+  return fmtDate(d)
 }
 
 onMounted(async () => {

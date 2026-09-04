@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '@/services/api'
 
 // ── sessionStorage snapshot (sống sót qua F5, chết khi đóng tab) ──
@@ -206,6 +207,27 @@ export const useBookingStore = defineStore('booking', () => {
   }
 
   function setShowtime(showtime) {
+    const newId = showtime?.id
+    const oldId = selectedShowtime.value?.id
+
+    // VECTOR 1: khi đổi sang 1 suất KHÁC (hoặc từ null), phải reset toàn bộ
+    // state ghế/combo/khuyến mãi của suất cũ. Nếu không, ghế của suất A sẽ rò rỉ
+    // sang suất B vì guard onMounted bị bỏ qua do id đã trùng sẵn trước khi mount.
+    //
+    // So sánh CHÍNH XÁC theo id, ép cả 2 vế về Number() trước khi so sánh:
+    // id từ route là string ('20443') còn id trong selectedShowtime có thể là number
+    // (20443) — so sánh thô `newId !== oldId` sẽ luôn true dù cùng 1 suất, gây
+    // tràn reset NHẦM (mất ghế ngay cả khi không đổi suất). Decimal-ish ids so
+    // sánh string vs number là nguyên nhân. Ep Number() cả 2 vế để so sánh đúng.
+    const sameId = newId != null && oldId != null && Number(newId) === Number(oldId)
+    if (!sameId) {
+      selectedSeats.value = []
+      selectedCombos.value = []
+      promoCode.value = ''
+      promoData.value = null
+      error.value = { ...error.value, seats: '', promo: '' }
+    }
+
     selectedShowtime.value = showtime
   }
 
@@ -316,17 +338,29 @@ export const useBookingStore = defineStore('booking', () => {
     loyaltyPointsToUse.value = points
   }
 
-  async function createBooking() {
+  async function createBooking(overrideLichChieuId = null) {
     if (!selectedMovie.value || !selectedShowtime.value || selectedSeats.value.length === 0) {
       error.value.booking = 'Vui lòng chọn phim, suất chiếu và ghế'
       return null
     }
 
+    // VECTOR PHỤ-2: ưu tiên lichChieuId từ route hiện tại (route.params.showtimeId)
+    // làm nguồn chân lý; fallback về selectedShowtime.id khi gọi từ nơi không có
+    // param suất (vd CheckoutPage).
+    let lichChieuId = overrideLichChieuId
+    if (!lichChieuId) {
+      try {
+        const r = useRoute()
+        lichChieuId = r?.params?.showtimeId ?? null
+      } catch { lichChieuId = null }
+    }
+    if (!lichChieuId) lichChieuId = selectedShowtime.value.id
+
     loading.value.booking = true
     error.value.booking = ''
     try {
       const bookingData = {
-        lichChieuId: selectedShowtime.value.id,
+        lichChieuId,
         gheIds: selectedSeats.value.map(s => s.id),
         comboData: selectedCombos.value.map(c => ({ id: c.id, soLuong: c.soLuong })),
         maKhuyenMai: promoCode.value || null,

@@ -195,7 +195,9 @@ function fmtPrice(v) {
 }
 function fmtDateShort(s) {
   if (!s) return ''
-  const p = String(s).split('-'); return p.length>=3 ? `${p[2]}/${p[1]}` : s
+  const p = String(s).split('-')
+  if (p.length < 3) return s
+  return `${String(p[2]).padStart(2, '0')}/${String(p[1]).padStart(2, '0')}`
 }
 
 async function loadStats() {

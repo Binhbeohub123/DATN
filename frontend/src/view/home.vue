@@ -67,7 +67,7 @@
     >
       <div
         class="hero-bg"
-        :style="currentBanner ? { backgroundImage: `url(${currentBanner.hinhAnh})` } : {}"
+        :style="currentBanner ? { backgroundImage: `url('${encodeURI(currentBanner.hinhAnh)}')` } : {}"
       ></div>
       <div class="hero-vignette"></div>
       <div class="hero-fade"></div>
@@ -261,13 +261,6 @@
         </div>
     </section>
 
-    <!-- PROMO -->
-    <section class="promo">
-      <h2>{{ t('promoTitle') }}</h2>
-      <p>{{ t('promoDesc') }}</p>
-      <button class="btn btn-white">{{ t('joinNow') }}</button>
-    </section>
-
     </div><!-- /PANEL: PHIM -->
 
     <!-- PANEL: RẠP CHIẾU -->
@@ -453,7 +446,7 @@
     <div v-show="mainTab === 'gioi_thieu'" id="main-panel-gioi-thieu" role="tabpanel" aria-labelledby="main-tab-gioi-thieu">
       <div
         class="gioi-thieu-stage"
-        :style="gioiThieu.hinhAnhUrl ? { backgroundImage: `url(${gioiThieu.hinhAnhUrl})` } : {}"
+        :style="gioiThieu.hinhAnhUrl ? { backgroundImage: `url('${encodeURI(gioiThieu.hinhAnhUrl)}')` } : {}"
         aria-label="Giới thiệu PolyCinema"
       >
         <div class="gioi-thieu-overlay"></div>
@@ -491,6 +484,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import DayChip from '@/components/DayChip.vue'
 import { useConfirmModal } from '@/composables/useConfirmModal'
+import { fmtDate } from '@/utils/dateFmt'
 import { fmtTime12 } from '@/utils/homeHelpers'
 
 const router = useRouter()
@@ -549,8 +543,8 @@ function switchLang(next) {
 }
 
 const translations = {
-  vi: { login: 'Đăng nhập', register: 'Đăng ký', profile: 'Hồ sơ', tickets: 'Vé của tôi', logout: 'Đăng xuất', movies: 'Lịch Chiếu', schedule: 'Phim', now: 'Nổi Bật', nowShowing: 'Đang chiếu', comingSoon: 'Sắp chiếu', bookNow: 'Đặt vé', bookNowCta: 'Đặt vé ngay', viewDetail: 'Xem chi tiết', loading: 'Đang tải', promoTitle: 'Ưu Đãi Thứ 3', promoDesc: 'Giảm 30% vé xem phim vào thứ 3', joinNow: 'Tham Gia', allRights: 'All rights reserved.', featured: 'Phim', topRated: 'Đánh Giá Cao', noMovies: 'Không có phim', searchPlaceholder: 'Tìm phim...', clearSearch: 'Xóa tìm kiếm', noResults: 'Không tìm thấy phim phù hợp', searchResults: 'Kết quả tìm kiếm', movieTabs: 'Danh mục phim', cinemaSystem: 'Hệ Thống', cinemaNetwork: 'Rạp Chiếu', noCinemas: 'Chưa có thông tin rạp', viewMap: 'Xem bản đồ', scrollLeft: 'Cuộn trái', scrollRight: 'Cuộn phải', tabPhim: 'Phim', tabRap: 'Rạp Chiếu', tabKhuyenMai: 'Khuyến Mãi', promoActive: 'Đang Áp Dụng', noPromos: 'Hiện không có khuyến mãi', promoAppliesTo: 'Áp dụng cho phim', promoMin: 'Đơn hàng tối thiểu', promoSystemWide: 'Áp dụng toàn hệ thống', chooseMovie: 'Chọn phim', tabGioiThieu: 'Giới Thiệu', footerTagline: 'Đặt vé nhanh, combo ngon, giải trí trọn vẹn', footerBuyTickets: 'Mua Vé', footerBuyPopcorn: 'Combo Bắp Nước', footerMovies: 'Phim', footerAccount: 'Tài Khoản', footerExplore: 'Khám Phá', footerTheaters: 'Hệ Thống Rạp', footerAllTheaters: 'Tất cả hệ thống rạp' },
-  en: { login: 'Login', register: 'Register', profile: 'Profile', tickets: 'My Tickets', logout: 'Logout', movies: 'Movie', schedule: 'Schedule', now: 'Featured', nowShowing: 'Now Showing', comingSoon: 'Coming Soon', bookNow: 'Book Now', bookNowCta: 'Book Now', viewDetail: 'View Details', loading: 'Loading', promoTitle: 'Tuesday Offer', promoDesc: '30% off all tickets on Tuesday', joinNow: 'Join Now', allRights: 'All rights reserved.', featured: 'Top', topRated: 'Rated Movies', noMovies: 'No movies available', searchPlaceholder: 'Search movies...', clearSearch: 'Clear search', noResults: 'No movies found', searchResults: 'Search results', movieTabs: 'Movie categories', cinemaSystem: 'Cinema', cinemaNetwork: 'Network', noCinemas: 'No cinemas available', viewMap: 'View map', scrollLeft: 'Scroll left', scrollRight: 'Scroll right', tabPhim: 'Movies', tabRap: 'Cinemas', tabKhuyenMai: 'Promotions', promoActive: 'Active', noPromos: 'No active promotions', promoAppliesTo: 'Applies to', promoMin: 'Min. order', promoSystemWide: 'System-wide', chooseMovie: 'Browse movies', tabGioiThieu: 'About Us', footerTagline: 'Book fast, tasty combos, complete entertainment', footerBuyTickets: 'Buy Tickets', footerBuyPopcorn: 'Popcorn Combos', footerMovies: 'Movies', footerAccount: 'Account', footerExplore: 'Explore', footerTheaters: 'Cinema System', footerAllTheaters: 'All cinemas' }
+  vi: { login: 'Đăng nhập', register: 'Đăng ký', profile: 'Hồ sơ', tickets: 'Vé của tôi', logout: 'Đăng xuất', movies: 'Lịch Chiếu', schedule: 'Phim', now: 'Nổi Bật', nowShowing: 'Đang chiếu', comingSoon: 'Sắp chiếu', bookNow: 'Đặt vé', bookNowCta: 'Đặt vé ngay', viewDetail: 'Xem chi tiết', loading: 'Đang tải', allRights: 'All rights reserved.', featured: 'Phim', topRated: 'Đánh Giá Cao', noMovies: 'Không có phim', searchPlaceholder: 'Tìm phim...', clearSearch: 'Xóa tìm kiếm', noResults: 'Không tìm thấy phim phù hợp', searchResults: 'Kết quả tìm kiếm', movieTabs: 'Danh mục phim', cinemaSystem: 'Hệ Thống', cinemaNetwork: 'Rạp Chiếu', noCinemas: 'Chưa có thông tin rạp', viewMap: 'Xem bản đồ', scrollLeft: 'Cuộn trái', scrollRight: 'Cuộn phải', tabPhim: 'Phim', tabRap: 'Rạp Chiếu', tabKhuyenMai: 'Khuyến Mãi', promoActive: 'Đang Áp Dụng', noPromos: 'Hiện không có khuyến mãi', promoAppliesTo: 'Áp dụng cho phim', promoMin: 'Đơn hàng tối thiểu', promoSystemWide: 'Áp dụng toàn hệ thống', chooseMovie: 'Chọn phim', tabGioiThieu: 'Giới Thiệu', footerTagline: 'Đặt vé nhanh, combo ngon, giải trí trọn vẹn', footerBuyTickets: 'Mua Vé', footerBuyPopcorn: 'Combo Bắp Nước', footerMovies: 'Phim', footerAccount: 'Tài Khoản', footerExplore: 'Khám Phá', footerTheaters: 'Hệ Thống Rạp', footerAllTheaters: 'Tất cả hệ thống rạp' },
+  en: { login: 'Login', register: 'Register', profile: 'Profile', tickets: 'My Tickets', logout: 'Logout', movies: 'Movie', schedule: 'Schedule', now: 'Featured', nowShowing: 'Now Showing', comingSoon: 'Coming Soon', bookNow: 'Book Now', bookNowCta: 'Book Now', viewDetail: 'View Details', loading: 'Loading', allRights: 'All rights reserved.', featured: 'Top', topRated: 'Rated Movies', noMovies: 'No movies available', searchPlaceholder: 'Search movies...', clearSearch: 'Clear search', noResults: 'No movies found', searchResults: 'Search results', movieTabs: 'Movie categories', cinemaSystem: 'Cinema', cinemaNetwork: 'Network', noCinemas: 'No cinemas available', viewMap: 'View map', scrollLeft: 'Scroll left', scrollRight: 'Scroll right', tabPhim: 'Movies', tabRap: 'Cinemas', tabKhuyenMai: 'Promotions', promoActive: 'Active', noPromos: 'No active promotions', promoAppliesTo: 'Applies to', promoMin: 'Min. order', promoSystemWide: 'System-wide', chooseMovie: 'Browse movies', tabGioiThieu: 'About Us', footerTagline: 'Book fast, tasty combos, complete entertainment', footerBuyTickets: 'Buy Tickets', footerBuyPopcorn: 'Popcorn Combos', footerMovies: 'Movies', footerAccount: 'Account', footerExplore: 'Explore', footerTheaters: 'Cinema System', footerAllTheaters: 'All cinemas' }
 }
 
 const langSafe = computed(() => translations[lang.value] ? lang.value : 'vi')
@@ -736,10 +730,7 @@ function formatCurrency(val) {
 }
 
 function formatDate(d) {
-  if (!d) return '—'
-  // d is 'yyyy-MM-dd' string from LocalDate
-  const [y, m, day] = String(d).split('-')
-  return `${day}/${m}/${y}`
+  return fmtDate(d)
 }
 
 // ── Promo card: banner + copy code ────────────────────────────
@@ -1545,18 +1536,6 @@ onUnmounted(() => {
   border-color: rgba(255,255,255,0.4);
 }
 
-.promo {
-  background: #29bcea;
-  padding: 60px 40px;
-  text-align: center;
-  color: #ffffff;
-  margin: 60px 40px;
-  border-radius: 0;
-}
-
-.promo h2 { font-size: 32px; font-weight: 700; margin-bottom: 16px; }
-.promo p { font-size: 16px; margin-bottom: 24px; opacity: 0.95; }
-
 .quickbook { padding: 0 40px; margin: 8px auto 8px; max-width: 1400px; }
 .quickbook__inner {
   background: var(--glass-bg, rgba(255,255,255,0.04));
@@ -1662,7 +1641,6 @@ onUnmounted(() => {
   .carousel-arrow--left  { left:  -12px; }
   .carousel-arrow--right { right: -12px; }
   .cinema-grid { grid-template-columns: 1fr; }
-  .promo { margin: 40px 20px; }
   .quickbook { padding: 0 20px; }
   .quickbook__row { grid-template-columns: 1fr; }
 }

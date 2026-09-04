@@ -1,11 +1,33 @@
 <template>
   <div class="checkout-page">
-    <!-- ── Booking expiry countdown banner ── -->
+    <!-- ── Checkout 1-minute countdown banner (pre-payment) ── -->
+    <!-- Counts down from the moment the user lands on Checkout. If they don't
+         press "Thanh toán" in time, seats are released and they return to the seat map. -->
+    <transition name="slide-down">
+      <div v-if="!retryBookingId && checkoutCountdown !== null" :class="['countdown-banner', checkoutClass]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Giữ ghế trong
+        <strong>{{ checkoutCountdownDisplay }}</strong>
+      </div>
+    </transition>
+
+    <!-- ── Booking expiry countdown banner (post-booking / gateway) ── -->
     <transition name="slide-down">
       <div v-if="countdownDisplay" :class="['countdown-banner', countdownClass]">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Vui lòng thanh toán trong
         <strong>{{ countdownDisplay }}</strong>
+      </div>
+    </transition>
+
+    <!-- ── Checkout expired (1-minute, not paid in time) modal ── -->
+    <transition name="fade">
+      <div v-if="showCheckoutExpired" class="expired-overlay">
+        <div class="expired-modal">
+          <div class="expired-icon">⏰</div>
+          <h2 class="expired-title">Hết thời gian giữ ghế</h2>
+          <p class="expired-desc">Bạn chưa hoàn tất thanh toán. Ghế đã được trả lại — chuyển về sơ đồ ghế...</p>
+        </div>
       </div>
     </transition>
 
@@ -338,7 +360,7 @@ const retryTotalComboPrice = computed(() => {
 })
 
 // ── Booking expiry countdown ─────────────────────────────────
-const EXPIRY_MINUTES   = 10
+const EXPIRY_MINUTES   = 2
 const countdownSecs    = ref(null)   // null = no active booking yet
 const showExpiredModal = ref(false)
 let   countdownTimer   = null
@@ -387,6 +409,88 @@ const countdownClass = computed(() => {
   if (countdownSecs.value <= 180) return 'countdown--amber'
   return 'countdown--normal'
 })
+
+// ── Checkout 1-minute hold timer (pre-payment) ────────────────
+// Bắt đầu NGAY khi vào trang checkout (luồng đặt vé thường). Nếu người dùng
+// không bấm "Thanh toán" trong 1 phút, nhả ghế NGAY (release-seat) và quay về
+// sơ đồ ghế. Không áp dụng cho retry-payment mode (khi đó dùng countdown 2 phút
+// của booking đã tồn tại). Mốc đếm: kể từ lúc vào trang — lúc này chưa tạo đơn
+// pending (đơn chỉ tạo khi bấm "Thanh toán"), nên hết giờ chỉ cần nhả SeatLock.
+const CHECKOUT_HOLD_SECS = 60
+const checkoutCountdown  = ref(null)   // seconds left, null = not active
+const showCheckoutExpired = ref(false)
+let   checkoutTimer       = null
+let   checkoutResolved    = false      // prevent double resolution
+// Nếu trong phiên này đã lỡ tạo đơn pending (bấm "Thanh toán" rồi gateway lỗi),
+// lưu id để khi hết giờ chủ động huỷ đơn (release ChiTietDatGhe ở DB ngay).
+const checkoutCreatedBookingId = ref(null)
+
+const checkoutCountdownDisplay = computed(() => {
+  if (checkoutCountdown.value == null) return null
+  const m = Math.floor(checkoutCountdown.value / 60)
+  const s = checkoutCountdown.value % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+})
+const checkoutClass = computed(() => {
+  if (checkoutCountdown.value == null) return ''
+  if (checkoutCountdown.value <= 15) return 'countdown--red'
+  return 'countdown--amber'
+})
+
+function startCheckoutTimer() {
+  // Skip in retry-payment mode — an existing booking already has its own expiry
+  if (retryBookingId.value) return
+  checkoutCountdown.value = CHECKOUT_HOLD_SECS
+  checkoutResolved = false
+
+  function tick() {
+    // Payment fully initiated (redirect to gateway) -> hold fulfilled, stop timer.
+    if (paymentInitiated.value) {
+      if (checkoutTimer) clearInterval(checkoutTimer)
+      checkoutCountdown.value = null
+      return
+    }
+    // Pause while a confirm/payment attempt is in flight (don't count down,
+    // don't resolve) — we wait for its outcome.
+    if (confirming.value) return
+    if (checkoutCountdown.value === null) return
+    checkoutCountdown.value -= 1
+    if (checkoutCountdown.value <= 0) {
+      if (checkoutTimer) clearInterval(checkoutTimer)
+      checkoutCountdown.value = 0
+      resolveCheckoutTimeout()
+    }
+  }
+  checkoutTimer = setInterval(tick, 1000)
+}
+
+async function resolveCheckoutTimeout() {
+  if (checkoutResolved) return
+  checkoutResolved = true
+
+  // Guard: never auto-back if a payment has already been initiated/redirected.
+  if (paymentInitiated.value) return
+  checkoutCountdown.value = 0
+
+  showCheckoutExpired.value = true
+
+  // Nhả ghế NGAY:
+  //  - Nếu đã lỡ tạo đơn pending (gateway lỗi sau khi createBooking) -> gọi
+  //    PUT /dat-ve/{id}/cancel để hủy đơn, xoá ChiTietDatGhe + nhả lock ngay.
+  //  - Ngược lại (chưa tạo đơn) -> chỉ cần release SeatLock qua release-seat.
+  if (checkoutCreatedBookingId.value) {
+    try {
+      await api.put(`/dat-ve/${checkoutCreatedBookingId.value}/cancel`)
+    } catch { /* non-fatal — BE BookingExpiryService sẽ tự dọn sau 2 phút */ }
+    checkoutCreatedBookingId.value = null
+  } else {
+    await releaseSeatsOnLeave()
+  }
+
+  setTimeout(() => {
+    router.replace('/seat-selection')
+  }, 1500)
+}
 
 // ── promo ────────────────────────────────────────────────────
 const promoInput    = ref(bookingStore.promoCode || '')
@@ -451,6 +555,12 @@ async function confirm() {
     showExpiredModal.value = true
     return
   }
+  // 1-minute checkout hold already elapsed in fresh flow -> block payment,
+  // seats are being released and we redirect back to the seat map.
+  if (!retryBookingId.value && checkoutCountdown.value !== null && checkoutCountdown.value <= 0) {
+    resolveCheckoutTimeout()
+    return
+  }
   confirmError.value = ''
   confirming.value = true
 
@@ -484,6 +594,8 @@ async function confirm() {
       bookingId      = booking.id
       ngayTao        = booking.ngayTao
       bookingMaDatVe = booking.maDatVe || null
+      // Track the pending booking so auto-back can cancel it if needed
+      checkoutCreatedBookingId.value = booking.id
 
       // Zero-total: backend already confirmed/paid — skip gateway
       if (booking.trangThaiThanhToan === 'paid'
@@ -611,6 +723,9 @@ onMounted(async () => {
     await loadRetryBooking(qBookingId)
   }
 
+  // ── Start the 1-minute checkout hold timer (fresh flow) ─────
+  startCheckoutTimer()
+
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
@@ -621,6 +736,7 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer)
+  if (checkoutTimer) clearInterval(checkoutTimer)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>

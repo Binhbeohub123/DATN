@@ -158,6 +158,7 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
+import { fmtDate } from '@/utils/dateFmt'
 
 const shell = useAdminShellStore()
 
@@ -256,11 +257,6 @@ function statusLabel(s) {
   if (s==='da_ket_thuc') return 'Đã kết thúc'
   return s || 'Chưa chiếu'
 }
-function fmtDate(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('vi-VN')
-}
-
 function openCreate() {
   editing.value = null
   form.value = blankForm()

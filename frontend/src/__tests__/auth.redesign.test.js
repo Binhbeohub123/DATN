@@ -73,20 +73,29 @@ describe('Fix Verification — AuthPage.vue redesign (EXPECTED TO PASS on fixed 
     wrapper.unmount()
   })
 
-  // ── 1. Floating-label DOM structure ──────────────────────────────────────
+  // ── 1. Label-above-input DOM structure ──────────────────────────────────────
 
-  it('1. each .input-wrap contains both an <input> and a <label> sibling', () => {
-    const inputWraps = wrapper.findAll('.input-wrap')
+  it('1. each .field-group contains a .field-label above the .input-wrap', () => {
+    const fieldGroups = wrapper.findAll('.field-group')
 
     // Should have at least the email and password inputs in login mode
-    expect(inputWraps.length).toBeGreaterThan(0)
+    expect(fieldGroups.length).toBeGreaterThan(0)
 
-    inputWraps.forEach((wrap, i) => {
-      const input = wrap.find('input')
-      const label = wrap.find('label')
+    fieldGroups.forEach((group, i) => {
+      const label = group.find('.field-label')
+      const inputWrap = group.find('.input-wrap')
+      const input = inputWrap.exists() ? inputWrap.find('input') : group.find('input')
 
-      expect(input.exists(), `input-wrap[${i}] should contain an <input>`).toBe(true)
-      expect(label.exists(), `input-wrap[${i}] should contain a <label>`).toBe(true)
+      expect(label.exists(), `field-group[${i}] should contain a .field-label`).toBe(true)
+      expect(input.exists(), `field-group[${i}] should contain an <input>`).toBe(true)
+
+      // Label should appear before input-wrap in DOM order
+      if (inputWrap.exists()) {
+        const allChildren = group.element.children
+        const labelIdx = Array.from(allChildren).indexOf(label.element)
+        const wrapIdx = Array.from(allChildren).indexOf(inputWrap.element)
+        expect(labelIdx).toBeLessThan(wrapIdx)
+      }
     })
   })
 

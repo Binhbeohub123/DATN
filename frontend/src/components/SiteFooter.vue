@@ -3,7 +3,7 @@
       <!-- Hero CTA -->
       <div class="footer-hero">
         <div class="footer-hero__copy">
-          <p class="footer-hero__tag">BE HAPPY, BE A STAR</p>
+          <p class="footer-hero__tag">PolyCinema</p>
           <p class="footer-hero__sub">{{ t('footerTagline') }}</p>
         </div>
         <div class="footer-hero__actions">

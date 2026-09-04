@@ -30,7 +30,7 @@
             </div>
             <div class="banner-info">
               <p class="banner-title">{{ b.tieuDe }}</p>
-              <p class="banner-meta">Thứ tự: {{ b.thuTu }} &nbsp;|&nbsp; {{ b.ngayBatDau||'—' }} → {{ b.ngayKetThuc||'—' }}</p>
+              <p class="banner-meta">Thứ tự: {{ b.thuTu }} &nbsp;|&nbsp; {{ fmtDate(b.ngayBatDau) }} → {{ fmtDate(b.ngayKetThuc) }}</p>
               <p class="banner-url">
                 <span v-if="b.loaiBanner === 'Phim'">🎬 Phim #{{ b.phimId }}</span>
                 <span v-else-if="b.loaiBanner === 'Khac'">🖼️ Banner đơn thuần</span>
@@ -224,6 +224,7 @@ import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
 import { flashRow } from '@/utils/flashRow'
+import { fmtDate } from '@/utils/dateFmt'
 
 const shell = useAdminShellStore()
 

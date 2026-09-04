@@ -168,6 +168,7 @@
 import { ref, computed, onMounted, watch, reactive } from 'vue'
 import api from '@/services/api'
 import { useAdminShellStore } from '@/stores/adminShellStore'
+import { fmtDate } from '@/utils/dateFmt'
 
 const shell = useAdminShellStore()
 
@@ -250,10 +251,6 @@ function levelClass(l) {
 }
 function fmtPrice(v) {
   return new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(v||0)
-}
-function fmtDate(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('vi-VN')
 }
 
 // Inline points editing — Enter key handler

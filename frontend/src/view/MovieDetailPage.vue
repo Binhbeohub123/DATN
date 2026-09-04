@@ -26,7 +26,7 @@
     <div v-else-if="movie" class="detail-wrap">
 
       <!-- Hero banner -->
-      <div class="hero" :style="movie.poster ? `background-image:url(${movie.poster})` : ''">
+      <div class="hero" :style="movie.poster ? `background-image:url('${encodeURI(movie.poster)}')` : ''">
         <div class="hero__overlay"></div>
         <div class="hero__body">
           <div class="poster-wrap">
@@ -139,7 +139,7 @@
         <!-- Date tabs -->
         <div class="date-scroll" role="tablist" aria-label="Chọn ngày">
           <DayChip
-            v-for="d in days"
+            v-for="d in visibleDays"
             :key="d.iso"
             :num="d.num"
             :mo="d.mo"
@@ -147,6 +147,11 @@
             :active="selectedDate === d.iso"
             @select="selectDate(d.iso)"
           />
+        </div>
+
+        <!-- No available dates -->
+        <div v-if="availableDatesLoaded && visibleDays.length === 0" class="no-show">
+          <p>Chưa có lịch chiếu</p>
         </div>
 
         <!-- Loading showtimes -->
@@ -231,6 +236,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 import DayChip from '@/components/DayChip.vue'
 import VideoModal from '@/components/VideoModal.vue'
 import api from '@/services/api'
+import { fmtDate } from '@/utils/dateFmt'
 import { fmtTime12 } from '@/utils/homeHelpers'
 
 const router = useRouter()
@@ -249,6 +255,10 @@ const loadingSchedules = ref(false)
 const schedulesError  = ref('')
 const selectedDate    = ref('')
 const selectedShowtime = ref(null)
+
+// ── available dates (only dates with real showtimes) ───────
+const availableDates       = ref([])   // ['YYYY-MM-DD', ...]
+const availableDatesLoaded = ref(false)
 
 // ── Phase 4: city / format filter state ────────────────────
 const cities         = ref([])   // ['TP.HCM', 'Hà Nội', ...]
@@ -281,6 +291,21 @@ const days = computed(() => {
     })
   }
   return out
+})
+
+// ── 30-day tab list filtered to dates that actually have showtimes ──
+const dayLookup = computed(() => {
+  const map = new Map()
+  for (const d of days.value) map.set(d.iso, d)
+  return map
+})
+const visibleDays = computed(() => {
+  // When city/format filters are active, only keep dates present in schedulesOnDate
+  const source = (selectedCity.value || selectedDinhDang.value)
+    ? schedulesOnDate.value.map(s => s.thoiGianBatDau.slice(0, 10))
+    : availableDates.value
+  const set = new Set(source)
+  return days.value.filter(d => set.has(d.iso))
 })
 
 // ── schedules filtered to selected date ────────────────────
@@ -365,6 +390,22 @@ async function loadMovie() {
 }
 
 // ── load schedules — uses /search when filters active, otherwise /phim/{id}/lich-chieu ──
+async function loadAvailableDates() {
+  const id = route.params.id
+  if (!id) return
+  try {
+    const res = await api.get(`/lich-chieu/phim/${id}/available-dates`)
+    availableDates.value = (Array.isArray(res.data) ? res.data : []).map(d => {
+      // backend may return LocalDate as "YYYY-MM-DD"; keep as-is
+      return String(d).slice(0, 10)
+    })
+  } catch {
+    availableDates.value = []
+  } finally {
+    availableDatesLoaded.value = true
+  }
+}
+
 async function loadSchedules() {
   const id = route.params.id
   if (!id) return
@@ -379,6 +420,8 @@ async function loadSchedules() {
     const endpoint  = useSearch ? '/lich-chieu/search' : `/phim/${id}/lich-chieu`
     const res = await api.get(endpoint, { params: useSearch ? params : {} })
     schedules.value = Array.isArray(res.data) ? res.data : []
+    // keep availableDates fresh from backend when no filter is active
+    if (!useSearch) await loadAvailableDates()
   } catch (e) {
     schedulesError.value = 'Không tải được lịch chiếu'
     schedules.value = []
@@ -402,6 +445,8 @@ async function loadFilterOptions() {
 // ── react to filter changes ─────────────────────────────────
 async function onFilterChange() {
   selectedShowtime.value = null
+  // reset selected date to today
+  selectedDate.value = days.value[0].iso
   await loadSchedules()
 }
 
@@ -455,10 +500,6 @@ function groupByBuoi(list) {
     { label: 'Buổi chiều / tối', list: evening },
   ].filter(g => g.list.length)
 }
-function fmtDate(d) {
-  if (!d) return '—'
-  try { return new Date(d).toLocaleDateString('vi-VN') } catch { return d }
-}
 function fmtPrice(v) {
   if (v == null) return '—'
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v)
@@ -485,6 +526,7 @@ function typeClass(t) {
 
 // ── lifecycle ──────────────────────────────────────────────
 onMounted(async () => {
+  availableDatesLoaded.value = false
   selectedDate.value = days.value[0].iso
   await loadMovie()
   await Promise.all([loadSchedules(), loadFilterOptions()])
@@ -496,6 +538,8 @@ watch(() => route.params.id, async (id) => {
     selectedCity.value = ''
     selectedDinhDang.value = ''
     selectedDate.value = days.value[0].iso
+    availableDatesLoaded.value = false
+    availableDates.value = []
     await loadMovie()
     await Promise.all([loadSchedules(), loadFilterOptions()])
   }

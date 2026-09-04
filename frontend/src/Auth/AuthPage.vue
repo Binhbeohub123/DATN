@@ -37,6 +37,7 @@
           <!-- ================= LOGIN ================= -->
           <div v-if="!isRegister && !isForgot && !isVerify">
             <div class="field-group">
+              <label class="field-label">Email</label>
               <div class="input-wrap">
                 <input
                   v-model="loginForm.email"
@@ -46,11 +47,11 @@
                   @input="fieldErrors.loginEmail = ''"
                   @keyup.enter="login"
                 />
-                <label>Email</label>
               </div>
               <span v-if="fieldErrors.loginEmail" class="field-err-msg">{{ fieldErrors.loginEmail }}</span>
             </div>
             <div class="field-group">
+              <label class="field-label">Mật khẩu</label>
               <div class="input-wrap">
                 <input
                   v-model="loginForm.password"
@@ -60,7 +61,6 @@
                   @input="fieldErrors.loginPw = ''"
                   @keyup.enter="login"
                 />
-                <label>Mật khẩu</label>
               </div>
               <span v-if="fieldErrors.loginPw" class="field-err-msg">{{ fieldErrors.loginPw }}</span>
             </div>
@@ -90,6 +90,7 @@
           <!-- ================= REGISTER ================= -->
           <div v-if="isRegister">
             <div class="field-group">
+              <label class="field-label">Họ và tên đầy đủ</label>
               <div class="input-wrap">
                 <input
                   v-model="registerForm.hoTen"
@@ -97,11 +98,11 @@
                   :class="{ 'input-err': fieldErrors.hoTen }"
                   @input="fieldErrors.hoTen = ''"
                 />
-                <label>Họ và tên đầy đủ</label>
               </div>
               <span v-if="fieldErrors.hoTen" class="field-err-msg">{{ fieldErrors.hoTen }}</span>
             </div>
             <div class="field-group">
+              <label class="field-label">Email</label>
               <div class="input-wrap">
                 <input
                   v-model="registerForm.email"
@@ -110,11 +111,11 @@
                   :class="{ 'input-err': fieldErrors.regEmail }"
                   @input="fieldErrors.regEmail = ''"
                 />
-                <label>Email</label>
               </div>
               <span v-if="fieldErrors.regEmail" class="field-err-msg">{{ fieldErrors.regEmail }}</span>
             </div>
             <div class="field-group">
+              <label class="field-label">Số điện thoại (0xxxxxxxxx)</label>
               <div class="input-wrap">
                 <input
                   v-model="registerForm.soDienThoai"
@@ -122,11 +123,11 @@
                   :class="{ 'input-err': fieldErrors.phone }"
                   @input="fieldErrors.phone = ''"
                 />
-                <label>Số điện thoại (0xxxxxxxxx)</label>
               </div>
               <span v-if="fieldErrors.phone" class="field-err-msg">{{ fieldErrors.phone }}</span>
             </div>
             <div class="field-group">
+              <label class="field-label">Mật khẩu (tối thiểu 8 ký tự)</label>
               <div class="input-wrap">
                 <input
                   v-model="registerForm.password"
@@ -135,11 +136,11 @@
                   :class="{ 'input-err': fieldErrors.regPw }"
                   @input="fieldErrors.regPw = ''"
                 />
-                <label>Mật khẩu (tối thiểu 8 ký tự)</label>
               </div>
               <span v-if="fieldErrors.regPw" class="field-err-msg">{{ fieldErrors.regPw }}</span>
             </div>
             <div class="field-group">
+              <label class="field-label">Xác nhận mật khẩu</label>
               <div class="input-wrap">
                 <input
                   v-model="registerForm.confirmPassword"
@@ -148,7 +149,6 @@
                   :class="{ 'input-err': fieldErrors.confirmPw }"
                   @input="fieldErrors.confirmPw = ''"
                 />
-                <label>Xác nhận mật khẩu</label>
               </div>
               <span v-if="fieldErrors.confirmPw" class="field-err-msg">{{ fieldErrors.confirmPw }}</span>
             </div>
@@ -170,6 +170,7 @@
               <strong>{{ verifyForm.email }}</strong>
             </p>
 
+            <label class="field-label">Nhập mã OTP 6 số</label>
             <div class="input-wrap">
               <input
                 v-model="verifyForm.otp"
@@ -177,7 +178,6 @@
                 maxlength="6"
                 type="number"
               />
-              <label>Nhập mã OTP 6 số</label>
             </div>
 
             <button class="btn-bib" @click="verifyOtp" :disabled="isLoading.verify">Xác thực Email</button>
@@ -195,6 +195,7 @@
             <!-- STEP 1: email input -->
             <div v-if="!forgotEmailSent">
               <div class="field-group">
+                <label class="field-label">Nhập email của bạn</label>
                 <div class="input-wrap">
                   <input
                     v-model="forgotForm.email"
@@ -204,7 +205,6 @@
                     @input="fieldErrors.forgotEmail = ''"
                     @keyup.enter="sendOtp"
                   />
-                  <label>Nhập email của bạn</label>
                 </div>
                 <span v-if="fieldErrors.forgotEmail" class="field-err-msg">{{ fieldErrors.forgotEmail }}</span>
               </div>
@@ -227,13 +227,13 @@
                   <strong>{{ forgotForm.email }}</strong>
                 </p>
               </div>
+              <label class="field-label">Nhập mã OTP 6 số</label>
               <div class="input-wrap">
                 <input v-model="forgotForm.otp" placeholder=" " maxlength="6" type="text" inputmode="numeric" />
-                <label>Nhập mã OTP 6 số</label>
               </div>
+              <label class="field-label">Mật khẩu mới (tối thiểu 8 ký tự)</label>
               <div class="input-wrap">
                 <input v-model="forgotForm.newPassword" type="password" placeholder=" " />
-                <label>Mật khẩu mới (tối thiểu 8 ký tự)</label>
               </div>
               <button class="btn-bib" @click="resetPassword" :disabled="isLoading.reset">
                 {{ isLoading.reset ? 'Đang đổi...' : 'Đặt lại mật khẩu' }}
@@ -896,8 +896,15 @@ input:focus {
 
 input::placeholder { color: var(--text-ghost, rgba(241,245,249,0.45)); }
 
-.field-group { position: relative; margin-bottom: 4px; }
+.field-group { position: relative; margin-bottom: 8px; }
 .field-group input { margin-bottom: 0; }
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 6px;
+}
 .input-err { border-color: #f87171 !important; }
 .field-err-msg { display: block; font-size: 12px; color: #f87171; font-weight: 600; margin: 4px 0 8px 2px; line-height: 1.4; }
 

@@ -18,7 +18,11 @@
         <button class="date-nav__arrow" @click="shiftDate(-1)" :aria-label="'Ngày trước'" title="Ngày trước">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <input v-model="filterDate" type="date" class="filter-select date-nav__input" :aria-label="'Lọc theo ngày'" />
+        <div class="date-nav__field">
+          <input v-model="filterDate" type="date" class="filter-select date-nav__input" :aria-label="'Lọc theo ngày'" />
+          <svg class="date-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span class="date-nav__display">{{ filterDate ? fmtDate(filterDate) : 'Chọn ngày' }}</span>
+        </div>
         <button class="date-nav__arrow" @click="shiftDate(1)" :aria-label="'Ngày sau'" title="Ngày sau">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -168,7 +172,7 @@
             <!-- Edit mode: date is read-only -->
             <div v-if="editing" class="field field-full">
               <label>Ngày chiếu <span class="hint">(không thể thay đổi)</span></label>
-              <input :value="form.dates[0] || ''" type="date" readonly disabled />
+              <input :value="fmtDate(form.dates[0]) || ''" type="text" class="ctrl-input" readonly />
               <p class="field-hint">Ngày chiếu không thể thay đổi khi chỉnh sửa lịch chiếu.</p>
             </div>
             <!-- Add mode: multi-date chip selector with validation indicators -->
@@ -191,7 +195,7 @@
                 </button>
               </div>
               <div v-if="form.dates.length > 0" class="selected-dates-summary">
-                {{ form.dates.length }} ngày đã chọn: {{ form.dates.slice(0,3).join(', ') }}{{ form.dates.length > 3 ? ' ...' : '' }}
+                {{ form.dates.length }} ngày đã chọn: {{ form.dates.slice(0,3).map(d => fmtDate(d)).join(', ') }}{{ form.dates.length > 3 ? ' ...' : '' }}
                 <button type="button" class="btn-clear-dates" @click="form.dates = []">Xóa tất cả</button>
               </div>
             </div>
@@ -252,13 +256,13 @@
           <div v-if="batchResult" class="batch-result">
             <p v-if="batchResult.totalSucceeded > 0" class="batch-ok">
               ✅ Tạo thành công {{ batchResult.totalSucceeded }}/{{ batchResult.totalRequested }} suất:
-              {{ batchResult.succeeded.map(s => s.date + (s.startTime ? ' ' + s.startTime : '')).slice(0,4).join(', ') }}{{ batchResult.succeeded.length > 4 ? ' ...' : '' }}
+              {{ batchResult.succeeded.map(s => fmtDate(s.date) + (s.startTime ? ' ' + s.startTime : '')).slice(0,4).join(', ') }}{{ batchResult.succeeded.length > 4 ? ' ...' : '' }}
             </p>
             <div v-if="batchResult.failed.length > 0" class="batch-fail">
               <p>❌ {{ batchResult.failed.length }} suất thất bại:</p>
               <ul>
                 <li v-for="f in batchResult.failed" :key="f.date + (f.startTime||'')">
-                  <strong>{{ f.date }}{{ f.startTime ? ' ' + f.startTime : '' }}</strong>: {{ f.reason }}
+                  <strong>{{ fmtDate(f.date) }}{{ f.startTime ? ' ' + f.startTime : '' }}</strong>: {{ f.reason }}
                 </li>
               </ul>
             </div>
@@ -359,6 +363,7 @@
 <script setup>
 import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
 import { useAdminShellStore } from '@/stores/adminShellStore'
+import { fmtDate } from '@/utils/dateFmt'
 
 const shell = useAdminShellStore()
 import api from '@/services/api'
@@ -662,10 +667,6 @@ const groupedByPhong = computed(() => {
   return groups
 })
 
-function fmtDate(dt) {
-  if (!dt) return '—'
-  return new Date(dt).toLocaleDateString('vi-VN')
-}
 function fmtTime(dt) {
   if (!dt) return '—'
   const d = new Date(dt)
@@ -1105,9 +1106,23 @@ onMounted(() => {
 }
 .date-nav__arrow:hover { background: var(--admin-surface-hover); color: var(--admin-accent); }
 .date-nav__arrow:active { background: var(--admin-surface-hover); }
+.date-nav__field {
+  position: relative; display: flex; align-items: center; flex-shrink: 0; height: 38px; width: 160px; margin: 0;
+  border-left: 1px solid var(--admin-border); border-right: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
 .date-nav__input {
-  border: none !important; border-left: 1px solid var(--admin-border) !important;
-  border-right: 1px solid var(--admin-border) !important; border-radius: 0 !important;
-  height: 38px; min-height: unset; padding: 0 10px; margin: 0; width: 148px; flex-shrink: 0;
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  border: none !important; border-radius: 0 !important;
+  min-height: unset; padding: 0; margin: 0; opacity: 0; cursor: pointer; z-index: 1;
+}
+.date-nav__icon {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; color: var(--admin-text-muted, var(--admin-text)); z-index: 0;
+}
+.date-nav__display {
+  width: 100%; padding: 0 28px; text-align: center; color: var(--admin-text);
+  font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
 }
 </style>

@@ -81,18 +81,46 @@ public interface LichChieuRepository
             @Param("to")         LocalDateTime to);
 
     /**
-     * Returns min and max thoiGianBatDau per movie for efficient batch status computation.
-     * Each row: [phimId (Long), minDate (LocalDateTime), maxDate (LocalDateTime)]
-     * Used by PhimService.applyComputedStatus().
+     * Returns the next upcoming showtime (first non-deleted LichChieu with
+     * thoiGianBatDau >= now) for a given movie, ordered ascending.
+     * Used by PhimService to compute status via nextSession rule.
      */
-    @Query("SELECT lc.phim.id, MIN(lc.thoiGianBatDau), MAX(lc.thoiGianBatDau) " +
-           "FROM LichChieu lc WHERE lc.isDeleted = false " +
-           "GROUP BY lc.phim.id")
-    List<Object[]> findMinMaxThoiGianBatDauByPhim();
+    @Query("SELECT lc FROM LichChieu lc " +
+           "WHERE lc.isDeleted = false AND lc.phim.id = :phimId " +
+           "AND lc.thoiGianBatDau >= :now " +
+           "ORDER BY lc.thoiGianBatDau ASC")
+    List<LichChieu> findNextSessionByPhimId(
+            @Param("phimId") Long phimId,
+            @Param("now") LocalDateTime now);
 
     /**
-     * POS: today's not-yet-started showtimes for a given cinema, ordered by start time.
-     * Used by GET /api/staff/pos/lich-chieu?rapChieuId=X
+     * Returns the earliest showtime per movie (min thoiGianBatDau, non-deleted)
+     * for batch nextSession computation. Each row: [phimId (Long), firstSession (LocalDateTime)]
+     * Used by PhimService.applyComputedStatus().
+     */
+    @Query("SELECT lc.phim.id, MIN(lc.thoiGianBatDau) " +
+           "FROM LichChieu lc WHERE lc.isDeleted = false " +
+           "GROUP BY lc.phim.id")
+    List<Object[]> findEarliestSessionByPhim();
+
+    /**
+     * Returns the start-times (ascending) of non-deleted showtimes for a given
+     * movie within [from, to). Used by the available-dates endpoint: distinct
+     * dates are derived in Java to avoid DB-specific date-casting functions.
+     */
+    @Query("SELECT lc.thoiGianBatDau FROM LichChieu lc " +
+           "WHERE lc.isDeleted = false AND lc.phim.id = :phimId " +
+           "AND lc.thoiGianBatDau >= :from AND lc.thoiGianBatDau < :to " +
+           "ORDER BY lc.thoiGianBatDau ASC")
+    List<LocalDateTime> findTimesInRange(
+            @Param("phimId") Long phimId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    /**
+     * POS: saleable showtimes for a given cinema within [from, to), ordered by start time.
+     * `from` is provided as now-minus-15m by the controller so already-expired
+     * showtimes are hidden from the staff drop-down. Used by GET /api/staff/pos/lich-chieu.
      */
     @Query("""
            SELECT lc FROM LichChieu lc
@@ -106,7 +134,7 @@ public interface LichChieuRepository
              AND lc.thoiGianBatDau <  :to
            ORDER BY lc.thoiGianBatDau ASC
            """)
-    List<LichChieu> findTodayByRapChieuId(
+    List<LichChieu> findPosByRapChieuId(
             @Param("rapChieuId") Long rapChieuId,
             @Param("from")       LocalDateTime from,
             @Param("to")         LocalDateTime to);

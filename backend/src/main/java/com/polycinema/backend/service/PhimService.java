@@ -33,50 +33,62 @@ public class PhimService {
     private final NguoiDungRepository nguoiDungRepository;
     private final BannerRepository bannerRepository;
 
-    // ── Computed status rules (compare DATE only, never time) ──────────────
-    // chua_chieu   — no showtimes at all
-    // sap_chieu    — has showtimes, ALL dates in the future (min > today)
-    // dang_chieu   — has showtimes, min <= today AND max >= today
-    // da_ket_thuc  — has showtimes, ALL dates in the past (max < today)
+    // ── Computed status rules (nextSession-based, 30-day threshold) ─────────
+    // no showtimes at all (or only past)  → da_ket_thuc
+    // nextSession is >= 30 days away      → sap_chieu
+    // nextSession is <  30 days away      → dang_chieu
 
-    /** Compute status from min/max showtime date for a single movie. */
-    public static String computeStatus(LocalDateTime minDt, LocalDateTime maxDt) {
-        if (minDt == null) return "chua_chieu";
+    /**
+     * Compute status from the next upcoming showtime.
+     * @param nextSession the earliest future showtime (thoiGianBatDau >= now), or null
+     * @return one of: "da_ket_thuc", "sap_chieu", "dang_chieu"
+     */
+    public static String computeStatus(LocalDateTime nextSession) {
+        if (nextSession == null) return "da_ket_thuc";
         LocalDate today = LocalDate.now();
-        LocalDate minDate = minDt.toLocalDate();
-        LocalDate maxDate = maxDt.toLocalDate();
-        if (minDate.isAfter(today))  return "sap_chieu";
-        if (maxDate.isBefore(today)) return "da_ket_thuc";
-        return "dang_chieu";
+        LocalDate nextDate = nextSession.toLocalDate();
+        if (nextDate.isBefore(today.plusDays(30))) return "dang_chieu";
+        return "sap_chieu";
     }
 
     /**
      * Apply computed trangThai to every movie in the list using ONE grouped query.
+     * Uses the earliest future showtime per movie (nextSession rule).
      * Modifies each Phim object in-place (does NOT persist — read-time decoration only).
      */
     public void applyComputedStatus(List<Phim> movies) {
         if (movies == null || movies.isEmpty()) return;
-        List<Object[]> rows = lichChieuRepository.findMinMaxThoiGianBatDauByPhim();
-        // Build a map: phimId → [minDt, maxDt]
-        Map<Long, LocalDateTime[]> minMax = new HashMap<>();
+        List<Object[]> rows = lichChieuRepository.findEarliestSessionByPhim();
+        // Build a map: phimId → firstSession (earliest showtime, possibly in the past)
+        Map<Long, LocalDateTime> earliest = new HashMap<>();
         for (Object[] row : rows) {
             Long phimId = ((Number) row[0]).longValue();
-            LocalDateTime minDt = (LocalDateTime) row[1];
-            LocalDateTime maxDt = (LocalDateTime) row[2];
-            minMax.put(phimId, new LocalDateTime[]{minDt, maxDt});
+            LocalDateTime firstSession = (LocalDateTime) row[1];
+            earliest.put(phimId, firstSession);
         }
+        LocalDateTime now = LocalDateTime.now();
         for (Phim p : movies) {
-            LocalDateTime[] mm = minMax.get(p.getId());
-            p.setTrangThai(mm != null
-                    ? computeStatus(mm[0], mm[1])
-                    : "chua_chieu");
+            Long id = p.getId();
+            LocalDateTime firstSession = earliest.get(id);
+            // If the earliest showtime is in the past, we need the next future one
+            if (firstSession != null && firstSession.isBefore(now)) {
+                // Batch approach: for past-only movies, fetch next future session individually
+                List<LichChieu> next = lichChieuRepository.findNextSessionByPhimId(id, now);
+                LocalDateTime nextSession = next.isEmpty() ? null : next.get(0).getThoiGianBatDau();
+                p.setTrangThai(computeStatus(nextSession));
+            } else {
+                p.setTrangThai(computeStatus(firstSession));
+            }
         }
     }
 
     /** Single-movie variant */
     public void applyComputedStatus(Phim phim) {
         if (phim == null) return;
-        applyComputedStatus(java.util.List.of(phim));
+        LocalDateTime now = LocalDateTime.now();
+        List<LichChieu> next = lichChieuRepository.findNextSessionByPhimId(phim.getId(), now);
+        LocalDateTime nextSession = next.isEmpty() ? null : next.get(0).getThoiGianBatDau();
+        phim.setTrangThai(computeStatus(nextSession));
     }
 
     public List<Phim> getDangChieu() {
